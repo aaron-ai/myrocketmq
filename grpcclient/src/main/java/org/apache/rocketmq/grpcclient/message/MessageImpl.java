@@ -15,25 +15,50 @@
  * limitations under the License.
  */
 
-package org.apache.rocketmq.apis.exception;
+package org.apache.rocketmq.grpcclient.message;
 
 import org.apache.rocketmq.apis.message.Message;
-import org.apache.rocketmq.apis.producer.Producer;
 
-/**
- * The difference between {@link AuthenticationException} and {@link AuthorisationException} is that
- * {@link AuthorisationException} here means current users don't have permission to do current operation.
- *
- * <p>For example, current user is forbidden to send message to this topic, {@link AuthorisationException} will be
- * thrown in {@link Producer#send(Message)}.
- */
-public class AuthorisationException extends ClientException {
-    public AuthorisationException(ErrorCode code, String message, String requestId) {
-        super(code, message);
-        putMetadata(REQUEST_ID_KEY, requestId);
+import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
+
+public class MessageImpl implements Message {
+    public MessageImpl() {
     }
 
-    public AuthorisationException(ErrorCode code, String message) {
-        super(code, message);
+    @Override
+    public String getTopic() {
+        return null;
+    }
+
+    @Override
+    public byte[] getBody() {
+        return new byte[0];
+    }
+
+    @Override
+    public Map<String, String> getProperties() {
+        return null;
+    }
+
+    @Override
+    public Optional<String> getTag() {
+        return Optional.empty();
+    }
+
+    @Override
+    public Collection<String> getKeys() {
+        return null;
+    }
+
+    @Override
+    public Optional<String> getMessageGroup() {
+        return Optional.empty();
+    }
+
+    @Override
+    public Optional<Long> getDeliveryTimestamp() {
+        return Optional.empty();
     }
 }

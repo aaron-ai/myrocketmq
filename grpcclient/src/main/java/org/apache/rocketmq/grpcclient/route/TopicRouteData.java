@@ -1,0 +1,99 @@
+package org.apache.rocketmq.grpcclient.route;
+
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
+import com.google.common.collect.ImmutableList;
+import com.google.common.math.IntMath;
+import io.github.aliyunmq.shaded.org.slf4j.Logger;
+import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
+import org.apache.commons.lang3.RandomUtils;
+import org.apache.rocketmq.apis.exception.ErrorCode;
+import org.apache.rocketmq.apis.exception.ResourceNotFoundException;
+
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.atomic.AtomicInteger;
+
+public class TopicRouteData {
+    public static final TopicRouteData EMPTY =
+            new TopicRouteData(Collections.<apache.rocketmq.v1.Partition>emptyList());
+
+    private static final Logger log = LoggerFactory.getLogger(TopicRouteData.class);
+
+    private final AtomicInteger index;
+    /**
+     * Partitions of topic route
+     */
+    private final ImmutableList<Partition> partitions;
+
+    /**
+     * Construct topic route by partition list.
+     *
+     * @param partitionList partition list, should never be empty.
+     */
+    public TopicRouteData(List<apache.rocketmq.v1.Partition> partitionList) {
+        this.index = new AtomicInteger(RandomUtils.nextInt(0, Integer.MAX_VALUE));
+        final ImmutableList.Builder<Partition> builder = ImmutableList.builder();
+        for (apache.rocketmq.v1.Partition partition : partitionList) {
+            builder.add(new Partition(partition));
+        }
+        this.partitions = builder.build();
+    }
+
+    public Set<Endpoints> allEndpoints() {
+        Set<Endpoints> endpointsSet = new HashSet<Endpoints>();
+        for (Partition partition : partitions) {
+            endpointsSet.add(partition.getBroker().getEndpoints());
+        }
+        return endpointsSet;
+    }
+
+    public List<Partition> getPartitions() {
+        return this.partitions;
+    }
+
+    public Endpoints pickEndpointsToQueryAssignments() throws ResourceNotFoundException {
+        int nextIndex = index.getAndIncrement();
+        for (int i = 0; i < partitions.size(); i++) {
+            final Partition partition = partitions.get(IntMath.mod(nextIndex++, partitions.size()));
+            final Broker broker = partition.getBroker();
+            // TODO: polish magic code here.
+            if (0 != broker.getId()) {
+                continue;
+            }
+            if (Permission.NONE == partition.getPermission()) {
+                continue;
+            }
+            return broker.getEndpoints();
+        }
+        log.error("No available endpoints, topicRouteData={}", this);
+        throw new ResourceNotFoundException(ErrorCode.NO_ENDPOINTS_TO_QUERY_ASSIGNMENT, "No available endpoints to " +
+                "pick for query assignments");
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        TopicRouteData that = (TopicRouteData) o;
+        return Objects.equal(partitions, that.partitions);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(partitions);
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                .add("partitions", partitions)
+                .toString();
+    }
+}

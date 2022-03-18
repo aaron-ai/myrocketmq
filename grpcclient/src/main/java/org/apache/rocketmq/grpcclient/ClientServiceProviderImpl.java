@@ -15,15 +15,22 @@
  * limitations under the License.
  */
 
-package org.apache.rocketmq.apis.exception;
+package org.apache.rocketmq.grpcclient;
 
-public class ResourceNotFoundException extends ClientException {
-    public ResourceNotFoundException(ErrorCode code, String message, String requestId) {
-        super(code, message);
-        putMetadata(REQUEST_ID_KEY, requestId);
+import org.apache.rocketmq.apis.ClientServiceProvider;
+import org.apache.rocketmq.apis.message.MessageBuilder;
+import org.apache.rocketmq.apis.producer.ProducerBuilder;
+import org.apache.rocketmq.grpcclient.message.MessageBuilderImpl;
+import org.apache.rocketmq.grpcclient.producer.ProducerBuilderImpl;
+
+public class ClientServiceProviderImpl implements ClientServiceProvider {
+    @Override
+    public ProducerBuilder newProducerBuilder() {
+        return new ProducerBuilderImpl();
     }
 
-    public ResourceNotFoundException(ErrorCode code, String message) {
-        super(code, message);
+    @Override
+    public MessageBuilder newMessageBuilder() {
+        return new MessageBuilderImpl();
     }
 }
