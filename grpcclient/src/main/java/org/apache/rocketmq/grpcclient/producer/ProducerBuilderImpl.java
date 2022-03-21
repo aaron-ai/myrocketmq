@@ -72,8 +72,12 @@ public class ProducerBuilderImpl implements ProducerBuilder {
         return this;
     }
 
+    @SuppressWarnings("UnstableApiUsage")
     @Override
-    public Producer build() throws ClientException {
-        return new ProducerImpl(clientConfiguration, topics, asyncThreadCount, retryPolicy, checker);
+    public Producer build() {
+        final ProducerImpl producer = new ProducerImpl(clientConfiguration, topics, asyncThreadCount, retryPolicy,
+                checker);
+        producer.startAsync().awaitRunning();
+        return producer;
     }
 }
