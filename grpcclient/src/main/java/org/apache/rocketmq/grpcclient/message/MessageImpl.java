@@ -62,7 +62,7 @@ class MessageImpl implements Message {
      */
     @Override
     public byte[] getBody() {
-        return body;
+        return body.clone();
     }
 
     /**
