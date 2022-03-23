@@ -21,6 +21,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 import com.google.common.base.MoreObjects;
+
 import java.time.Duration;
 import java.util.Random;
 
@@ -39,12 +40,14 @@ public class BackoffRetryPolicy implements RetryPolicy {
     private final Duration maxBackoff;
     private final int backoffMultiplier;
 
+    /**
+     * The caller is supposed to have validated the arguments and handled throwing exception or
+     * logging warnings already, so we avoid repeating args check here.
+     */
     public BackoffRetryPolicy(int maxAttempts, Duration initialBackoff, Duration maxBackoff, int backoffMultiplier) {
-        checkArgument(maxBackoff.compareTo(initialBackoff) <= 0, "initialBackoff should not be minor than maxBackoff");
-        checkArgument(maxAttempts > 0, "maxAttempts must be positive");
         this.random = new Random();
         this.maxAttempts = maxAttempts;
-        this.initialBackoff = checkNotNull(initialBackoff, "initialBackoff should not be null");
+        this.initialBackoff = initialBackoff;
         this.maxBackoff = maxBackoff;
         this.backoffMultiplier = backoffMultiplier;
     }

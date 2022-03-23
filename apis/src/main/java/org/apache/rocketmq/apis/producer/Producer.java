@@ -45,6 +45,8 @@ public interface Producer extends Closeable {
     /**
      * Sends a transactional message synchronously.
      *
+     * <p>This method applies the {@link org.apache.rocketmq.apis.retry.BackoffRetryPolicy} to do the internal retries.
+     *
      * @param message     message to send.
      * @param transaction transaction to bind.
      * @return send receipt.
@@ -56,6 +58,8 @@ public interface Producer extends Closeable {
      *
      * <p>This method returns immediately, the result is included in the {@link CompletableFuture};
      *
+     * <p>This method applies the {@link org.apache.rocketmq.apis.retry.BackoffRetryPolicy} to do the internal retries.
+     *
      * @param message message to send.
      * @return a future that indicates send receipt.
      */
@@ -66,7 +70,8 @@ public interface Producer extends Closeable {
      *
      * <p>This method does not return until it gets the definitive result.
      *
-     * <p>All messages to send should have the same topic.
+     * <p>All messages to send should have the same topic, this method applies the
+     * {@link org.apache.rocketmq.apis.retry.BackoffRetryPolicy} to do the internal retries.
      *
      * @param messages batch messages to send.
      * @return collection indicates send receipt.
@@ -90,7 +95,7 @@ public interface Producer extends Closeable {
     Transaction beginTransaction() throws ClientException;
 
     /**
-     * Close the producer and release all related resources.
+     * Closes the producer and release all related resources.
      *
      * <p>This method does not return until all related resource is released. Once producer is closed, <strong>it could
      * not be started once again.</strong> we maintained an FSM (finite-state machine) to record the different states

@@ -20,9 +20,6 @@ package org.apache.rocketmq.grpcclient.message;
 import com.google.common.base.Objects;
 import org.apache.rocketmq.apis.message.MessageId;
 
-import javax.annotation.concurrent.Immutable;
-
-@Immutable
 public class MessageIdImpl implements MessageId {
 
     private final String version;
@@ -33,11 +30,17 @@ public class MessageIdImpl implements MessageId {
         this.suffix = suffix;
     }
 
+    /**
+     * See {@link MessageId#getVersion()}
+     */
     @Override
     public String getVersion() {
         return version;
     }
 
+    /**
+     * See {@link MessageId#toString()}
+     */
     @Override
     public String toString() {
         return version + suffix;

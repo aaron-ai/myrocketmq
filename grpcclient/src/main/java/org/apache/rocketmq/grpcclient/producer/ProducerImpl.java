@@ -89,6 +89,9 @@ public class ProducerImpl extends ClientImpl implements Producer {
         LOGGER.info("Shutdown the rocketmq producer successfully, clientId={}", clientId);
     }
 
+    /**
+     * @see Producer#send(Message)
+     */
     @Override
     public SendReceipt send(Message message) throws ClientException {
         final CompletableFuture<SendReceipt> future = sendAsync(message);
@@ -100,11 +103,17 @@ public class ProducerImpl extends ClientImpl implements Producer {
         }
     }
 
+    /**
+     * @see Producer#send(Message, Transaction)
+     */
     @Override
     public SendReceipt send(Message message, Transaction transaction) throws ClientException {
         return null;
     }
 
+    /**
+     * @see Producer#sendAsync(Message)
+     */
     @Override
     public CompletableFuture<SendReceipt> sendAsync(Message message) {
         return null;
@@ -115,11 +124,17 @@ public class ProducerImpl extends ClientImpl implements Producer {
         return null;
     }
 
+    /**
+     * @see Producer#send(List)
+     */
     @Override
     public List<SendReceipt> send(List<Message> messages) throws ClientException {
         return null;
     }
 
+    /**
+     * @see Producer#beginTransaction()
+     */
     @Override
     public Transaction beginTransaction() throws ClientException {
         return null;

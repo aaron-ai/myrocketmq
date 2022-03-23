@@ -17,8 +17,6 @@
 
 package org.apache.rocketmq.apis;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import java.time.Duration;
 
 /**

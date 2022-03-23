@@ -25,9 +25,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
 class MessageImpl implements Message {
     private final String topic;
     private final byte[] body;
@@ -53,7 +50,7 @@ class MessageImpl implements Message {
     }
 
     /**
-     * See {@link Message#getTopic()}
+     * @see Message#getTopic()
      */
     @Override
     public String getTopic() {
@@ -61,7 +58,7 @@ class MessageImpl implements Message {
     }
 
     /**
-     * See {@link Message#getBody()}
+     * @see Message#getBody()
      */
     @Override
     public byte[] getBody() {
@@ -69,7 +66,7 @@ class MessageImpl implements Message {
     }
 
     /**
-     * See {@link Message#getProperties()}
+     * @see Message#getProperties()
      */
     @Override
     public Map<String, String> getProperties() {
@@ -77,23 +74,32 @@ class MessageImpl implements Message {
     }
 
     /**
-     * See {@link Message#getTag()}
+     * @see Message#getTag()
      */
     @Override
     public Optional<String> getTag() {
         return null == tag ? Optional.empty() : Optional.of(tag);
     }
 
+    /**
+     * @see Message#getKeys()
+     */
     @Override
     public Collection<String> getKeys() {
         return new ArrayList<>(keys);
     }
 
+    /**
+     * @see Message#getDeliveryTimestamp()
+     */
     @Override
     public Optional<Long> getDeliveryTimestamp() {
         return null == deliveryTimestamp ? Optional.empty() : Optional.of(deliveryTimestamp);
     }
 
+    /**
+     * @see Message#getMessageGroup()
+     */
     @Override
     public Optional<String> getMessageGroup() {
         return null == messageGroup ? Optional.empty() : Optional.of(messageGroup);
