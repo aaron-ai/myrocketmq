@@ -15,15 +15,32 @@
  * limitations under the License.
  */
 
-package org.apache.rocketmq.apis.message;
+package org.apache.rocketmq.grpcclient.message;
 
-public enum MessageIdVersion {
-    /**
-     * V0 version, whose length is 32.
-     */
-    V0,
-    /**
-     * V1 version, whose length is 34 and begins with "01".
-     */
-    V1
+import org.apache.rocketmq.apis.MessageQueue;
+import org.apache.rocketmq.grpcclient.route.Partition;
+
+public class MessageQueueImpl implements MessageQueue {
+    private final String topic;
+    private final String brokerName;
+    private final int queueId;
+
+    private final transient Partition partition;
+
+    public MessageQueueImpl(Partition partition) {
+        this.topic = partition.getTopicResource().getName();
+        this.brokerName = partition.getBroker().getName();
+        this.queueId = partition.getId();
+        this.partition = partition;
+    }
+
+    @Override
+    public String getTopic() {
+        return null;
+    }
+
+    @Override
+    public String getId() {
+        return null;
+    }
 }

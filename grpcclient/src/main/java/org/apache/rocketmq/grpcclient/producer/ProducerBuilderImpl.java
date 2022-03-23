@@ -18,7 +18,6 @@
 package org.apache.rocketmq.grpcclient.producer;
 
 import org.apache.rocketmq.apis.ClientConfiguration;
-import org.apache.rocketmq.apis.exception.ClientException;
 import org.apache.rocketmq.apis.producer.Producer;
 import org.apache.rocketmq.apis.producer.ProducerBuilder;
 import org.apache.rocketmq.apis.producer.TransactionChecker;
@@ -54,8 +53,8 @@ public class ProducerBuilderImpl implements ProducerBuilder {
     }
 
     @Override
-    public ProducerBuilder setAsyncThreadCount(int count) {
-        checkArgument(count > 0, "producer async thread count should be positive");
+    public ProducerBuilder setSendAsyncThreadCount(int count) {
+        checkArgument(count > 0, "producer send async thread count should be positive");
         this.asyncThreadCount = count;
         return this;
     }
@@ -75,6 +74,9 @@ public class ProducerBuilderImpl implements ProducerBuilder {
     @SuppressWarnings("UnstableApiUsage")
     @Override
     public Producer build() {
+        checkNotNull(topics, "topics should not be null");
+        checkNotNull(retryPolicy, "retryPolicy should not be null");
+        checkNotNull(checker, "checker should not be null");
         final ProducerImpl producer = new ProducerImpl(clientConfiguration, topics, asyncThreadCount, retryPolicy,
                 checker);
         producer.startAsync().awaitRunning();

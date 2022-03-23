@@ -15,35 +15,32 @@
  * limitations under the License.
  */
 
-package org.apache.rocketmq.grpcclient.route;
+package org.apache.rocketmq.grpcclient.message;
 
-import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
+import org.apache.rocketmq.apis.message.MessageId;
 
 import javax.annotation.concurrent.Immutable;
 
 @Immutable
-public class Broker {
-    private final String name;
-    private final int id;
-    private final Endpoints endpoints;
+public class MessageIdImpl implements MessageId {
 
-    public Broker(String name, int id, Endpoints endpoints) {
-        this.name = name;
-        this.id = id;
-        this.endpoints = endpoints;
+    private final String version;
+    private final String suffix;
+
+    public MessageIdImpl(String version, String suffix) {
+        this.version = version;
+        this.suffix = suffix;
     }
 
-    public String getName() {
-        return this.name;
+    @Override
+    public String getVersion() {
+        return version;
     }
 
-    public int getId() {
-        return this.id;
-    }
-
-    public Endpoints getEndpoints() {
-        return this.endpoints;
+    @Override
+    public String toString() {
+        return version + suffix;
     }
 
     @Override
@@ -54,21 +51,12 @@ public class Broker {
         if (o == null || getClass() != o.getClass()) {
             return false;
         }
-        Broker broker = (Broker) o;
-        return id == broker.id && Objects.equal(name, broker.name) && Objects.equal(endpoints, broker.endpoints);
+        MessageIdImpl messageId = (MessageIdImpl) o;
+        return Objects.equal(version, messageId.version) && Objects.equal(suffix, messageId.suffix);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(name, id, endpoints);
-    }
-
-    @Override
-    public String toString() {
-        return MoreObjects.toStringHelper(this)
-                .add("name", name)
-                .add("id", id)
-                .add("endpoints", endpoints)
-                .toString();
+        return Objects.hashCode(version, suffix);
     }
 }

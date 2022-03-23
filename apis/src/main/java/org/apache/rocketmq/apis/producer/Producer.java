@@ -20,6 +20,7 @@ package org.apache.rocketmq.apis.producer;
 import java.io.Closeable;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+
 import org.apache.rocketmq.apis.exception.ClientException;
 import org.apache.rocketmq.apis.message.Message;
 
@@ -37,6 +38,7 @@ public interface Producer extends Closeable {
      * <p>This method does not return until it gets the definitive result.
      *
      * @param message message to send.
+     * @return send receipt.
      */
     SendReceipt send(Message message) throws ClientException;
 
@@ -45,7 +47,7 @@ public interface Producer extends Closeable {
      *
      * @param message     message to send.
      * @param transaction transaction to bind.
-     * @return the message id assigned to the appointed message.
+     * @return send receipt.
      */
     SendReceipt send(Message message, Transaction transaction) throws ClientException;
 
@@ -55,7 +57,7 @@ public interface Producer extends Closeable {
      * <p>This method returns immediately, the result is included in the {@link CompletableFuture};
      *
      * @param message message to send.
-     * @return a future that indicates the result.
+     * @return a future that indicates send receipt.
      */
     CompletableFuture<SendReceipt> sendAsync(Message message);
 
@@ -67,8 +69,7 @@ public interface Producer extends Closeable {
      * <p>All messages to send should have the same topic.
      *
      * @param messages batch messages to send.
-     * @return collection indicates the message id assigned to the appointed message, which keep the same order
-     * messages collection.
+     * @return collection indicates send receipt.
      */
     List<SendReceipt> send(List<Message> messages) throws ClientException;
 

@@ -15,41 +15,29 @@
  * limitations under the License.
  */
 
-package org.apache.rocketmq.grpcclient.route;
+package org.apache.rocketmq.grpcclient.utility;
 
-public enum AddressScheme {
-    /**
-     * Scheme for domain name.
-     */
-    DOMAIN_NAME(""),
-    /**
-     * Scheme for ipv4 address.
-     */
-    IPv4("ipv4:"),
-    /**
-     * Scheme for ipv6 address.
-     */
-    IPv6("ipv6:");
+import apache.rocketmq.v1.ReceiveMessageRequest;
 
-    private final String prefix;
+public class MixAll {
+    public static final String DEFAULT_CHARSET = "UTF-8";
+    public static final String MESSAGE_KEY_SEPARATOR = " ";
+    @SuppressWarnings("HttpUrlsUsage")
+    public static final String HTTP_PREFIX = "http://";
+    public static final String HTTPS_PREFIX = "https://";
 
-    AddressScheme(String prefix) {
-        this.prefix = prefix;
+    public static final int MASTER_BROKER_ID = 0;
+
+    private static String PROTOCOL_VERSION = null;
+
+    private MixAll() {
     }
 
-    public String getPrefix() {
-        return this.prefix;
-    }
-
-    public apache.rocketmq.v1.AddressScheme toAddressScheme() {
-        switch (this) {
-            case IPv4:
-                return apache.rocketmq.v1.AddressScheme.IPv4;
-            case IPv6:
-                return apache.rocketmq.v1.AddressScheme.IPv6;
-            case DOMAIN_NAME:
-            default:
-                return apache.rocketmq.v1.AddressScheme.DOMAIN_NAME;
+    public static String getProtocolVersion() {
+        if (null != PROTOCOL_VERSION) {
+            return PROTOCOL_VERSION;
         }
+        PROTOCOL_VERSION = ReceiveMessageRequest.class.getName().split("\\.")[2];
+        return PROTOCOL_VERSION;
     }
 }

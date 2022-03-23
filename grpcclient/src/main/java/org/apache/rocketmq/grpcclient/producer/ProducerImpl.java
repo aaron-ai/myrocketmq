@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.rocketmq.grpcclient.producer;
 
 import java.util.List;
@@ -8,6 +25,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.util.concurrent.ListenableFuture;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import org.apache.rocketmq.apis.ClientConfiguration;
@@ -22,30 +40,32 @@ import org.apache.rocketmq.grpcclient.impl.ClientImpl;
 import org.apache.rocketmq.grpcclient.utility.ExecutorServices;
 import org.apache.rocketmq.grpcclient.utility.ThreadFactoryImpl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 @SuppressWarnings("UnstableApiUsage")
 public class ProducerImpl extends ClientImpl implements Producer {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProducerImpl.class);
 
     private final Set<String> topics;
-    private final int asyncThreadCount;
+    private final int sendAsyncThreadCount;
     private final BackoffRetryPolicy retryPolicy;
     private final TransactionChecker checker;
 
     private final ExecutorService sendAsyncExecutor;
 
-    public ProducerImpl(ClientConfiguration clientConfiguration, Set<String> topics, int asyncThreadCount,
-                        BackoffRetryPolicy retryPolicy, TransactionChecker checker) {
+    /**
+     * The caller is supposed to have validated the arguments and handled throwing exception or
+     * logging warnings already, so we avoid repeating args check here.
+     */
+    ProducerImpl(ClientConfiguration clientConfiguration, Set<String> topics, int sendAsyncThreadCount,
+                 BackoffRetryPolicy retryPolicy, TransactionChecker checker) {
         super(clientConfiguration);
-        this.topics = checkNotNull(topics, "topics should not be null");
-        this.asyncThreadCount = asyncThreadCount;
-        this.retryPolicy = checkNotNull(retryPolicy, "retryPolicy should not be null");
+        this.topics = topics;
+        this.sendAsyncThreadCount = sendAsyncThreadCount;
+        this.retryPolicy = retryPolicy;
         this.checker = checker;
 
         this.sendAsyncExecutor = new ThreadPoolExecutor(
-                asyncThreadCount,
-                asyncThreadCount,
+                sendAsyncThreadCount,
+                sendAsyncThreadCount,
                 60,
                 TimeUnit.SECONDS,
                 new LinkedBlockingQueue<>(),
@@ -54,19 +74,19 @@ public class ProducerImpl extends ClientImpl implements Producer {
 
     @Override
     protected void startUp() {
-        LOGGER.info("Begin to start the rocketmq producer, clientId={}", id);
+        LOGGER.info("Begin to start the rocketmq producer, clientId={}", clientId);
         super.startUp();
-        LOGGER.info("The rocketmq producer starts successfully, clientId={}", id);
+        LOGGER.info("The rocketmq producer starts successfully, clientId={}", clientId);
     }
 
     @Override
     protected void shutDown() throws InterruptedException {
-        LOGGER.info("Begin to shutdown the rocketmq producer, clientId={}", id);
+        LOGGER.info("Begin to shutdown the rocketmq producer, clientId={}", clientId);
         super.shutDown();
         if (!ExecutorServices.awaitTerminated(sendAsyncExecutor)) {
-            LOGGER.error("[Bug] Failed to shutdown default send async executor, clientId={}", id);
+            LOGGER.error("[Bug] Failed to shutdown default send async executor, clientId={}", clientId);
         }
-        LOGGER.info("Shutdown the rocketmq producer successfully, clientId={}", id);
+        LOGGER.info("Shutdown the rocketmq producer successfully, clientId={}", clientId);
     }
 
     @Override
@@ -87,6 +107,11 @@ public class ProducerImpl extends ClientImpl implements Producer {
 
     @Override
     public CompletableFuture<SendReceipt> sendAsync(Message message) {
+        return null;
+    }
+
+    private ListenableFuture<SendReceipt> send0(final Message message) {
+        topics.add(message.getTopic());
         return null;
     }
 

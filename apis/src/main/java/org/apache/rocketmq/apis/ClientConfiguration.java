@@ -34,12 +34,15 @@ public class ClientConfiguration {
         return new ClientConfigurationBuilder();
     }
 
-    public ClientConfiguration(String endpoints, SessionCredentialsProvider sessionCredentialsProvider,
-        Duration requestTimeout, boolean enableTracing) {
-        this.endpoints = checkNotNull(endpoints, "endpoints should not be null");
-        this.sessionCredentialsProvider = checkNotNull(sessionCredentialsProvider, "credentialsProvider should not be"
-            + " null");
-        this.requestTimeout = checkNotNull(requestTimeout, "requestTimeout should be not null");
+    /**
+     * The caller is supposed to have validated the arguments and handled throwing exception or
+     * logging warnings already, so we avoid repeating args check here.
+     */
+    ClientConfiguration(String endpoints, SessionCredentialsProvider sessionCredentialsProvider,
+                        Duration requestTimeout, boolean enableTracing) {
+        this.endpoints = endpoints;
+        this.sessionCredentialsProvider = sessionCredentialsProvider;
+        this.requestTimeout = requestTimeout;
         this.enableTracing = enableTracing;
     }
 

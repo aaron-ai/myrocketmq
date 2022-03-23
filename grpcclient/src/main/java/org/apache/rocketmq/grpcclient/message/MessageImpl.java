@@ -19,46 +19,83 @@ package org.apache.rocketmq.grpcclient.message;
 
 import org.apache.rocketmq.apis.message.Message;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-public class MessageImpl implements Message {
-    public MessageImpl() {
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
+
+class MessageImpl implements Message {
+    private final String topic;
+    private final byte[] body;
+    private final String tag;
+    private final String messageGroup;
+    private final Long deliveryTimestamp;
+    private final Collection<String> keys;
+    private final Map<String, String> properties;
+
+    /**
+     * The caller is supposed to have validated the arguments and handled throwing exception or
+     * logging warnings already, so we avoid repeating args check here.
+     */
+    MessageImpl(String topic, byte[] body, String tag, Collection<String> keys, String messageGroup,
+                Long deliveryTimestamp, Map<String, String> properties) {
+        this.topic = topic;
+        this.body = body;
+        this.tag = tag;
+        this.messageGroup = messageGroup;
+        this.deliveryTimestamp = deliveryTimestamp;
+        this.keys = keys;
+        this.properties = properties;
     }
 
+    /**
+     * See {@link Message#getTopic()}
+     */
     @Override
     public String getTopic() {
-        return null;
+        return topic;
     }
 
+    /**
+     * See {@link Message#getBody()}
+     */
     @Override
     public byte[] getBody() {
-        return new byte[0];
+        return body;
     }
 
+    /**
+     * See {@link Message#getProperties()}
+     */
     @Override
     public Map<String, String> getProperties() {
-        return null;
+        return new HashMap<>(properties);
     }
 
+    /**
+     * See {@link Message#getTag()}
+     */
     @Override
     public Optional<String> getTag() {
-        return Optional.empty();
+        return null == tag ? Optional.empty() : Optional.of(tag);
     }
 
     @Override
     public Collection<String> getKeys() {
-        return null;
-    }
-
-    @Override
-    public Optional<String> getMessageGroup() {
-        return Optional.empty();
+        return new ArrayList<>(keys);
     }
 
     @Override
     public Optional<Long> getDeliveryTimestamp() {
-        return Optional.empty();
+        return null == deliveryTimestamp ? Optional.empty() : Optional.of(deliveryTimestamp);
+    }
+
+    @Override
+    public Optional<String> getMessageGroup() {
+        return null == messageGroup ? Optional.empty() : Optional.of(messageGroup);
     }
 }

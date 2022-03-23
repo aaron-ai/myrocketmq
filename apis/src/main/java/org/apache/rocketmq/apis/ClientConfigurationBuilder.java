@@ -51,22 +51,46 @@ public class ClientConfigurationBuilder {
     }
 
     public ClientConfigurationBuilder setCredentialProvider(SessionCredentialsProvider sessionCredentialsProvider) {
-        this.sessionCredentialsProvider = checkNotNull(sessionCredentialsProvider, "credentialsProvider should not be "
-            + "null");
+        this.sessionCredentialsProvider = checkNotNull(sessionCredentialsProvider, "credentialsProvider should not " +
+                "be null");
         return this;
     }
 
+    /**
+     * Configure request timeout for ordinary RPC.
+     *
+     * <p>Especially, request timeout here does not work when RPC is long-polling.
+     *
+     * @param requestTimeout RPC request timeout.
+     * @return the client configuration builder instance.
+     */
     public ClientConfigurationBuilder setRequestTimeout(Duration requestTimeout) {
         this.requestTimeout = checkNotNull(requestTimeout, "requestTimeout should not be not null");
         return this;
     }
 
+    /**
+     * Enable message tracing or not.
+     *
+     * <p>Tracing is enabled by default.
+     *
+     * @param enableTracing whether message tracing is enabled or not.
+     * @return the client configuration builder instance.
+     */
     public ClientConfigurationBuilder enableTracing(boolean enableTracing) {
         this.enableTracing = enableTracing;
         return this;
     }
 
+    /**
+     * Finalize the build of {@link ClientConfiguration}.
+     *
+     * @return the client configuration builder instance.
+     */
     public ClientConfiguration build() {
+        checkNotNull(endpoints, "endpoints should not be null");
+        checkNotNull(sessionCredentialsProvider, "sessionCredentialsProvider should not be null");
+        checkNotNull(requestTimeout, "requestTimeout should not be null");
         return new ClientConfiguration(endpoints, sessionCredentialsProvider, requestTimeout, enableTracing);
     }
 }

@@ -22,6 +22,8 @@ import org.apache.rocketmq.apis.exception.ClientException;
 import org.apache.rocketmq.apis.message.Message;
 import org.apache.rocketmq.apis.retry.BackoffRetryPolicy;
 
+import java.util.List;
+
 /**
  * Builder to config and start {@link Producer}.
  */
@@ -48,12 +50,16 @@ public interface ProducerBuilder {
     /**
      * Set the threads count for {@link Producer#sendAsync(Message)}.
      *
+     * <p>Threads count is equals to CPU core number by default.
+     *
      * @return the producer builder instance.
      */
-    ProducerBuilder setAsyncThreadCount(int count);
+    ProducerBuilder setSendAsyncThreadCount(int count);
 
     /**
      * Set the retry policy to send message.
+     *
+     * <p>Transactional message({@link Producer#send(Message, Transaction)}) doesn't apply retry policy.
      *
      * @param retryPolicy policy to re-send message when failure encountered.
      * @return the producer builder instance.
