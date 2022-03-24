@@ -33,7 +33,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public class MessageBuilderImpl implements MessageBuilder {
-    private static final Pattern TOPIC_PATTERN = Pattern.compile("^[%|a-zA-Z0-9._-]+$");
+    private static final Pattern TOPIC_PATTERN = Pattern.compile("^[%|a-zA-Z0-9._-]{1,127}$");
     private static final int MESSAGE_BODY_LENGTH_THRESHOLD = 1024 * 1024 * 4;
 
     private String topic = null;
@@ -53,7 +53,10 @@ public class MessageBuilderImpl implements MessageBuilder {
      */
     @Override
     public MessageBuilder setTopic(String topic) {
-        this.topic = checkNotNull(topic, "topic should not be null");
+        checkNotNull(topic, "topic should not be null");
+        checkArgument(TOPIC_PATTERN.matcher(topic).matches(), "topic does not match the regex [regex=%s]",
+                TOPIC_PATTERN.pattern());
+        this.topic = topic;
         return this;
     }
 
@@ -63,8 +66,8 @@ public class MessageBuilderImpl implements MessageBuilder {
     @Override
     public MessageBuilder setBody(byte[] body) {
         checkNotNull(body, "body should not be null");
-        checkArgument(body.length > MESSAGE_BODY_LENGTH_THRESHOLD, "message body length exceeds the threshold[%s " +
-                "bytes]", MESSAGE_BODY_LENGTH_THRESHOLD);
+        checkArgument(body.length <= MESSAGE_BODY_LENGTH_THRESHOLD, "message body length exceeds the threshold " +
+                "[threshold=%s bytes]", MESSAGE_BODY_LENGTH_THRESHOLD);
         this.body = body.clone();
         return this;
     }

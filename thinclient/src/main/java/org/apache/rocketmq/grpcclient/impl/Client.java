@@ -17,6 +17,8 @@
 
 package org.apache.rocketmq.grpcclient.impl;
 
+import org.apache.rocketmq.grpcclient.route.Endpoints;
+
 public interface Client {
     /**
      * Get the unique client identifier for each client.
@@ -26,12 +28,12 @@ public interface Client {
     String getClientId();
 
     /**
-     * Send heart beat to remote {@link org.apache.rocketmq.grpcclient.route.Endpoints}.
+     * Send heart beat to remote {@link Endpoints}.
      */
     void doHeartbeat();
 
     /**
-     * Check the status of remote {@link org.apache.rocketmq.grpcclient.route.Endpoints}.
+     * Check the status of remote {@link Endpoints}.
      */
     void doHealthCheck();
 

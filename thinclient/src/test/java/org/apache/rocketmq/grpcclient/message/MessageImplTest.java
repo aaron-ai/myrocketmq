@@ -30,6 +30,17 @@ public class MessageImplTest {
     private final String sampleTopic = "foobar";
     private final byte[] sampleBody = new byte[]{'f', 'o', 'o'};
 
+    @Test(expected = NullPointerException.class)
+    public void testTopicSetterWithNull() {
+        provider.newMessageBuilder().setTopic(null);
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testTopicSetterWithLengthEquals128() {
+        String topicWithLengthEquals128 = new String(new char[128]).replace("\0", "a");
+        provider.newMessageBuilder().setTopic(topicWithLengthEquals128);
+    }
+
     @Test
     public void testMessageBodySetterGetterImmutability() {
         byte[] body = sampleBody.clone();
