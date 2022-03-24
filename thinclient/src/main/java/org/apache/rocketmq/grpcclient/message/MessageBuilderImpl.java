@@ -17,6 +17,7 @@
 
 package org.apache.rocketmq.grpcclient.message;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.apis.message.Message;
 import org.apache.rocketmq.apis.message.MessageBuilder;
 
@@ -26,11 +27,15 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public class MessageBuilderImpl implements MessageBuilder {
+    private static final Pattern TOPIC_PATTERN = Pattern.compile("^[%|a-zA-Z0-9._-]+$");
+    private static final int MESSAGE_BODY_LENGTH_THRESHOLD = 1024 * 1024 * 4;
+
     private String topic = null;
     private byte[] body = null;
     private String tag = null;
@@ -58,6 +63,8 @@ public class MessageBuilderImpl implements MessageBuilder {
     @Override
     public MessageBuilder setBody(byte[] body) {
         checkNotNull(body, "body should not be null");
+        checkArgument(body.length > MESSAGE_BODY_LENGTH_THRESHOLD, "message body length exceeds the threshold[%s " +
+                "bytes]", MESSAGE_BODY_LENGTH_THRESHOLD);
         this.body = body.clone();
         return this;
     }
@@ -67,7 +74,7 @@ public class MessageBuilderImpl implements MessageBuilder {
      */
     @Override
     public MessageBuilder setTag(String tag) {
-        this.tag = checkNotNull(tag, "tag should not be null");
+        this.tag = checkNotNull(StringUtils.stripToNull(tag), "tag should not be null or just spaces");
         return this;
     }
 
@@ -76,7 +83,9 @@ public class MessageBuilderImpl implements MessageBuilder {
      */
     @Override
     public MessageBuilder setKeys(String... keys) {
-        checkNotNull(keys, "keys should not be null");
+        for (String key : keys) {
+            checkNotNull(StringUtils.stripToNull(key), "key should not be null or just spaces");
+        }
         this.keys = new ArrayList<>();
         this.keys.addAll(Arrays.asList(keys));
         return this;

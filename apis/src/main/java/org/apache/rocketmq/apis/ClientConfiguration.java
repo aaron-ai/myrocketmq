@@ -18,6 +18,7 @@
 package org.apache.rocketmq.apis;
 
 import java.time.Duration;
+import java.util.Optional;
 
 /**
  * Common client configuration.
@@ -48,8 +49,8 @@ public class ClientConfiguration {
         return endpoints;
     }
 
-    public SessionCredentialsProvider getCredentialsProvider() {
-        return sessionCredentialsProvider;
+    public Optional<SessionCredentialsProvider> tryGetCredentialsProvider() {
+        return null == sessionCredentialsProvider ? Optional.empty() : Optional.of(sessionCredentialsProvider);
     }
 
     public Duration getRequestTimeout() {

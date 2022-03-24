@@ -26,9 +26,9 @@ import java.time.Duration;
  */
 public class ClientConfigurationBuilder {
     private String endpoints;
-    private SessionCredentialsProvider sessionCredentialsProvider;
-    private Duration requestTimeout;
-    private boolean enableTracing;
+    private SessionCredentialsProvider sessionCredentialsProvider = null;
+    private Duration requestTimeout = Duration.ofSeconds(1);
+    private boolean enableTracing = true;
 
     /**
      * Configure the endpoints with which the SDK should communicate.
@@ -59,7 +59,7 @@ public class ClientConfigurationBuilder {
     /**
      * Configure request timeout for ordinary RPC.
      *
-     * <p>Especially, request timeout here does not work when RPC is long-polling.
+     * <p>request timeout is 1s by default. Especially, request timeout here does not work when RPC is long-polling.
      *
      * @param requestTimeout RPC request timeout.
      * @return the client configuration builder instance.
@@ -89,7 +89,6 @@ public class ClientConfigurationBuilder {
      */
     public ClientConfiguration build() {
         checkNotNull(endpoints, "endpoints should not be null");
-        checkNotNull(sessionCredentialsProvider, "sessionCredentialsProvider should not be null");
         checkNotNull(requestTimeout, "requestTimeout should not be null");
         return new ClientConfiguration(endpoints, sessionCredentialsProvider, requestTimeout, enableTracing);
     }

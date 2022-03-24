@@ -119,11 +119,6 @@ public class ProducerImpl extends ClientImpl implements Producer {
         return null;
     }
 
-    private ListenableFuture<SendReceipt> send0(final Message message) {
-        topics.add(message.getTopic());
-        return null;
-    }
-
     /**
      * @see Producer#send(List)
      */
@@ -143,5 +138,10 @@ public class ProducerImpl extends ClientImpl implements Producer {
     @Override
     public void close() {
         this.stopAsync().awaitTerminated();
+    }
+
+    private ListenableFuture<SendReceipt> send0(final Message message) {
+        topics.add(message.getTopic());
+        return null;
     }
 }

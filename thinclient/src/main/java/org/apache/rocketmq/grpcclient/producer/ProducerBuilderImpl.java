@@ -40,18 +40,27 @@ public class ProducerBuilderImpl implements ProducerBuilder {
     public ProducerBuilderImpl() {
     }
 
+    /**
+     * @see ProducerBuilder#setClientConfiguration(ClientConfiguration)
+     */
     @Override
     public ProducerBuilder setClientConfiguration(ClientConfiguration clientConfiguration) {
         this.clientConfiguration = checkNotNull(clientConfiguration, "clientConfiguration should not be null");
         return this;
     }
 
+    /**
+     * @see ProducerBuilder#setTopics(String...)
+     */
     @Override
     public ProducerBuilder setTopics(String... topics) {
         this.topics.addAll(Arrays.asList(topics));
         return this;
     }
 
+    /**
+     * @see ProducerBuilder#setSendAsyncThreadCount(int)
+     */
     @Override
     public ProducerBuilder setSendAsyncThreadCount(int count) {
         checkArgument(count > 0, "producer send async thread count should be positive");
@@ -59,18 +68,27 @@ public class ProducerBuilderImpl implements ProducerBuilder {
         return this;
     }
 
+    /**
+     * @see ProducerBuilder#setRetryPolicy(BackoffRetryPolicy)
+     */
     @Override
     public ProducerBuilder setRetryPolicy(BackoffRetryPolicy retryPolicy) {
         this.retryPolicy = checkNotNull(retryPolicy, "retryPolicy should not be null");
         return this;
     }
 
+    /**
+     * @see ProducerBuilder#setTransactionChecker(TransactionChecker)
+     */
     @Override
     public ProducerBuilder setTransactionChecker(TransactionChecker checker) {
         this.checker = checkNotNull(checker, "checker should not set null");
         return this;
     }
 
+    /**
+     * @see ProducerBuilder#build()
+     */
     @SuppressWarnings("UnstableApiUsage")
     @Override
     public Producer build() {

@@ -22,28 +22,46 @@ import org.apache.rocketmq.apis.message.Message;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.HashMap;
+import java.util.Map;
+
 public class MessageImplTest {
-    final ClientServiceProvider provider = ClientServiceProvider.loadService();
+    private final ClientServiceProvider provider = ClientServiceProvider.loadService();
+    private final String sampleTopic = "foobar";
+    private final byte[] sampleBody = new byte[]{'f', 'o', 'o'};
 
     @Test
     public void testMessageBodySetterGetterImmutability() {
-        String sampleTopic = "foobar";
-        byte[] sampleBody = new byte[]{'f', 'o', 'o'};
+        byte[] body = sampleBody.clone();
 
-        final Message message = provider.newMessageBuilder().setTopic(sampleTopic).setBody(sampleBody).build();
+        final Message message = provider.newMessageBuilder().setTopic(sampleTopic).setBody(body).build();
         // Modify message body set before.
-        sampleBody[0] = 'g';
-        Assert.assertEquals('g', sampleBody[0]);
+        body[0] = 'g';
+        Assert.assertEquals('g', body[0]);
         Assert.assertEquals('f', message.getBody()[0]);
 
-        final byte[] body = message.getBody();
+        final byte[] bodyGotten = message.getBody();
         // Modify message body gotten before.
-        body[0] = 'h';
-        Assert.assertEquals('h', body[0]);
+        bodyGotten[0] = 'h';
+        Assert.assertEquals('h', bodyGotten[0]);
         Assert.assertEquals('f', message.getBody()[0]);
     }
 
     @Test
     public void testMessagePropertiesGetterImmutability() {
+        byte[] body = sampleBody.clone();
+
+        String propertyKey = "foo";
+        String propertyValue = "value";
+        Map<String, String> property = new HashMap<>();
+        property.put(propertyKey, propertyValue);
+
+        final Message message =
+                provider.newMessageBuilder().setTopic(sampleTopic).setBody(body).addProperty(propertyKey,
+                        propertyValue).build();
+        Assert.assertEquals(property, message.getProperties());
+        // Clear properties gotten.
+        message.getProperties().clear();
+        Assert.assertEquals(property, message.getProperties());
     }
 }

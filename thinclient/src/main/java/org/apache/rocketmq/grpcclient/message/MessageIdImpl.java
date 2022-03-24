@@ -21,7 +21,6 @@ import com.google.common.base.Objects;
 import org.apache.rocketmq.apis.message.MessageId;
 
 public class MessageIdImpl implements MessageId {
-
     private final String version;
     private final String suffix;
 

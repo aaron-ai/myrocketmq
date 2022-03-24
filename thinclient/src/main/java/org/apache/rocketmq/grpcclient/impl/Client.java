@@ -26,12 +26,12 @@ public interface Client {
     String getClientId();
 
     /**
-     * Send heart beat to remote {@link Endpoints}.
+     * Send heart beat to remote {@link org.apache.rocketmq.grpcclient.route.Endpoints}.
      */
     void doHeartbeat();
 
     /**
-     * Check the status of remote {@link Endpoints}.
+     * Check the status of remote {@link org.apache.rocketmq.grpcclient.route.Endpoints}.
      */
     void doHealthCheck();
 

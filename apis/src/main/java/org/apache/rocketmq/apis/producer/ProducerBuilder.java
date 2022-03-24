@@ -37,7 +37,7 @@ public interface ProducerBuilder {
     ProducerBuilder setClientConfiguration(ClientConfiguration clientConfiguration);
 
     /**
-     * Declare topics ahead of message sending/preparation.
+     * Declare topics ahead of message sending.
      *
      * <p>Even though the declaration is not essential, we <strong>highly recommend</strong> to declare the topics in
      * advance, which could help to discover potential mistakes.

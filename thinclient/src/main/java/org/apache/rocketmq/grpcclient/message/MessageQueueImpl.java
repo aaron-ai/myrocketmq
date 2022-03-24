@@ -34,11 +34,17 @@ public class MessageQueueImpl implements MessageQueue {
         this.partition = partition;
     }
 
+    /**
+     * @see MessageQueue#getTopic()
+     */
     @Override
     public String getTopic() {
         return null;
     }
 
+    /**
+     * @see MessageQueue#getId()
+     */
     @Override
     public String getId() {
         return null;
