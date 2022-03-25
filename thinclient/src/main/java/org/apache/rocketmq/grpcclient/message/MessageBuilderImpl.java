@@ -77,7 +77,9 @@ public class MessageBuilderImpl implements MessageBuilder {
      */
     @Override
     public MessageBuilder setTag(String tag) {
-        this.tag = checkNotNull(StringUtils.stripToNull(tag), "tag should not be null or just spaces");
+        checkArgument(StringUtils.isNotBlank(tag), "tag should not be blank");
+        checkArgument(!tag.contains("|"), "tag should not contain \"|\"");
+        this.tag = tag;
         return this;
     }
 
@@ -87,7 +89,7 @@ public class MessageBuilderImpl implements MessageBuilder {
     @Override
     public MessageBuilder setKeys(String... keys) {
         for (String key : keys) {
-            checkNotNull(StringUtils.stripToNull(key), "key should not be null or just spaces");
+            checkArgument(StringUtils.isNotBlank(key), "key should not be blank");
         }
         this.keys = new ArrayList<>();
         this.keys.addAll(Arrays.asList(keys));
@@ -100,7 +102,8 @@ public class MessageBuilderImpl implements MessageBuilder {
     @Override
     public MessageBuilder setMessageGroup(String messageGroup) {
         checkArgument(null == deliveryTimestamp, "messageGroup and deliveryTimestamp should not be set at same time");
-        this.messageGroup = checkNotNull(messageGroup, "messageGroup should not be null");
+        checkArgument(StringUtils.isNotBlank(messageGroup), "messageGroup should not be blank");
+        this.messageGroup = messageGroup;
         return this;
     }
 
@@ -119,8 +122,8 @@ public class MessageBuilderImpl implements MessageBuilder {
      */
     @Override
     public MessageBuilder addProperty(String key, String value) {
-        checkNotNull(key, "key should not be null");
-        checkNotNull(value, "value should not be null");
+        checkArgument(StringUtils.isNotBlank(key), "key should not be blank");
+        checkArgument(StringUtils.isNotBlank(value), "value should not be blank");
         this.properties.put(key, value);
         return this;
     }
@@ -130,8 +133,8 @@ public class MessageBuilderImpl implements MessageBuilder {
      */
     @Override
     public Message build() {
-        checkNotNull(topic, "topic should not be null");
-        checkNotNull(body, "body should not be null");
+        checkNotNull(topic, "topic has not been set yet");
+        checkNotNull(body, "body has not been set yet");
         return new MessageImpl(topic, body, tag, keys, messageGroup, deliveryTimestamp, properties);
     }
 }

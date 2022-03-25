@@ -20,6 +20,9 @@ package org.apache.rocketmq.apis.producer;
 import org.apache.rocketmq.apis.MessageQueue;
 import org.apache.rocketmq.apis.message.MessageId;
 
+/**
+ * A receipt from server, which only makes sense when message is sent successfully.
+ */
 public interface SendReceipt {
     MessageId getMessageId();
 

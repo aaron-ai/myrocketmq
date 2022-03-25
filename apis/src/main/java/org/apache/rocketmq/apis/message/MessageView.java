@@ -25,8 +25,7 @@ import org.apache.rocketmq.apis.MessageQueue;
 
 /**
  * {@link MessageView} provides a read-only view for message, that's why setters do not exist here. In addition,
- * it only makes sense when {@link Message} is sent successfully, or it could be considered as a return receipt
- * for producer/consumer.
+ * it only makes sense when {@link Message} is sent successfully.
  */
 public interface MessageView {
     /**

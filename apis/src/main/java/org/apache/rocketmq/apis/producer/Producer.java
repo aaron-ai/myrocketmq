@@ -29,7 +29,7 @@ import org.apache.rocketmq.apis.message.Message;
  *
  * <p>On account of network timeout or other reasons, rocketmq producer only promised the at-least-once semantics.
  * For producer, at-least-once semantics means potentially attempts are made at sending it, messages may be
- * duplicated but not lost.
+ * duplicated but not lost. Especially, potentially attempts are not made using {@link #send(Message, Transaction)}.
  */
 public interface Producer extends Closeable {
     /**

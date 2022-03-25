@@ -41,6 +41,16 @@ public class MessageImplTest {
         provider.newMessageBuilder().setTopic(topicWithLengthEquals128);
     }
 
+    @Test(expected = IllegalArgumentException.class)
+    public void testTagSetterWithVerticalBar() {
+        provider.newMessageBuilder().setTag("|");
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testTagSetterWithSpaces() {
+        provider.newMessageBuilder().setTag("  ");
+    }
+
     @Test
     public void testMessageBodySetterGetterImmutability() {
         byte[] body = sampleBody.clone();
