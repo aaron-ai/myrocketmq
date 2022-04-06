@@ -17,6 +17,10 @@
 
 package org.apache.rocketmq.grpcclient.message;
 
+import com.google.common.base.MoreObjects;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import javax.annotation.Nullable;
 import org.apache.rocketmq.apis.message.Message;
 
 import java.util.ArrayList;
@@ -24,29 +28,50 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.rocketmq.apis.message.MessageId;
 
-class MessageImpl implements Message {
+public class MessageImpl implements Message {
     private final String topic;
     private final byte[] body;
+
+    @Nullable
     private final String tag;
+    @Nullable
     private final String messageGroup;
+    @Nullable
     private final Long deliveryTimestamp;
-    private final Collection<String> keys;
+    @Nullable
+    private final String parentTraceContext;
+
+    protected final Collection<String> keys;
     private final Map<String, String> properties;
 
     /**
      * The caller is supposed to have validated the arguments and handled throwing exception or
      * logging warnings already, so we avoid repeating args check here.
      */
-    MessageImpl(String topic, byte[] body, String tag, Collection<String> keys, String messageGroup,
-                Long deliveryTimestamp, Map<String, String> properties) {
+    MessageImpl(String topic, byte[] body, @Nullable String tag, Collection<String> keys,
+        @Nullable String parentTraceContext, @Nullable String messageGroup, @Nullable Long deliveryTimestamp,
+        Map<String, String> properties) {
         this.topic = topic;
         this.body = body;
         this.tag = tag;
         this.messageGroup = messageGroup;
         this.deliveryTimestamp = deliveryTimestamp;
         this.keys = keys;
+        this.parentTraceContext = parentTraceContext;
         this.properties = properties;
+    }
+
+    MessageImpl(Message message) {
+        this.topic = message.getTopic();
+        this.body = message.getBody().array();
+        this.tag = message.getTag().orElse(null);
+        this.messageGroup = message.getMessageGroup().orElse(null);
+        this.deliveryTimestamp = message.getDeliveryTimestamp().orElse(null);
+        this.parentTraceContext = message.getParentTraceContext().orElse(null);
+        this.keys = message.getKeys();
+        this.properties = message.getProperties();
     }
 
     /**
@@ -61,8 +86,8 @@ class MessageImpl implements Message {
      * @see Message#getBody()
      */
     @Override
-    public byte[] getBody() {
-        return body.clone();
+    public ByteBuffer getBody() {
+        return ByteBuffer.wrap(body).asReadOnlyBuffer();
     }
 
     /**
@@ -103,5 +128,26 @@ class MessageImpl implements Message {
     @Override
     public Optional<String> getMessageGroup() {
         return null == messageGroup ? Optional.empty() : Optional.of(messageGroup);
+    }
+
+    /**
+     * @see Message#getParentTraceContext()
+     */
+    @Override
+    public Optional<String> getParentTraceContext() {
+        return null == parentTraceContext ? Optional.empty() : Optional.of(parentTraceContext);
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+            .add("topic", topic)
+            .add("tag", tag)
+            .add("messageGroup", messageGroup)
+            .add("deliveryTimestamp", deliveryTimestamp)
+            .add("parentTraceContext", parentTraceContext)
+            .add("keys", keys)
+            .add("properties", properties)
+            .toString();
     }
 }

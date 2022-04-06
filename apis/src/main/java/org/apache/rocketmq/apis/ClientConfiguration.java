@@ -24,7 +24,7 @@ import java.util.Optional;
  * Common client configuration.
  */
 public class ClientConfiguration {
-    private final String endpoints;
+    private final String accessPoint;
     private final SessionCredentialsProvider sessionCredentialsProvider;
     private final Duration requestTimeout;
     private final boolean enableTracing;
@@ -37,16 +37,16 @@ public class ClientConfiguration {
      * The caller is supposed to have validated the arguments and handled throwing exception or
      * logging warnings already, so we avoid repeating args check here.
      */
-    ClientConfiguration(String endpoints, SessionCredentialsProvider sessionCredentialsProvider,
+    ClientConfiguration(String accessPoint, SessionCredentialsProvider sessionCredentialsProvider,
                         Duration requestTimeout, boolean enableTracing) {
-        this.endpoints = endpoints;
+        this.accessPoint = accessPoint;
         this.sessionCredentialsProvider = sessionCredentialsProvider;
         this.requestTimeout = requestTimeout;
         this.enableTracing = enableTracing;
     }
 
-    public String getEndpoints() {
-        return endpoints;
+    public String getAccessPoint() {
+        return accessPoint;
     }
 
     public Optional<SessionCredentialsProvider> tryGetCredentialsProvider() {

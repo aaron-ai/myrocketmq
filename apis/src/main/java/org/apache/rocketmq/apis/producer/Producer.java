@@ -18,6 +18,7 @@
 package org.apache.rocketmq.apis.producer;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
@@ -97,10 +98,8 @@ public interface Producer extends Closeable {
     /**
      * Closes the producer and release all related resources.
      *
-     * <p>This method does not return until all related resource is released. Once producer is closed, <strong>it could
-     * not be started once again.</strong> we maintained an FSM (finite-state machine) to record the different states
-     * for each producer.
+     * <p>This method does not return until all related resource is released.
      */
     @Override
-    void close();
+    void close() throws IOException;
 }

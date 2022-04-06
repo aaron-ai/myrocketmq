@@ -17,40 +17,34 @@
 
 package org.apache.rocketmq.grpcclient.remoting;
 
-import apache.rocketmq.v1.AckMessageRequest;
-import apache.rocketmq.v1.AckMessageResponse;
-import apache.rocketmq.v1.EndTransactionRequest;
-import apache.rocketmq.v1.EndTransactionResponse;
-import apache.rocketmq.v1.ForwardMessageToDeadLetterQueueRequest;
-import apache.rocketmq.v1.ForwardMessageToDeadLetterQueueResponse;
-import apache.rocketmq.v1.HealthCheckRequest;
-import apache.rocketmq.v1.HealthCheckResponse;
-import apache.rocketmq.v1.HeartbeatRequest;
-import apache.rocketmq.v1.HeartbeatResponse;
-import apache.rocketmq.v1.MessagingServiceGrpc;
-import apache.rocketmq.v1.NackMessageRequest;
-import apache.rocketmq.v1.NackMessageResponse;
-import apache.rocketmq.v1.NotifyClientTerminationRequest;
-import apache.rocketmq.v1.NotifyClientTerminationResponse;
-import apache.rocketmq.v1.PollCommandRequest;
-import apache.rocketmq.v1.PollCommandResponse;
-import apache.rocketmq.v1.PullMessageRequest;
-import apache.rocketmq.v1.PullMessageResponse;
-import apache.rocketmq.v1.QueryAssignmentRequest;
-import apache.rocketmq.v1.QueryAssignmentResponse;
-import apache.rocketmq.v1.QueryOffsetRequest;
-import apache.rocketmq.v1.QueryOffsetResponse;
-import apache.rocketmq.v1.QueryRouteRequest;
-import apache.rocketmq.v1.QueryRouteResponse;
-import apache.rocketmq.v1.ReceiveMessageRequest;
-import apache.rocketmq.v1.ReceiveMessageResponse;
-import apache.rocketmq.v1.ReportMessageConsumptionResultRequest;
-import apache.rocketmq.v1.ReportMessageConsumptionResultResponse;
-import apache.rocketmq.v1.ReportThreadStackTraceRequest;
-import apache.rocketmq.v1.ReportThreadStackTraceResponse;
-import apache.rocketmq.v1.SendMessageRequest;
-import apache.rocketmq.v1.SendMessageResponse;
+import apache.rocketmq.v2.AckMessageRequest;
+import apache.rocketmq.v2.AckMessageResponse;
+import apache.rocketmq.v2.ChangeInvisibleDurationRequest;
+import apache.rocketmq.v2.ChangeInvisibleDurationResponse;
+import apache.rocketmq.v2.EndTransactionRequest;
+import apache.rocketmq.v2.EndTransactionResponse;
+import apache.rocketmq.v2.ForwardMessageToDeadLetterQueueRequest;
+import apache.rocketmq.v2.ForwardMessageToDeadLetterQueueResponse;
+import apache.rocketmq.v2.HeartbeatRequest;
+import apache.rocketmq.v2.HeartbeatResponse;
+import apache.rocketmq.v2.MessagingServiceGrpc;
+import apache.rocketmq.v2.NotifyClientTerminationRequest;
+import apache.rocketmq.v2.NotifyClientTerminationResponse;
+import apache.rocketmq.v2.PullMessageRequest;
+import apache.rocketmq.v2.PullMessageResponse;
+import apache.rocketmq.v2.QueryAssignmentRequest;
+import apache.rocketmq.v2.QueryAssignmentResponse;
+import apache.rocketmq.v2.QueryOffsetRequest;
+import apache.rocketmq.v2.QueryOffsetResponse;
+import apache.rocketmq.v2.QueryRouteRequest;
+import apache.rocketmq.v2.QueryRouteResponse;
+import apache.rocketmq.v2.ReceiveMessageRequest;
+import apache.rocketmq.v2.ReceiveMessageResponse;
+import apache.rocketmq.v2.SendMessageRequest;
+import apache.rocketmq.v2.SendMessageResponse;
+import apache.rocketmq.v2.TelemetryCommand;
 import com.google.common.util.concurrent.ListenableFuture;
+import io.grpc.ClientInterceptor;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
@@ -59,20 +53,23 @@ import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContextBuilder;
 import io.grpc.netty.shaded.io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.grpc.stub.MetadataUtils;
+import io.grpc.stub.StreamObserver;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 
 import javax.net.ssl.SSLException;
 import java.net.InetSocketAddress;
+import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
-public class RpcClientImpl implements RpcClient{
-    private static final long KEEP_ALIVE_TIME_SECONDS = 30;
+public class RpcClientImpl implements RpcClient {
+    private static final Duration KEEP_ALIVE_DURATION = Duration.ofSeconds(30);
     private static final int GRPC_MAX_MESSAGE_SIZE = Integer.MAX_VALUE;
 
     private final ManagedChannel channel;
-    private final MessagingServiceGrpc.MessagingServiceFutureStub stub;
+    private final MessagingServiceGrpc.MessagingServiceFutureStub futureStub;
+    private final MessagingServiceGrpc.MessagingServiceStub stub;
 
     private long activityNanoTime;
 
@@ -83,11 +80,11 @@ public class RpcClientImpl implements RpcClient{
         SslContext sslContext = builder.build();
 
         final NettyChannelBuilder channelBuilder =
-                NettyChannelBuilder.forTarget(endpoints.getFacade())
-                        .keepAliveTime(KEEP_ALIVE_TIME_SECONDS, TimeUnit.SECONDS)
-                        .maxInboundMessageSize(GRPC_MAX_MESSAGE_SIZE)
-                        .intercept(new LoggingInterceptor())
-                        .sslContext(sslContext);
+            NettyChannelBuilder.forTarget(endpoints.getFacade())
+                .keepAliveTime(KEEP_ALIVE_DURATION.getNano(), TimeUnit.NANOSECONDS)
+                .maxInboundMessageSize(GRPC_MAX_MESSAGE_SIZE)
+                .intercept(LoggingInterceptor.getInstance())
+                .sslContext(sslContext);
         // Disable grpc's auto-retry here.
         channelBuilder.disableRetry();
 
@@ -98,153 +95,123 @@ public class RpcClientImpl implements RpcClient{
         }
 
         this.channel = channelBuilder.build();
-        this.stub = MessagingServiceGrpc.newFutureStub(channel);
+        this.futureStub = MessagingServiceGrpc.newFutureStub(channel);
+        this.stub = MessagingServiceGrpc.newStub(channel);
         this.activityNanoTime = System.nanoTime();
     }
 
     @Override
-    public long idleSeconds() {
-        return TimeUnit.NANOSECONDS.toSeconds(System.nanoTime() - activityNanoTime);
+    public Duration idleDuration() {
+        return Duration.ofNanos(System.nanoTime() - activityNanoTime);
     }
 
     @Override
-    public void shutdown() throws InterruptedException {
+    public void close() throws InterruptedException {
         channel.shutdown().awaitTermination(Long.MAX_VALUE, TimeUnit.SECONDS);
     }
 
     @Override
     public ListenableFuture<QueryRouteResponse> queryRoute(Metadata metadata, QueryRouteRequest request,
-                                                           Executor executor, long duration, TimeUnit timeUnit) {
+        Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
-        return MetadataUtils.attachHeaders(stub, metadata).withExecutor(executor)
-                .withDeadlineAfter(duration, timeUnit).queryRoute(request);
+        return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
+            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).queryRoute(request);
     }
 
     @Override
     public ListenableFuture<HeartbeatResponse> heartbeat(Metadata metadata, HeartbeatRequest request, Executor executor,
-                                                         long duration, TimeUnit timeUnit) {
+        Duration duration) {
         this.activityNanoTime = System.nanoTime();
-        return MetadataUtils.attachHeaders(stub, metadata).withExecutor(executor)
-                .withDeadlineAfter(duration, timeUnit).heartbeat(request);
-    }
-
-    @Override
-    public ListenableFuture<HealthCheckResponse> healthCheck(Metadata metadata, HealthCheckRequest request,
-                                                             Executor executor, long duration, TimeUnit timeUnit) {
-        this.activityNanoTime = System.nanoTime();
-        return MetadataUtils.attachHeaders(stub, metadata).withExecutor(executor)
-                .withDeadlineAfter(duration, timeUnit).healthCheck(request);
+        return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
+            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).heartbeat(request);
     }
 
     @Override
     public ListenableFuture<SendMessageResponse> sendMessage(Metadata metadata, SendMessageRequest request,
-                                                             Executor executor, long duration, TimeUnit timeUnit) {
+        Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
-        return MetadataUtils.attachHeaders(stub, metadata).withExecutor(executor)
-                .withDeadlineAfter(duration, timeUnit).sendMessage(request);
+        return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
+            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).sendMessage(request);
     }
 
     @Override
     public ListenableFuture<QueryAssignmentResponse> queryAssignment(Metadata metadata, QueryAssignmentRequest request,
-                                                                     Executor executor, long duration,
-                                                                     TimeUnit timeUnit) {
+        Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
-        return MetadataUtils.attachHeaders(stub, metadata).withExecutor(executor)
-                .withDeadlineAfter(duration, timeUnit).queryAssignment(request);
+        return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
+            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).queryAssignment(request);
     }
 
     @Override
     public ListenableFuture<ReceiveMessageResponse> receiveMessage(Metadata metadata, ReceiveMessageRequest request,
-                                                                   Executor executor, long duration,
-                                                                   TimeUnit timeUnit) {
+        Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
-        return MetadataUtils.attachHeaders(stub, metadata).withExecutor(executor)
-                .withDeadlineAfter(duration, timeUnit).receiveMessage(request);
+        return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
+            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).receiveMessage(request);
     }
 
     @Override
     public ListenableFuture<AckMessageResponse> ackMessage(Metadata metadata, AckMessageRequest request,
-                                                           Executor executor, long duration, TimeUnit timeUnit) {
+        Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
-        return MetadataUtils.attachHeaders(stub, metadata).withExecutor(executor)
-                .withDeadlineAfter(duration, timeUnit).ackMessage(request);
+        return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
+            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).ackMessage(request);
     }
 
     @Override
-    public ListenableFuture<NackMessageResponse> nackMessage(Metadata metadata, NackMessageRequest request,
-                                                             Executor executor, long duration, TimeUnit timeUnit) {
+    public ListenableFuture<ChangeInvisibleDurationResponse> changeInvisibleDuration(Metadata metadata,
+        ChangeInvisibleDurationRequest request, Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
-        return MetadataUtils.attachHeaders(stub, metadata).withExecutor(executor)
-                .withDeadlineAfter(duration, timeUnit).nackMessage(request);
+        return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
+            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).changeInvisibleDuration(request);
     }
 
     @Override
     public ListenableFuture<ForwardMessageToDeadLetterQueueResponse> forwardMessageToDeadLetterQueue(
-            Metadata metadata, ForwardMessageToDeadLetterQueueRequest request, Executor executor, long duration,
-            TimeUnit timeUnit) {
+        Metadata metadata, ForwardMessageToDeadLetterQueueRequest request, Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
-        return MetadataUtils.attachHeaders(stub, metadata).withExecutor(executor)
-                .withDeadlineAfter(duration, timeUnit).forwardMessageToDeadLetterQueue(request);
+        return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
+            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).forwardMessageToDeadLetterQueue(request);
     }
 
     @Override
     public ListenableFuture<EndTransactionResponse> endTransaction(Metadata metadata, EndTransactionRequest request,
-                                                                   Executor executor, long duration,
-                                                                   TimeUnit timeUnit) {
+        Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
-        return MetadataUtils.attachHeaders(stub, metadata).withExecutor(executor)
-                .withDeadlineAfter(duration, timeUnit).endTransaction(request);
+        return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
+            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).endTransaction(request);
     }
 
     @Override
     public ListenableFuture<QueryOffsetResponse> queryOffset(Metadata metadata, QueryOffsetRequest request,
-                                                             Executor executor, long duration, TimeUnit timeUnit) {
+        Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
-        return MetadataUtils.attachHeaders(stub, metadata).withExecutor(executor)
-                .withDeadlineAfter(duration, timeUnit).queryOffset(request);
+        return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
+            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).queryOffset(request);
     }
 
     @Override
     public ListenableFuture<PullMessageResponse> pullMessage(Metadata metadata, PullMessageRequest request,
-                                                             Executor executor, long duration, TimeUnit timeUnit) {
+        Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
-        return MetadataUtils.attachHeaders(stub, metadata).withExecutor(executor)
-                .withDeadlineAfter(duration, timeUnit).pullMessage(request);
-    }
-
-    @Override
-    public ListenableFuture<PollCommandResponse> pollCommand(Metadata metadata, PollCommandRequest request,
-                                                             Executor executor, long duration,
-                                                             TimeUnit timeUnit) {
-        this.activityNanoTime = System.nanoTime();
-        return MetadataUtils.attachHeaders(stub, metadata).withExecutor(executor)
-                .withDeadlineAfter(duration, timeUnit).pollCommand(request);
-    }
-
-    @Override
-    public ListenableFuture<ReportThreadStackTraceResponse> reportThreadStackTrace(
-            Metadata metadata, ReportThreadStackTraceRequest request, Executor executor, long duration,
-            TimeUnit timeUnit) {
-        this.activityNanoTime = System.nanoTime();
-        return MetadataUtils.attachHeaders(stub, metadata).withExecutor(executor)
-                .withDeadlineAfter(duration, timeUnit).reportThreadStackTrace(request);
-    }
-
-    @Override
-    public ListenableFuture<ReportMessageConsumptionResultResponse> reportMessageConsumptionResult(
-            Metadata metadata, ReportMessageConsumptionResultRequest request, Executor executor, long duration,
-            TimeUnit timeUnit) {
-        this.activityNanoTime = System.nanoTime();
-        return MetadataUtils.attachHeaders(stub, metadata).withExecutor(executor)
-                .withDeadlineAfter(duration, timeUnit).reportMessageConsumptionResult(request);
+        return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
+            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).pullMessage(request);
     }
 
     @Override
     public ListenableFuture<NotifyClientTerminationResponse> notifyClientTermination(
-            Metadata metadata, NotifyClientTerminationRequest request, Executor executor, long duration,
-            TimeUnit timeUnit) {
+        Metadata metadata, NotifyClientTerminationRequest request, Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
-        return MetadataUtils.attachHeaders(stub, metadata).withExecutor(executor)
-                .withDeadlineAfter(duration, timeUnit).notifyClientTermination(request);
+        return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
+            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).notifyClientTermination(request);
+    }
+
+    @Override
+    public StreamObserver<TelemetryCommand> telemetry(Metadata metadata, Executor executor, Duration duration,
+        StreamObserver<TelemetryCommand> responseObserver) {
+        final ClientInterceptor interceptor = MetadataUtils.newAttachHeadersInterceptor(metadata);
+        final MessagingServiceGrpc.MessagingServiceStub stub0 = this.stub.withInterceptors(interceptor)
+            .withExecutor(executor).withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS);
+        return stub0.telemetry(responseObserver);
     }
 }

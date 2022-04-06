@@ -42,11 +42,12 @@ public class MessageViewImpl implements MessageView {
     private final int deliveryAttempt;
     private final MessageQueue messageQueue;
     private final long offset;
+    private final boolean corrupted;
 
     public MessageViewImpl(MessageId messageId, String topic, byte[] body, String tag, String messageGroup,
                            Long deliveryTimestamp, Collection<String> keys, Map<String, String> properties,
                            String bornHost, long bornTimestamp, int deliveryAttempt, MessageQueue messageQueue,
-                           long offset) {
+                           long offset, boolean corrupted) {
         this.messageId = checkNotNull(messageId, "messageId should not be null");
         this.topic = checkNotNull(topic, "topic should not be null");
         this.body = checkNotNull(body, "body should not be null");
@@ -60,6 +61,7 @@ public class MessageViewImpl implements MessageView {
         this.deliveryAttempt = deliveryAttempt;
         this.messageQueue = checkNotNull(messageQueue, "messageQueue should not be null");
         this.offset = offset;
+        this.corrupted = corrupted;
     }
 
     /**
@@ -164,5 +166,9 @@ public class MessageViewImpl implements MessageView {
     @Override
     public long getOffset() {
         return offset;
+    }
+
+    public boolean isCorrupted() {
+        return corrupted;
     }
 }

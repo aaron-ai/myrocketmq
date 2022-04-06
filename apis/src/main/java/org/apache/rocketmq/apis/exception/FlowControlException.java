@@ -18,8 +18,9 @@
 package org.apache.rocketmq.apis.exception;
 
 public class FlowControlException extends ClientException {
-    public FlowControlException(ErrorCode code, String message, String requestId) {
-        super(code, message);
+    public FlowControlException(int code, String message, String requestId) {
+        super(message);
+        putMetadata(RESPONSE_CODE_KEY, String.valueOf(code));
         putMetadata(REQUEST_ID_KEY, requestId);
     }
 }

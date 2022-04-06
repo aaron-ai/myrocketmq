@@ -27,52 +27,83 @@ import static com.google.common.base.Preconditions.checkNotNull;
 
 public class Endpoints {
     private static final String ADDRESS_SEPARATOR = ",";
-    private final AddressScheme addressScheme;
+    private final AddressScheme scheme;
 
     /**
      * URI path for grpc target, e.g:
-     * <p>1. domain name: rocketmq.apache.org:8080
+     * <p>1. domain name: dns:rocketmq.apache.org:8080
      * <p>2. ipv4:127.0.0.1:10911[,127.0.0.2:10912]
      * <p>3. ipv6:1050:0000:0000:0000:0005:0600:300c:326b:10911[,1050:0000:0000:0000:0005:0600:300c:326b:10912]
      */
     private final String facade;
     private final List<Address> addresses;
 
-    public Endpoints(apache.rocketmq.v1.Endpoints endpoints) {
+    public Endpoints(apache.rocketmq.v2.Endpoints endpoints) {
         this.addresses = new ArrayList<>();
-        for (apache.rocketmq.v1.Address address : endpoints.getAddressesList()) {
+        for (apache.rocketmq.v2.Address address : endpoints.getAddressesList()) {
             addresses.add(new Address(address));
         }
         if (addresses.isEmpty()) {
             throw new UnsupportedOperationException("No available address");
         }
 
-        final apache.rocketmq.v1.AddressScheme scheme = endpoints.getScheme();
+        final apache.rocketmq.v2.AddressScheme scheme = endpoints.getScheme();
 
         switch (scheme) {
             case IPv4:
-                this.addressScheme = AddressScheme.IPv4;
+                this.scheme = AddressScheme.IPv4;
                 break;
             case IPv6:
-                this.addressScheme = AddressScheme.IPv6;
+                this.scheme = AddressScheme.IPv6;
                 break;
             case DOMAIN_NAME:
             default:
-                this.addressScheme = AddressScheme.DOMAIN_NAME;
+                this.scheme = AddressScheme.DOMAIN_NAME;
                 if (addresses.size() > 1) {
-                    throw new UnsupportedOperationException("Multiple addresses not allowed in domain schema.");
+                    throw new UnsupportedOperationException("Multiple addresses not allowed in domain schema");
                 }
         }
         StringBuilder facadeBuilder = new StringBuilder();
-        facadeBuilder.append(addressScheme.getPrefix());
+        facadeBuilder.append(this.scheme.getPrefix());
         for (Address address : addresses) {
             facadeBuilder.append(address.getAddress()).append(ADDRESS_SEPARATOR);
         }
         this.facade = facadeBuilder.substring(0, facadeBuilder.length() - 1);
     }
 
-    public Endpoints(AddressScheme addressScheme, List<Address> addresses) {
-        if (AddressScheme.DOMAIN_NAME.equals(addressScheme) && addresses.size() > 1) {
+    public Endpoints(String facade) {
+        this.facade = facade;
+        final int prefixIndex = facade.indexOf(":");
+        final String prefix = facade.substring(0, prefixIndex + 1);
+        final String suffix = facade.substring(1 + prefixIndex);
+        this.addresses = new ArrayList<>();
+        final AddressScheme scheme = AddressScheme.fromPrefix(prefix);
+        this.scheme = scheme;
+        switch (scheme) {
+            case DOMAIN_NAME: {
+                final String[] split = suffix.split(":");
+                String host = split[0];
+                int port = split.length >= 2 ? Integer.parseInt(split[1]) : 80;
+                final Address address = new Address(host, port);
+                addresses.add(address);
+                break;
+            }
+            case IPv4:
+            case IPv6: {
+                final String[] split = suffix.split(ADDRESS_SEPARATOR);
+                for (String str : split) {
+                    final int portIndex = str.lastIndexOf(":");
+                    String host = str.substring(0, portIndex);
+                    int port = Integer.parseInt(str.substring(1 + portIndex));
+                    final Address address = new Address(host, port);
+                    addresses.add(address);
+                }
+            }
+        }
+    }
+
+    public Endpoints(AddressScheme scheme, List<Address> addresses) {
+        if (AddressScheme.DOMAIN_NAME.equals(scheme) && addresses.size() > 1) {
             throw new UnsupportedOperationException("Multiple addresses not allowed in domain schema.");
         }
         checkNotNull(addresses, "addresses");
@@ -80,18 +111,26 @@ public class Endpoints {
             throw new UnsupportedOperationException("No available address");
         }
 
-        this.addressScheme = addressScheme;
+        this.scheme = scheme;
         this.addresses = addresses;
         StringBuilder facadeBuilder = new StringBuilder();
-        facadeBuilder.append(addressScheme.getPrefix());
+        facadeBuilder.append(scheme.getPrefix());
         for (Address address : addresses) {
             facadeBuilder.append(address.getAddress()).append(ADDRESS_SEPARATOR);
         }
         this.facade = facadeBuilder.substring(0, facadeBuilder.length() - 1);
     }
 
+    public AddressScheme getScheme() {
+        return scheme;
+    }
+
+    public List<Address> getAddresses() {
+        return addresses;
+    }
+
     public List<InetSocketAddress> toSocketAddresses() {
-        switch (addressScheme) {
+        switch (scheme) {
             case DOMAIN_NAME:
                 return null;
             case IPv4:
@@ -106,12 +145,12 @@ public class Endpoints {
         }
     }
 
-    public apache.rocketmq.v1.Endpoints toPbEndpoints() {
-        final apache.rocketmq.v1.Endpoints.Builder builder = apache.rocketmq.v1.Endpoints.newBuilder();
+    public apache.rocketmq.v2.Endpoints toProtobuf() {
+        final apache.rocketmq.v2.Endpoints.Builder builder = apache.rocketmq.v2.Endpoints.newBuilder();
         for (Address address : addresses) {
-            builder.addAddresses(address.toPbAddress());
+            builder.addAddresses(address.toProtobuf());
         }
-        return builder.setScheme(addressScheme.toAddressScheme()).build();
+        return builder.setScheme(scheme.toProtobuf()).build();
     }
 
     @Override
@@ -132,12 +171,12 @@ public class Endpoints {
             return false;
         }
         Endpoints endpoints = (Endpoints) o;
-        return addressScheme == endpoints.addressScheme && Objects.equal(facade, endpoints.facade) &&
-                Objects.equal(addresses, endpoints.addresses);
+        return scheme == endpoints.scheme && Objects.equal(facade, endpoints.facade) &&
+            Objects.equal(addresses, endpoints.addresses);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hashCode(addressScheme, facade, addresses);
+        return Objects.hashCode(scheme, facade, addresses);
     }
 }

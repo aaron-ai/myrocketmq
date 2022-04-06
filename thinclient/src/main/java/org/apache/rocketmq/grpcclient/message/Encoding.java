@@ -17,36 +17,30 @@
 
 package org.apache.rocketmq.grpcclient.message;
 
-import org.apache.rocketmq.apis.MessageQueue;
-import org.apache.rocketmq.grpcclient.route.Partition;
+public enum Encoding {
+    IDENTITY,
+    GZIP;
 
-public class MessageQueueImpl implements MessageQueue {
-    private final String topic;
-    private final String brokerName;
-    private final int queueId;
-
-    private final transient Partition partition;
-
-    public MessageQueueImpl(Partition partition) {
-        this.topic = partition.getTopicResource().getName();
-        this.brokerName = partition.getBroker().getName();
-        this.queueId = partition.getId();
-        this.partition = partition;
+    public static apache.rocketmq.v2.Encoding toProtobuf(Encoding encoding) {
+        switch (encoding) {
+            case IDENTITY:
+                return apache.rocketmq.v2.Encoding.IDENTITY;
+            case GZIP:
+                return apache.rocketmq.v2.Encoding.GZIP;
+            default:
+                return apache.rocketmq.v2.Encoding.ENCODING_UNSPECIFIED;
+        }
     }
 
-    /**
-     * @see MessageQueue#getTopic()
-     */
-    @Override
-    public String getTopic() {
-        return null;
-    }
-
-    /**
-     * @see MessageQueue#getId()
-     */
-    @Override
-    public String getId() {
-        return null;
+    public static Encoding fromProtobuf(apache.rocketmq.v2.Encoding encoding) {
+        switch (encoding) {
+            case IDENTITY:
+                return IDENTITY;
+            case GZIP:
+                return GZIP;
+            case ENCODING_UNSPECIFIED:
+            default:
+                throw new IllegalArgumentException("Encoding is not specified");
+        }
     }
 }

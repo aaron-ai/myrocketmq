@@ -40,9 +40,11 @@ public class MessageBuilderImpl implements MessageBuilder {
     private byte[] body = null;
     private String tag = null;
     private String messageGroup = null;
+    private String traceContext = null;
     private Long deliveryTimestamp = null;
     private Collection<String> keys = new HashSet<>();
     private final Map<String, String> properties;
+    private MessageType plainMessageType = MessageType.NORMAL;
 
     public MessageBuilderImpl() {
         this.properties = new HashMap<>();
@@ -55,7 +57,7 @@ public class MessageBuilderImpl implements MessageBuilder {
     public MessageBuilder setTopic(String topic) {
         checkNotNull(topic, "topic should not be null");
         checkArgument(TOPIC_PATTERN.matcher(topic).matches(), "topic does not match the regex [regex=%s]",
-                TOPIC_PATTERN.pattern());
+            TOPIC_PATTERN.pattern());
         this.topic = topic;
         return this;
     }
@@ -67,7 +69,7 @@ public class MessageBuilderImpl implements MessageBuilder {
     public MessageBuilder setBody(byte[] body) {
         checkNotNull(body, "body should not be null");
         checkArgument(body.length <= MESSAGE_BODY_LENGTH_THRESHOLD, "message body length exceeds the threshold " +
-                "[threshold=%s bytes]", MESSAGE_BODY_LENGTH_THRESHOLD);
+            "[threshold=%s bytes]", MESSAGE_BODY_LENGTH_THRESHOLD);
         this.body = body.clone();
         return this;
     }
@@ -104,6 +106,17 @@ public class MessageBuilderImpl implements MessageBuilder {
         checkArgument(null == deliveryTimestamp, "messageGroup and deliveryTimestamp should not be set at same time");
         checkArgument(StringUtils.isNotBlank(messageGroup), "messageGroup should not be blank");
         this.messageGroup = messageGroup;
+        this.plainMessageType = MessageType.FIFO;
+        return this;
+    }
+
+    /**
+     * See {@link MessageBuilder#setTraceContext(String)}
+     */
+    @Override
+    public MessageBuilder setTraceContext(String traceContext) {
+        checkArgument(StringUtils.isNotBlank(traceContext), "traceContext should not be blank");
+        this.traceContext = traceContext;
         return this;
     }
 
@@ -114,6 +127,7 @@ public class MessageBuilderImpl implements MessageBuilder {
     public MessageBuilder setDeliveryTimestamp(long deliveryTimestamp) {
         checkArgument(null == messageGroup, "deliveryTimestamp and messageGroup should not be set at same time");
         this.deliveryTimestamp = deliveryTimestamp;
+        this.plainMessageType = MessageType.DELAY;
         return this;
     }
 
@@ -135,6 +149,6 @@ public class MessageBuilderImpl implements MessageBuilder {
     public Message build() {
         checkNotNull(topic, "topic has not been set yet");
         checkNotNull(body, "body has not been set yet");
-        return new MessageImpl(topic, body, tag, keys, messageGroup, deliveryTimestamp, properties);
+        return new MessageImpl(topic, body, tag, keys, messageGroup, traceContext, deliveryTimestamp, properties);
     }
 }

@@ -41,22 +41,22 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * represented is processed by {@link #dispatch()} in time.
  *
  * <pre>
- *             ┌───────────┐
- *             │ processor │
- *             └──────▲────┘
- *                    │
- *                    │
- *                ┌───┴──┐
- *                │      │  task queue
- *                │      │
- *                │size=1│
- *                │      │
- *     ┌─────────►│      ◄──────────┐
- *     │          └───▲──┘          │
- *     │              │             │
- * ┌───┴────┐    ┌────┴───┐    ┌────┴───┐
- * │ worker │    │ worker │    │ worker │
- * └────────┘    └────────┘    └────────┘
+ *                ┌───────────┐
+ *                │ processor │
+ *                └──────▲────┘
+ *                       │ dispatch
+ *                       │
+ *                   ┌───┴──┐
+ *                   │      │  task queue
+ *                   │      │
+ *                   │size=1│
+ *                   │      │
+ *        ┌─────────►│      ◄──────────┐
+ * notify │          └───▲──┘          │
+ *        │       notify │      notify │
+ *    ┌───┴────┐    ┌────┴───┐    ┌────┴───┐
+ *    │ worker │    │ worker │    │ worker │
+ *    └────────┘    └────────┘    └────────┘
  * </pre>
  */
 @SuppressWarnings("UnstableApiUsage")

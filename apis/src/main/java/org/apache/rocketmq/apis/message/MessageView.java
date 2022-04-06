@@ -98,6 +98,9 @@ public interface MessageView {
     /**
      * Get the born timestamp of message.
      *
+     * <p>Born time means the timestamp that the message is prepared to send rather than the timestamp the
+     * {@link Message} was built.
+     *
      * @return born timestamp of message.
      */
     long getBornTimestamp();

@@ -17,41 +17,37 @@
 
 package org.apache.rocketmq.grpcclient.remoting;
 
-import apache.rocketmq.v1.AckMessageRequest;
-import apache.rocketmq.v1.AckMessageResponse;
-import apache.rocketmq.v1.EndTransactionRequest;
-import apache.rocketmq.v1.EndTransactionResponse;
-import apache.rocketmq.v1.ForwardMessageToDeadLetterQueueRequest;
-import apache.rocketmq.v1.ForwardMessageToDeadLetterQueueResponse;
-import apache.rocketmq.v1.HealthCheckRequest;
-import apache.rocketmq.v1.HealthCheckResponse;
-import apache.rocketmq.v1.HeartbeatRequest;
-import apache.rocketmq.v1.HeartbeatResponse;
-import apache.rocketmq.v1.NackMessageRequest;
-import apache.rocketmq.v1.NackMessageResponse;
-import apache.rocketmq.v1.NotifyClientTerminationRequest;
-import apache.rocketmq.v1.NotifyClientTerminationResponse;
-import apache.rocketmq.v1.PollCommandRequest;
-import apache.rocketmq.v1.PollCommandResponse;
-import apache.rocketmq.v1.PullMessageRequest;
-import apache.rocketmq.v1.PullMessageResponse;
-import apache.rocketmq.v1.QueryAssignmentRequest;
-import apache.rocketmq.v1.QueryAssignmentResponse;
-import apache.rocketmq.v1.QueryOffsetRequest;
-import apache.rocketmq.v1.QueryOffsetResponse;
-import apache.rocketmq.v1.QueryRouteRequest;
-import apache.rocketmq.v1.QueryRouteResponse;
-import apache.rocketmq.v1.ReceiveMessageRequest;
-import apache.rocketmq.v1.ReceiveMessageResponse;
-import apache.rocketmq.v1.ReportMessageConsumptionResultRequest;
-import apache.rocketmq.v1.ReportMessageConsumptionResultResponse;
-import apache.rocketmq.v1.ReportThreadStackTraceRequest;
-import apache.rocketmq.v1.ReportThreadStackTraceResponse;
-import apache.rocketmq.v1.SendMessageRequest;
-import apache.rocketmq.v1.SendMessageResponse;
+import apache.rocketmq.v2.AckMessageRequest;
+import apache.rocketmq.v2.AckMessageResponse;
+import apache.rocketmq.v2.ChangeInvisibleDurationRequest;
+import apache.rocketmq.v2.ChangeInvisibleDurationResponse;
+import apache.rocketmq.v2.EndTransactionRequest;
+import apache.rocketmq.v2.EndTransactionResponse;
+import apache.rocketmq.v2.ForwardMessageToDeadLetterQueueRequest;
+import apache.rocketmq.v2.ForwardMessageToDeadLetterQueueResponse;
+import apache.rocketmq.v2.HeartbeatRequest;
+import apache.rocketmq.v2.HeartbeatResponse;
+import apache.rocketmq.v2.NotifyClientTerminationRequest;
+import apache.rocketmq.v2.NotifyClientTerminationResponse;
+import apache.rocketmq.v2.PrintThreadStackTraceCommand;
+import apache.rocketmq.v2.PullMessageRequest;
+import apache.rocketmq.v2.PullMessageResponse;
+import apache.rocketmq.v2.QueryAssignmentRequest;
+import apache.rocketmq.v2.QueryAssignmentResponse;
+import apache.rocketmq.v2.QueryOffsetRequest;
+import apache.rocketmq.v2.QueryOffsetResponse;
+import apache.rocketmq.v2.QueryRouteRequest;
+import apache.rocketmq.v2.QueryRouteResponse;
+import apache.rocketmq.v2.ReceiveMessageRequest;
+import apache.rocketmq.v2.ReceiveMessageResponse;
+import apache.rocketmq.v2.SendMessageRequest;
+import apache.rocketmq.v2.SendMessageResponse;
+import apache.rocketmq.v2.TelemetryCommand;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.grpc.Metadata;
 
+import io.grpc.stub.StreamObserver;
+import java.time.Duration;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
@@ -65,14 +61,14 @@ public interface RpcClient {
      *
      * @return idle seconds.
      */
-    long idleSeconds();
+    Duration idleDuration();
 
     /**
      * Shutdown the client. Please <strong>ensure invoked before {@link RpcClient} is garbage collected</strong>.
      *
      * @throws InterruptedException if thread has been interrupted.
      */
-    void shutdown() throws InterruptedException;
+    void close() throws InterruptedException;
 
     /**
      * Query topic route asynchronously.
@@ -85,7 +81,7 @@ public interface RpcClient {
      * @return response future of topic route.
      */
     ListenableFuture<QueryRouteResponse> queryRoute(Metadata metadata, QueryRouteRequest request, Executor executor,
-                                                    long duration, TimeUnit timeUnit);
+        Duration duration);
 
     /**
      * Heart beat asynchronously.
@@ -98,20 +94,7 @@ public interface RpcClient {
      * @return response future of heart beat.
      */
     ListenableFuture<HeartbeatResponse> heartbeat(Metadata metadata, HeartbeatRequest request, Executor executor,
-                                                  long duration, TimeUnit timeUnit);
-
-    /**
-     * Asynchronous health check for producer.
-     *
-     * @param metadata gRPC request header metadata.
-     * @param request  health check request.
-     * @param executor gRPC asynchronous executor.
-     * @param duration request max duration.
-     * @param timeUnit duration time timeUnit
-     * @return response future of health check response
-     */
-    ListenableFuture<HealthCheckResponse> healthCheck(Metadata metadata, HealthCheckRequest request,
-                                                      Executor executor, long duration, TimeUnit timeUnit);
+        Duration duration);
 
     /**
      * Send message asynchronously.
@@ -123,8 +106,8 @@ public interface RpcClient {
      * @param timeUnit duration time unit.
      * @return response future of sending message.
      */
-    ListenableFuture<SendMessageResponse> sendMessage(Metadata metadata, SendMessageRequest request,
-                                                      Executor executor, long duration, TimeUnit timeUnit);
+    ListenableFuture<SendMessageResponse> sendMessage(Metadata metadata, SendMessageRequest request, Executor executor,
+        Duration duration);
 
     /**
      * Query assignment asynchronously.
@@ -137,7 +120,7 @@ public interface RpcClient {
      * @return response future of query assignment.
      */
     ListenableFuture<QueryAssignmentResponse> queryAssignment(Metadata metadata, QueryAssignmentRequest request,
-                                                              Executor executor, long duration, TimeUnit timeUnit);
+        Executor executor, Duration duration);
 
     /**
      * Receiving message asynchronously from server.
@@ -150,7 +133,7 @@ public interface RpcClient {
      * @return response future of receiving message
      */
     ListenableFuture<ReceiveMessageResponse> receiveMessage(Metadata metadata, ReceiveMessageRequest request,
-                                                            Executor executor, long duration, TimeUnit timeUnit);
+        Executor executor, Duration duration);
 
     /**
      * Ack message asynchronously after success of consumption.
@@ -163,20 +146,20 @@ public interface RpcClient {
      * @return response future of ack message.
      */
     ListenableFuture<AckMessageResponse> ackMessage(Metadata metadata, AckMessageRequest request, Executor executor,
-                                                    long duration, TimeUnit timeUnit);
+        Duration duration);
 
     /**
-     * Nack message asynchronously after failure of consumption.
+     * Change message invisible duration.
      *
      * @param metadata gRPC request header metadata.
-     * @param request  nack message request.
+     * @param request  change invisible duration request.
      * @param executor gRPC asynchronous executor.
      * @param duration request max duration.
      * @param timeUnit duration time unit.
-     * @return response future of ack message.
+     * @return response future of change message invisible duration.
      */
-    ListenableFuture<NackMessageResponse> nackMessage(Metadata metadata, NackMessageRequest request, Executor executor,
-                                                      long duration, TimeUnit timeUnit);
+    ListenableFuture<ChangeInvisibleDurationResponse> changeInvisibleDuration(Metadata metadata,
+        ChangeInvisibleDurationRequest request, Executor executor, Duration duration);
 
     /**
      * Send message to dead letter queue asynchronously.
@@ -189,8 +172,7 @@ public interface RpcClient {
      * @return response future of sending message to DLQ.
      */
     ListenableFuture<ForwardMessageToDeadLetterQueueResponse> forwardMessageToDeadLetterQueue(
-            Metadata metadata, ForwardMessageToDeadLetterQueueRequest request, Executor executor, long duration,
-            TimeUnit timeUnit);
+        Metadata metadata, ForwardMessageToDeadLetterQueueRequest request, Executor executor, Duration duration);
 
     /**
      * Submit transaction resolution asynchronously.
@@ -203,7 +185,7 @@ public interface RpcClient {
      * @return response future of submitting transaction resolution.
      */
     ListenableFuture<EndTransactionResponse> endTransaction(Metadata metadata, EndTransactionRequest request,
-                                                            Executor executor, long duration, TimeUnit timeUnit);
+        Executor executor, Duration duration);
 
     /**
      * Query offset asynchronously for pull
@@ -216,7 +198,7 @@ public interface RpcClient {
      * @return response future of query offset.
      */
     ListenableFuture<QueryOffsetResponse> queryOffset(Metadata metadata, QueryOffsetRequest request, Executor executor,
-                                                      long duration, TimeUnit timeUnit);
+        Duration duration);
 
     /**
      * Pull message from remote asynchronously.
@@ -228,51 +210,8 @@ public interface RpcClient {
      * @param timeUnit duration time unit.
      * @return response future of pull message.
      */
-    ListenableFuture<PullMessageResponse> pullMessage(Metadata metadata, PullMessageRequest request,
-                                                      Executor executor, long duration, TimeUnit timeUnit);
-
-    /**
-     * Polling request asynchronously for composited request.
-     *
-     * @param metadata gRPC request header metadata.
-     * @param request  polling command request.
-     * @param executor gRPC asynchronous executor.
-     * @param duration request max duration.
-     * @param timeUnit duration time unit.
-     * @return response future of polling call.
-     */
-    ListenableFuture<PollCommandResponse> pollCommand(Metadata metadata, PollCommandRequest request,
-                                                      Executor executor, long duration, TimeUnit timeUnit);
-
-
-    /**
-     * Report thread stack trace asynchronously.
-     *
-     * @param metadata gRPC request header metadata.
-     * @param request  reported thread stack request.
-     * @param executor gRPC asynchronous executor.
-     * @param duration request max duration.
-     * @param timeUnit duration time unit.
-     * @return response future of reporting thread stack trace.
-     */
-    ListenableFuture<ReportThreadStackTraceResponse> reportThreadStackTrace(Metadata metadata,
-                                                                            ReportThreadStackTraceRequest request,
-                                                                            Executor executor, long duration,
-                                                                            TimeUnit timeUnit);
-
-    /**
-     * Report message consumption result asynchronously.
-     *
-     * @param metadata gRPC request header metadata.
-     * @param request  reported thread stack request.
-     * @param executor gRPC asynchronous executor.
-     * @param duration request max duration.
-     * @param timeUnit duration time unit.
-     * @return response future of reporting message consumption result.
-     */
-    ListenableFuture<ReportMessageConsumptionResultResponse> reportMessageConsumptionResult(
-            Metadata metadata, ReportMessageConsumptionResultRequest request, Executor executor, long duration,
-            TimeUnit timeUnit);
+    ListenableFuture<PullMessageResponse> pullMessage(Metadata metadata, PullMessageRequest request, Executor executor,
+        Duration duration);
 
     /**
      * Asynchronously notify server that client is terminated.
@@ -285,7 +224,9 @@ public interface RpcClient {
      * @return response future of notification of client termination.
      */
     ListenableFuture<NotifyClientTerminationResponse> notifyClientTermination(Metadata metadata,
-                                                                              NotifyClientTerminationRequest request,
-                                                                              Executor executor, long duration,
-                                                                              TimeUnit timeUnit);
+        NotifyClientTerminationRequest request, Executor executor, Duration duration);
+
+
+    StreamObserver<TelemetryCommand> telemetry(Metadata metadata, Executor executor, Duration duration,
+        StreamObserver<TelemetryCommand> responseObserver);
 }

@@ -17,46 +17,44 @@
 
 package org.apache.rocketmq.grpcclient.impl;
 
-import apache.rocketmq.v1.AckMessageRequest;
-import apache.rocketmq.v1.AckMessageResponse;
-import apache.rocketmq.v1.EndTransactionRequest;
-import apache.rocketmq.v1.EndTransactionResponse;
-import apache.rocketmq.v1.ForwardMessageToDeadLetterQueueRequest;
-import apache.rocketmq.v1.ForwardMessageToDeadLetterQueueResponse;
-import apache.rocketmq.v1.HealthCheckRequest;
-import apache.rocketmq.v1.HealthCheckResponse;
-import apache.rocketmq.v1.HeartbeatRequest;
-import apache.rocketmq.v1.HeartbeatResponse;
-import apache.rocketmq.v1.NackMessageRequest;
-import apache.rocketmq.v1.NackMessageResponse;
-import apache.rocketmq.v1.NotifyClientTerminationRequest;
-import apache.rocketmq.v1.NotifyClientTerminationResponse;
-import apache.rocketmq.v1.PollCommandRequest;
-import apache.rocketmq.v1.PollCommandResponse;
-import apache.rocketmq.v1.PullMessageRequest;
-import apache.rocketmq.v1.PullMessageResponse;
-import apache.rocketmq.v1.QueryAssignmentRequest;
-import apache.rocketmq.v1.QueryAssignmentResponse;
-import apache.rocketmq.v1.QueryOffsetRequest;
-import apache.rocketmq.v1.QueryOffsetResponse;
-import apache.rocketmq.v1.QueryRouteRequest;
-import apache.rocketmq.v1.QueryRouteResponse;
-import apache.rocketmq.v1.ReceiveMessageRequest;
-import apache.rocketmq.v1.ReceiveMessageResponse;
-import apache.rocketmq.v1.ReportMessageConsumptionResultRequest;
-import apache.rocketmq.v1.ReportMessageConsumptionResultResponse;
-import apache.rocketmq.v1.ReportThreadStackTraceRequest;
-import apache.rocketmq.v1.ReportThreadStackTraceResponse;
-import apache.rocketmq.v1.SendMessageRequest;
-import apache.rocketmq.v1.SendMessageResponse;
+import apache.rocketmq.v2.AckMessageRequest;
+import apache.rocketmq.v2.AckMessageResponse;
+import apache.rocketmq.v2.ChangeInvisibleDurationRequest;
+import apache.rocketmq.v2.ChangeInvisibleDurationResponse;
+import apache.rocketmq.v2.EndTransactionRequest;
+import apache.rocketmq.v2.EndTransactionResponse;
+import apache.rocketmq.v2.ForwardMessageToDeadLetterQueueRequest;
+import apache.rocketmq.v2.ForwardMessageToDeadLetterQueueResponse;
+import apache.rocketmq.v2.HeartbeatRequest;
+import apache.rocketmq.v2.HeartbeatResponse;
+import apache.rocketmq.v2.NotifyClientTerminationRequest;
+import apache.rocketmq.v2.NotifyClientTerminationResponse;
+import apache.rocketmq.v2.PullMessageRequest;
+import apache.rocketmq.v2.PullMessageResponse;
+import apache.rocketmq.v2.QueryAssignmentRequest;
+import apache.rocketmq.v2.QueryAssignmentResponse;
+import apache.rocketmq.v2.QueryOffsetRequest;
+import apache.rocketmq.v2.QueryOffsetResponse;
+import apache.rocketmq.v2.QueryRouteRequest;
+import apache.rocketmq.v2.QueryRouteResponse;
+import apache.rocketmq.v2.ReceiveMessageRequest;
+import apache.rocketmq.v2.ReceiveMessageResponse;
+import apache.rocketmq.v2.SendMessageRequest;
+import apache.rocketmq.v2.SendMessageResponse;
+import apache.rocketmq.v2.TelemetryCommand;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.grpc.Metadata;
+import io.grpc.stub.StreamObserver;
+import java.io.IOException;
+import java.time.Duration;
+import org.apache.rocketmq.apis.exception.ClientException;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 public interface ClientManager {
+    void close() throws IOException;
+
     /**
      * Register client.
      *
@@ -96,7 +94,7 @@ public interface ClientManager {
      * @return response future of topic route.
      */
     ListenableFuture<QueryRouteResponse> queryRoute(Endpoints endpoints, Metadata metadata, QueryRouteRequest request,
-                                                    long duration, TimeUnit timeUnit);
+        Duration duration);
 
     /**
      * Heart beat asynchronously, the method ensures no throwable.
@@ -109,20 +107,7 @@ public interface ClientManager {
      * @return response future of heart beat.
      */
     ListenableFuture<HeartbeatResponse> heartbeat(Endpoints endpoints, Metadata metadata, HeartbeatRequest request,
-                                                  long duration, TimeUnit timeUnit);
-
-    /**
-     * Asynchronous health check for producer, the method ensures no throwable.
-     *
-     * @param endpoints requested endpoints.
-     * @param metadata  gRPC request header metadata.
-     * @param request   health check request.
-     * @param duration  request max duration.
-     * @param timeUnit  duration time unit.
-     * @return response future of health check.
-     */
-    ListenableFuture<HealthCheckResponse> healthCheck(Endpoints endpoints, Metadata metadata,
-                                                      HealthCheckRequest request, long duration, TimeUnit timeUnit);
+        Duration duration);
 
     /**
      * Send message asynchronously, the method ensures no throwable.
@@ -135,7 +120,7 @@ public interface ClientManager {
      * @return response future of sending message.
      */
     ListenableFuture<SendMessageResponse> sendMessage(Endpoints endpoints, Metadata metadata,
-                                                      SendMessageRequest request, long duration, TimeUnit timeUnit);
+        SendMessageRequest request, Duration duration);
 
     /**
      * Query assignment asynchronously, the method ensures no throwable.
@@ -148,8 +133,7 @@ public interface ClientManager {
      * @return response future of query assignment.
      */
     ListenableFuture<QueryAssignmentResponse> queryAssignment(Endpoints endpoints, Metadata metadata,
-                                                              QueryAssignmentRequest request, long duration,
-                                                              TimeUnit timeUnit);
+        QueryAssignmentRequest request, Duration duration);
 
     /**
      * Receiving message asynchronously from server, the method ensures no throwable.
@@ -162,8 +146,7 @@ public interface ClientManager {
      * @return response future of receiving message.
      */
     ListenableFuture<ReceiveMessageResponse> receiveMessage(Endpoints endpoints, Metadata metadata,
-                                                            ReceiveMessageRequest request, long duration,
-                                                            TimeUnit timeUnit);
+        ReceiveMessageRequest request, Duration duration);
 
     /**
      * Ack message asynchronously after success of consumption, the method ensures no throwable.
@@ -176,7 +159,7 @@ public interface ClientManager {
      * @return response future of ack message.
      */
     ListenableFuture<AckMessageResponse> ackMessage(Endpoints endpoints, Metadata metadata, AckMessageRequest request,
-                                                    long duration, TimeUnit timeUnit);
+        Duration duration);
 
     /**
      * Nack message asynchronously after failure of consumption, the method ensures no throwable.
@@ -188,8 +171,9 @@ public interface ClientManager {
      * @param timeUnit  duration time unit.
      * @return response future of nack message.
      */
-    ListenableFuture<NackMessageResponse> nackMessage(Endpoints endpoints, Metadata metadata,
-                                                      NackMessageRequest request, long duration, TimeUnit timeUnit);
+    ListenableFuture<ChangeInvisibleDurationResponse> changeInvisibleDuration(Endpoints endpoints, Metadata metadata,
+        ChangeInvisibleDurationRequest request,
+        Duration duration);
 
     /**
      * Send message to dead letter queue asynchronously, the method ensures no throwable.
@@ -202,8 +186,7 @@ public interface ClientManager {
      * @return response future of sending message to DLQ.
      */
     ListenableFuture<ForwardMessageToDeadLetterQueueResponse> forwardMessageToDeadLetterQueue(
-            Endpoints endpoints, Metadata metadata, ForwardMessageToDeadLetterQueueRequest request, long duration,
-            TimeUnit timeUnit);
+        Endpoints endpoints, Metadata metadata, ForwardMessageToDeadLetterQueueRequest request, Duration duration);
 
     /**
      * Submit transaction resolution asynchronously, the method ensures no throwable.
@@ -216,8 +199,7 @@ public interface ClientManager {
      * @return response future of submitting transaction resolution.
      */
     ListenableFuture<EndTransactionResponse> endTransaction(Endpoints endpoints, Metadata metadata,
-                                                            EndTransactionRequest request, long duration,
-                                                            TimeUnit timeUnit);
+        EndTransactionRequest request, Duration duration);
 
     /**
      * Query offset asynchronously for pull, the method ensures no throwable.
@@ -230,7 +212,7 @@ public interface ClientManager {
      * @return response future of query offset.
      */
     ListenableFuture<QueryOffsetResponse> queryOffset(Endpoints endpoints, Metadata metadata,
-                                                      QueryOffsetRequest request, long duration, TimeUnit timeUnit);
+        QueryOffsetRequest request, Duration duration);
 
     /**
      * Pull message from remote asynchronously, the method ensures no throwable.
@@ -243,49 +225,7 @@ public interface ClientManager {
      * @return response future of pull message.
      */
     ListenableFuture<PullMessageResponse> pullMessage(Endpoints endpoints, Metadata metadata,
-                                                      PullMessageRequest request, long duration, TimeUnit timeUnit);
-
-    /**
-     * Poll command asynchronously for composited request, the method ensures no throwable.
-     *
-     * @param endpoints requested endpoints.
-     * @param metadata  gRPC request header metadata.
-     * @param request   poll command request.
-     * @param duration  request max duration.
-     * @param timeUnit  duration time unit.
-     * @return response future of poll command response.
-     */
-    ListenableFuture<PollCommandResponse> pollCommand(Endpoints endpoints, Metadata metadata,
-                                                      PollCommandRequest request, long duration,
-                                                      TimeUnit timeUnit);
-
-    /**
-     * Report thread stack trace asynchronously, the method ensures no throwable.
-     *
-     * @param endpoints requested endpoints
-     * @param metadata  gRPC request header metadata.
-     * @param request   request which contains thread stack trace.
-     * @param duration  request max duration.
-     * @param timeUnit  duration time unit.
-     * @return response future of reporting thread stack trace.
-     */
-    ListenableFuture<ReportThreadStackTraceResponse> reportThreadStackTrace(Endpoints endpoints, Metadata metadata,
-                                                                            ReportThreadStackTraceRequest request,
-                                                                            long duration, TimeUnit timeUnit);
-
-    /**
-     * Report message consumption asynchronously, the method ensures no throwable.
-     *
-     * @param endpoints requested endpoints.
-     * @param metadata  gRPC request header metadata.
-     * @param request   request which contains message consumption result.
-     * @param duration  request max duration.
-     * @param timeUnit  duration time unit.
-     * @return response future of reporting message consumption result.
-     */
-    ListenableFuture<ReportMessageConsumptionResultResponse> reportMessageConsumption(
-            Endpoints endpoints, Metadata metadata, ReportMessageConsumptionResultRequest request, long duration,
-            TimeUnit timeUnit);
+        PullMessageRequest request, Duration duration);
 
     /**
      * Asynchronously notify server that client is terminated, the method ensures no throwable.
@@ -299,6 +239,8 @@ public interface ClientManager {
      */
     @SuppressWarnings("UnusedReturnValue")
     ListenableFuture<NotifyClientTerminationResponse> notifyClientTermination(Endpoints endpoints, Metadata metadata,
-                                                                              NotifyClientTerminationRequest request,
-                                                                              long duration, TimeUnit timeUnit);
+        NotifyClientTerminationRequest request, Duration duration);
+
+    StreamObserver<TelemetryCommand> telemetry(Endpoints endpoints, Metadata metadata,
+        Duration duration, StreamObserver<TelemetryCommand> responseObserver) throws ClientException;
 }

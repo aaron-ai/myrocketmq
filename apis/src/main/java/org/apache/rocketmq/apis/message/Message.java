@@ -17,6 +17,7 @@
 
 package org.apache.rocketmq.apis.message;
 
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -40,7 +41,7 @@ public interface Message {
      *
      * @return the <strong>deep copy</strong> of message body.
      */
-    byte[] getBody();
+    ByteBuffer getBody();
 
     /**
      * Get the <strong>deep copy</strong> of message properties, which means any modification of return value does
@@ -71,6 +72,13 @@ public interface Message {
      * @return message group, which is optional, {@link Optional#empty()} means message group is not specified.
      */
     Optional<String> getMessageGroup();
+
+    /**
+     * Get the trace context, 
+     *
+     * @return trace context, which is optional, {@link Optional#empty()} means trace context is not specified.
+     */
+    Optional<String> getParentTraceContext();
 
     /**
      * Get the expected delivery timestamp, which make sense only when topic type is delay.

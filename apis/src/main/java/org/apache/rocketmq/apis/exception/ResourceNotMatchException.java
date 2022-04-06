@@ -18,7 +18,8 @@
 package org.apache.rocketmq.apis.exception;
 
 public class ResourceNotMatchException extends ClientException {
-    public ResourceNotMatchException(ErrorCode code, String message) {
-        super(code, message);
+    public ResourceNotMatchException(int code, String message) {
+        super(message);
+        putMetadata(RESPONSE_CODE_KEY, String.valueOf(code));
     }
 }

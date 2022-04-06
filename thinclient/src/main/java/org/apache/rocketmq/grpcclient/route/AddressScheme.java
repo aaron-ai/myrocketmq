@@ -21,7 +21,7 @@ public enum AddressScheme {
     /**
      * Scheme for domain name.
      */
-    DOMAIN_NAME(""),
+    DOMAIN_NAME("dns:"),
     /**
      * Scheme for ipv4 address.
      */
@@ -41,15 +41,28 @@ public enum AddressScheme {
         return this.prefix;
     }
 
-    public apache.rocketmq.v1.AddressScheme toAddressScheme() {
+    public apache.rocketmq.v2.AddressScheme toProtobuf() {
         switch (this) {
             case IPv4:
-                return apache.rocketmq.v1.AddressScheme.IPv4;
+                return apache.rocketmq.v2.AddressScheme.IPv4;
             case IPv6:
-                return apache.rocketmq.v1.AddressScheme.IPv6;
+                return apache.rocketmq.v2.AddressScheme.IPv6;
             case DOMAIN_NAME:
             default:
-                return apache.rocketmq.v1.AddressScheme.DOMAIN_NAME;
+                return apache.rocketmq.v2.AddressScheme.DOMAIN_NAME;
         }
+    }
+
+    public static AddressScheme fromPrefix(String prefix) {
+        if (AddressScheme.DOMAIN_NAME.getPrefix().equals(prefix)) {
+            return AddressScheme.DOMAIN_NAME;
+        }
+        if (AddressScheme.IPv4.getPrefix().equals(prefix)) {
+            return AddressScheme.IPv4;
+        }
+        if (AddressScheme.IPv6.getPrefix().equals(prefix)) {
+            return AddressScheme.IPv6;
+        }
+        throw new IllegalArgumentException("Unrecognized address scheme prefix");
     }
 }

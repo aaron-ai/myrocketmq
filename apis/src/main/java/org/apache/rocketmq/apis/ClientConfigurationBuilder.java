@@ -31,7 +31,7 @@ public class ClientConfigurationBuilder {
     private boolean enableTracing = true;
 
     /**
-     * Configure the endpoints with which the SDK should communicate.
+     * Configure the access point with which the SDK should communicate.
      *
      * <p>Endpoints here means address of service, complying with the following scheme(part square brackets is
      * optional).
@@ -41,18 +41,18 @@ public class ClientConfigurationBuilder {
      * <p>3. ipv6 scheme: ipv6:address:port[,address:port,...]
      * <p>4. http/https scheme: http|https://host[:port], similar to DNS scheme, if port not specified, 443 is used.
      *
-     * @param endpoints address of service.
+     * @param accessPoint address of service.
      * @return the client configuration builder instance.
      */
-    public ClientConfigurationBuilder setEndpoints(String endpoints) {
-        checkNotNull(endpoints, "endpoints should not be not null");
-        this.endpoints = endpoints;
+    public ClientConfigurationBuilder setAccessPoint(String accessPoint) {
+        checkNotNull(accessPoint, "accessPoint should not be not null");
+        this.endpoints = accessPoint;
         return this;
     }
 
     public ClientConfigurationBuilder setCredentialProvider(SessionCredentialsProvider sessionCredentialsProvider) {
         this.sessionCredentialsProvider = checkNotNull(sessionCredentialsProvider, "credentialsProvider should not " +
-                "be null");
+            "be null");
         return this;
     }
 

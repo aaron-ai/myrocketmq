@@ -24,7 +24,7 @@ public class Address {
     private final String host;
     private final int port;
 
-    public Address(apache.rocketmq.v1.Address address) {
+    public Address(apache.rocketmq.v2.Address address) {
         this.host = address.getHost();
         this.port = address.getPort();
     }
@@ -38,8 +38,8 @@ public class Address {
         return host + ":" + port;
     }
 
-    public apache.rocketmq.v1.Address toPbAddress() {
-        return apache.rocketmq.v1.Address.newBuilder().setHost(host).setPort(port).build();
+    public apache.rocketmq.v2.Address toProtobuf() {
+        return apache.rocketmq.v2.Address.newBuilder().setHost(host).setPort(port).build();
     }
 
     public String getHost() {

@@ -31,6 +31,12 @@ import io.grpc.MethodDescriptor;
 public class LoggingInterceptor implements ClientInterceptor {
     private static final Logger LOGGER = LoggerFactory.getLogger(LoggingInterceptor.class);
 
+    private static final LoggingInterceptor INSTANCE = new LoggingInterceptor();
+
+    public static LoggingInterceptor getInstance() {
+        return INSTANCE;
+    }
+
     @Override
     public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(MethodDescriptor<ReqT, RespT> method,
                                                                CallOptions callOptions, Channel next) {

@@ -89,15 +89,11 @@ public class ProducerBuilderImpl implements ProducerBuilder {
     /**
      * @see ProducerBuilder#build()
      */
-    @SuppressWarnings("UnstableApiUsage")
     @Override
     public Producer build() {
         checkNotNull(topics, "topics should not be null");
         checkNotNull(retryPolicy, "retryPolicy should not be null");
         checkNotNull(checker, "checker should not be null");
-        final ProducerImpl producer = new ProducerImpl(clientConfiguration, topics, asyncThreadCount, retryPolicy,
-                checker);
-        producer.startAsync().awaitRunning();
-        return producer;
+        return new ProducerImpl(clientConfiguration, topics, asyncThreadCount, retryPolicy, checker);
     }
 }

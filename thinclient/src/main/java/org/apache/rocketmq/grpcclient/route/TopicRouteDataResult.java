@@ -17,6 +17,9 @@
 
 package org.apache.rocketmq.grpcclient.route;
 
+import apache.rocketmq.v2.Status;
+import com.google.common.base.MoreObjects;
+import com.google.common.base.Objects;
 import org.apache.rocketmq.apis.exception.ClientException;
 
 import javax.annotation.concurrent.Immutable;
@@ -24,26 +27,49 @@ import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
+/**
+ * Result topic route data fetched from remote.
+ */
 @Immutable
 public class TopicRouteDataResult {
     private final TopicRouteData topicRouteData;
-    private final ClientException clientException;
+    private final Status status;
 
-    public TopicRouteDataResult(TopicRouteData topicRouteData) {
+    public TopicRouteDataResult(TopicRouteData topicRouteData, Status status) {
         this.topicRouteData = checkNotNull(topicRouteData, "topicRouteData should not be null");
-        this.clientException = null;
-    }
-
-    public TopicRouteDataResult(ClientException clientException) {
-        this.topicRouteData = null;
-        this.clientException = checkNotNull(clientException, "clientException should not be null");
+        this.status = checkNotNull(status, "status should not be null");
     }
 
     public TopicRouteData getTopicRouteData() {
         return topicRouteData;
     }
 
-    public Optional<ClientException> tryGetClientException() {
-        return null == clientException ? Optional.empty() : Optional.of(clientException);
+    public Status getStatus() {
+        return status;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
+        TopicRouteDataResult result = (TopicRouteDataResult) o;
+        return Objects.equal(topicRouteData, result.topicRouteData) && Objects.equal(status, result.status);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hashCode(topicRouteData, status);
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+                .add("topicRouteData", topicRouteData)
+                .add("status", status)
+                .toString();
     }
 }

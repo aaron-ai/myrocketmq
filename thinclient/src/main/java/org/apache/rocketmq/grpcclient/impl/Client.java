@@ -33,11 +33,6 @@ public interface Client {
     void doHeartbeat();
 
     /**
-     * Check the status of remote {@link Endpoints}.
-     */
-    void doHealthCheck();
-
-    /**
      * Do some stats for client.
      */
     void doStats();

@@ -17,7 +17,7 @@
 
 package org.apache.rocketmq.grpcclient.utility;
 
-import apache.rocketmq.v1.ReceiveMessageRequest;
+import apache.rocketmq.v2.ReceiveMessageRequest;
 
 public class MixAll {
     public static final String DEFAULT_CHARSET = "UTF-8";

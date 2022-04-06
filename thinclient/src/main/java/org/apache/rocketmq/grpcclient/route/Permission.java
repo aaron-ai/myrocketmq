@@ -21,25 +21,19 @@ public enum Permission {
     /**
      * No any permission.
      */
-    NONE(0),
+    NONE,
     /**
      * Readable.
      */
-    READ(1),
+    READ,
     /**
      * Writable.
      */
-    WRITE(2),
+    WRITE,
     /**
      * Both of readable and writable.
      */
-    READ_WRITE(3);
-
-    private final int value;
-
-    Permission(int value) {
-        this.value = value;
-    }
+    READ_WRITE;
 
     public boolean isWritable() {
         switch (this) {
@@ -65,7 +59,19 @@ public enum Permission {
         }
     }
 
-    public int getValue() {
-        return this.value;
+    public static Permission fromProto(apache.rocketmq.v2.Permission permission) {
+        switch (permission) {
+            case READ:
+                return Permission.READ;
+            case WRITE:
+                return Permission.WRITE;
+            case READ_WRITE:
+                return Permission.READ_WRITE;
+            case NONE:
+                return Permission.NONE;
+            case PERMISSION_UNSPECIFIED:
+            default:
+                throw new IllegalArgumentException("Message queue permission is not specified");
+        }
     }
 }

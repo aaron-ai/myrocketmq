@@ -18,12 +18,18 @@
 package org.apache.rocketmq.apis.exception;
 
 public class ResourceNotFoundException extends ClientException {
-    public ResourceNotFoundException(ErrorCode code, String message, String requestId) {
-        super(code, message);
+    public ResourceNotFoundException(int responseCode, String message, String requestId) {
+        super(message);
+        putMetadata(RESPONSE_CODE_KEY, String.valueOf(responseCode));
         putMetadata(REQUEST_ID_KEY, requestId);
     }
 
-    public ResourceNotFoundException(ErrorCode code, String message) {
-        super(code, message);
+    public ResourceNotFoundException(int responseCode, String message) {
+        super(message);
+        putMetadata(RESPONSE_CODE_KEY, String.valueOf(responseCode));
+    }
+
+    public ResourceNotFoundException(String message) {
+        super(message);
     }
 }

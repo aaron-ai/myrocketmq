@@ -10,8 +10,8 @@ Orderly message is divided into global orderly message and partitioned orderly m
 For a given Topic, all messages are published and consumed in strict first-in-first-out (FIFO) order.
 Applicable scenario: the performance requirement is not high, and all messages are published and consumed according to FIFO principle strictly.
 - Partitioned message ordering:
-For a given Topic, all messages are partitioned according to sharding key. Messages within the same partition are published and consumed in strict FIFO order. Sharding key is the key field to distinguish message's partition, which is a completely different concept from the key of ordinary messages.
-Applicable scenario: high performance requirement, with sharding key as the partition field, messages within the same partition are published and consumed according to FIFO principle strictly.
+For a given Topic, all messages are partitioned according to sharding key. Messages within the same messageQueueImpl are published and consumed in strict FIFO order. Sharding key is the key field to distinguish message's messageQueueImpl, which is a completely different concept from the key of ordinary messages.
+Applicable scenario: high performance requirement, with sharding key as the messageQueueImpl field, messages within the same messageQueueImpl are published and consumed according to FIFO principle strictly.
 
 ## 3 Message Filter
 Consumers of RocketMQ can filter messages based on tags as well as supporting for user-defined attribute filtering. Message filter is currently implemented on the Broker side, with the advantage of reducing the network transmission of useless messages for Consumer and the disadvantage of increasing the burden on the Broker and relatively complex implementation.

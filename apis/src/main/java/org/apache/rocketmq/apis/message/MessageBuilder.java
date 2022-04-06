@@ -88,6 +88,14 @@ public interface MessageBuilder {
     MessageBuilder setMessageGroup(String messageGroup);
 
     /**
+     * Set the trace context for each message, which should follow openTelemetry specs.
+     *
+     * @param traceContext trace context for the messages.
+     * @return the message builder instance.
+     */
+    MessageBuilder setTraceContext(String traceContext);
+
+    /**
      * Set the delivery timestamp for message, which is optional.
      *
      * <p>Delivery timestamp and message group should not be set in the same message.
