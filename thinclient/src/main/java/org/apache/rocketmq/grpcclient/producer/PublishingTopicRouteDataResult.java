@@ -77,7 +77,7 @@ public class PublishingTopicRouteDataResult {
     }
 
     // TODO:
-    public List<MessageQueueImpl> takeMessageQueues(Set<Endpoints> excludedEndpoints, int count) {
+    public List<MessageQueueImpl> takeMessageQueues(Set<Endpoints> excluded, int count) {
 //        if (Code.OK != status.getCode()) {
 //
 //        }
@@ -92,7 +92,7 @@ public class PublishingTopicRouteDataResult {
             final MessageQueueImpl messageQueueImpl = messageQueues.get(IntMath.mod(next++, messageQueues.size()));
             final Broker broker = messageQueueImpl.getBroker();
             final String brokerName = broker.getName();
-            if (!excludedEndpoints.contains(broker.getEndpoints()) && !candidateBrokerNames.contains(brokerName)) {
+            if (!excluded.contains(broker.getEndpoints()) && !candidateBrokerNames.contains(brokerName)) {
                 candidateBrokerNames.add(brokerName);
                 candidates.add(messageQueueImpl);
             }

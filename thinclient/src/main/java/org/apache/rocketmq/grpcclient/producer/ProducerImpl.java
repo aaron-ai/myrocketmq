@@ -18,31 +18,23 @@
 package org.apache.rocketmq.grpcclient.producer;
 
 import apache.rocketmq.v2.Broker;
-import apache.rocketmq.v2.Encoding;
 import apache.rocketmq.v2.HeartbeatRequest;
 import apache.rocketmq.v2.MessageQueue;
-import apache.rocketmq.v2.MessageType;
 import apache.rocketmq.v2.Resource;
 import apache.rocketmq.v2.SendMessageRequest;
 import apache.rocketmq.v2.SendMessageResponse;
-import apache.rocketmq.v2.SystemProperties;
 import com.google.common.base.Function;
 import com.google.common.math.IntMath;
-import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
-import com.google.protobuf.ByteString;
-import com.google.protobuf.util.Timestamps;
 import io.grpc.Metadata;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -58,7 +50,6 @@ import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
-import javax.annotation.Nullable;
 import org.apache.rocketmq.apis.ClientConfiguration;
 import org.apache.rocketmq.apis.exception.ClientException;
 import org.apache.rocketmq.apis.message.Message;
@@ -75,7 +66,8 @@ import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 import org.apache.rocketmq.grpcclient.route.TopicRouteDataResult;
 import org.apache.rocketmq.grpcclient.utility.ExecutorServices;
 import org.apache.rocketmq.grpcclient.utility.ThreadFactoryImpl;
-import org.apache.rocketmq.grpcclient.utility.UtilAll;
+
+import static com.google.common.base.Preconditions.checkNotNull;
 
 @SuppressWarnings({"UnstableApiUsage", "NullableProblems"})
 public class ProducerImpl extends ClientImpl implements Producer {
@@ -195,8 +187,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
         return null;
     }
 
-    private List<MessageQueueImpl> takeMessageQueues(PublishingTopicRouteDataResult result)
-        throws ClientException {
+    private List<MessageQueueImpl> takeMessageQueues(PublishingTopicRouteDataResult result) throws ClientException {
         Set<Endpoints> isolated = new HashSet<>();
         isolatedLock.readLock().lock();
         try {
@@ -224,7 +215,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
             // Messages have different topics, no need to proceed.
             final IllegalArgumentException e = new IllegalArgumentException("Messages to send have different topic");
             future.setException(e);
-            LOGGER.error("Messages to send have different topic, no need to proceed, topics={}", topics, e);
+            LOGGER.error("Messages to send have different topics, no need to proceed, topics={}", topics, e);
             return future;
         }
         // TODO: notify server.
@@ -232,14 +223,16 @@ public class ProducerImpl extends ClientImpl implements Producer {
         this.topics.add(topic);
 
         List<PublishingMessageImpl> publishingMessages = new ArrayList<>();
-        try {
-            for (Message message : messages) {
+        for (Message message : messages) {
+            try {
                 publishingMessages.add(new PublishingMessageImpl(namespace, message, transactionEnabled));
+            } catch (IOException e) {
+                // Failed to refine message, no need to proceed.
+                LOGGER.error("Failed to refine message, namespace={}, topic={}, clientId={}, message={}", namespace,
+                    topic, clientId, message, e);
+                future.setException(e);
+                return future;
             }
-        } catch (IOException e) {
-            LOGGER.error("Failed to ");
-            future.setException(e);
-            return future;
         }
         // Get publishing topic route.
         final ListenableFuture<PublishingTopicRouteDataResult> routeFuture = getPublishingTopicRouteResult(topic);
@@ -296,16 +289,21 @@ public class ProducerImpl extends ClientImpl implements Producer {
             clientManager.sendMessage(endpoints, metadata, request, clientConfiguration.getRequestTimeout());
 
         final ListenableFuture<List<SendReceipt>> attemptFuture = Futures.transformAsync(responseFuture, response -> {
-            final SettableFuture<List<SendReceipt>> future0 = SettableFuture.create();
-            // TODO: may throw exception.
-            future0.set(SendReceiptImpl.processSendResponse(messageQueue, response));
-            return future0;
-        });
+                final SettableFuture<List<SendReceipt>> future0 = SettableFuture.create();
+                // TODO: may throw exception.
+                future0.set(SendReceiptImpl.processSendResponse(messageQueue, checkNotNull(response)));
+                return future0;
+            }
+        );
 
         final int maxAttempts = retryPolicy.getMaxAttempts();
         Futures.addCallback(attemptFuture, new FutureCallback<List<SendReceipt>>() {
             @Override
             public void onSuccess(List<SendReceipt> sendReceipts) {
+                if (sendReceipts.size() != messages.size()) {
+                    LOGGER.error("[Bug] Due to an unknown reason from server, received send receipts' quantity[{}]" +
+                        " is not equal to messages' quantity[{}]", sendReceipts.size(), messages.size());
+                }
                 // No need more attempts.
                 future.set(sendReceipts);
 
@@ -328,7 +326,6 @@ public class ProducerImpl extends ClientImpl implements Producer {
                 if (attempt >= maxAttempts) {
                     // Mo need more attempts.
                     future.setException(t);
-
                     // Collect successful messageId(s) for logging.
                     List<MessageId> messageIds = new ArrayList<>();
                     for (PublishingMessageImpl message : messages) {
