@@ -72,15 +72,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 @SuppressWarnings({"UnstableApiUsage", "NullableProblems"})
 public class ProducerImpl extends ClientImpl implements Producer {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProducerImpl.class);
-    /**
-     * If message body size exceeds the threshold, it would be compressed for convenience of transport.
-     */
-    public static final int MESSAGE_COMPRESSION_BYTES_THRESHOLD = 1024 * 4;
-
-    /**
-     * The default GZIP compression level for message body.
-     */
-    public static final int MESSAGE_COMPRESSION_LEVEL = 5;
 
     private final Set<String> topics;
     private final int sendAsyncThreadCount;
@@ -187,6 +178,18 @@ public class ProducerImpl extends ClientImpl implements Producer {
         return null;
     }
 
+    /**
+     * Isolate specified {@link Endpoints}.
+     */
+    private void isolate(Endpoints endpoints) {
+        isolatedLock.writeLock().lock();
+        try {
+            isolated.add(endpoints);
+        } finally {
+            isolatedLock.writeLock().unlock();
+        }
+    }
+
     private List<MessageQueueImpl> takeMessageQueues(PublishingTopicRouteDataResult result) throws ClientException {
         Set<Endpoints> isolated = new HashSet<>();
         isolatedLock.readLock().lock();
@@ -211,7 +214,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
         SettableFuture<List<SendReceipt>> future = SettableFuture.create();
         // Collect topics to send message.
         final Set<String> topics = messages.stream().map(Message::getTopic).collect(Collectors.toSet());
-        if (1 != topics.size()) {
+        if (1 < topics.size()) {
             // Messages have different topics, no need to proceed.
             final IllegalArgumentException e = new IllegalArgumentException("Messages to send have different topic");
             future.setException(e);
@@ -276,11 +279,11 @@ public class ProducerImpl extends ClientImpl implements Producer {
         try {
             metadata = sign();
         } catch (Throwable t) {
-            // failed to sign, no need to proceed.
+            // Failed to sign, no need to proceed.
             future.setException(t);
             return;
         }
-        // calculate the current partition.
+        // Calculate the current partition.
         final MessageQueueImpl messageQueue = candidates.get(IntMath.mod(attempt - 1, candidates.size()));
         final Endpoints endpoints = messageQueue.getBroker().getEndpoints();
         final SendMessageRequest request = wrapSendMessageRequest(messages, messageQueue);
@@ -306,8 +309,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
                 }
                 // No need more attempts.
                 future.set(sendReceipts);
-
-                // resend message(s) successfully.
+                // Resend message(s) successfully.
                 if (1 < attempt) {
                     // Collect successful messageId(s) for logging.
                     List<MessageId> messageIds = new ArrayList<>();
@@ -318,13 +320,15 @@ public class ProducerImpl extends ClientImpl implements Producer {
                             + "attempt={}, endpoints={}, clientId={}", namespace, messageQueue.getTopic(), messageIds, maxAttempts, attempt,
                         endpoints, clientId);
                 }
-                // send message on first attempt, return directly.
+                // Send message on first attempt, return directly.
             }
 
             @Override
             public void onFailure(Throwable t) {
+                // Isolate endpoints because of sending failure.
+                isolate(endpoints);
                 if (attempt >= maxAttempts) {
-                    // Mo need more attempts.
+                    // No need more attempts.
                     future.setException(t);
                     // Collect successful messageId(s) for logging.
                     List<MessageId> messageIds = new ArrayList<>();

@@ -15,7 +15,14 @@ import org.apache.rocketmq.grpcclient.utility.UtilAll;
  * Specifically speaking, Some work has been brought forward, e.g. message body compression, message id generation, etc.
  */
 public class PublishingMessageImpl extends MessageImpl {
+    /**
+     * If message body size exceeds the threshold, it would be compressed for convenience of transport.
+     */
     private static final int MESSAGE_COMPRESSION_THRESHOLD_BYTES = 1024 * 4;
+
+    /**
+     * The default GZIP compression level for message body.
+     */
     private static final int MESSAGE_GZIP_COMPRESSION_LEVEL = 5;
 
     private final String namespace;
