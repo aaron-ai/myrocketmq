@@ -39,6 +39,8 @@ import io.grpc.stub.StreamObserver;
 import java.io.UnsupportedEncodingException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.time.Duration;
+import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.apis.ClientConfiguration;
 import org.apache.rocketmq.grpcclient.remoting.Signature;
@@ -68,6 +70,8 @@ public abstract class ClientImpl implements Client {
     protected final ClientManager clientManager;
     protected final ClientConfiguration clientConfiguration;
     private final Endpoints accessEndpoints;
+
+    protected final Set<String> topics;
     private final ConcurrentMap<String, TopicRouteDataResult> topicRouteResultCache;
 
     @GuardedBy("inflightRouteFutureLock")
@@ -79,7 +83,7 @@ public abstract class ClientImpl implements Client {
 
     protected final String clientId;
 
-    public ClientImpl(ClientConfiguration clientConfiguration) {
+    public ClientImpl(ClientConfiguration clientConfiguration, Set<String> topics) {
         this.clientConfiguration = checkNotNull(clientConfiguration, "clientConfiguration should not be null");
         final String accessPoint = clientConfiguration.getAccessPoint();
         boolean httpPatternMatched = accessPoint.startsWith(MixAll.HTTP_PREFIX) || accessPoint.startsWith(MixAll.HTTPS_PREFIX);
@@ -95,6 +99,7 @@ public abstract class ClientImpl implements Client {
             this.namespace = StringUtils.EMPTY;
             this.accessEndpoints = new Endpoints(accessPoint);
         }
+        this.topics = topics;
         this.clientManager = ClientManagerFactory.getInstance().registerClient(namespace, this);
         this.topicRouteResultCache = new ConcurrentHashMap<>();
 
@@ -105,6 +110,31 @@ public abstract class ClientImpl implements Client {
         this.telemetryResponseObserver = new TelemetryResponseObserver(this);
 
         this.clientId = UtilAll.genClientId();
+        this.getRouteDataResults();
+    }
+
+    private void getRouteDataResults() {
+        try {
+            Futures.allAsList(topics.stream().map(this::getRouteDataResult).collect(Collectors.toList())).get();
+        } catch (Throwable t) {
+            // TODO
+            throw new RuntimeException(t);
+        }
+    }
+
+    private void telemetry(Set<Endpoints> endpointsSet) {
+        try {
+            for (Endpoints endpoints : endpointsSet) {
+                final Metadata metadata = sign();
+                final Duration duration = clientConfiguration.getRequestTimeout();
+                final StreamObserver<TelemetryCommand> requestObserver =
+                    clientManager.telemetry(endpoints, metadata, duration, telemetryResponseObserver);
+                telemetryRequestObserverTable.put(endpoints, requestObserver);
+            }
+        } catch (Throwable t) {
+            // TODO
+            throw new RuntimeException(t);
+        }
     }
 
     public void close() throws IOException {

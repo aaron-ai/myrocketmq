@@ -60,6 +60,7 @@ import org.apache.rocketmq.apis.producer.Transaction;
 import org.apache.rocketmq.apis.producer.TransactionChecker;
 import org.apache.rocketmq.apis.retry.BackoffRetryPolicy;
 import org.apache.rocketmq.grpcclient.impl.ClientImpl;
+import org.apache.rocketmq.grpcclient.message.MessageType;
 import org.apache.rocketmq.grpcclient.message.PublishingMessageImpl;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
@@ -73,7 +74,6 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class ProducerImpl extends ClientImpl implements Producer {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProducerImpl.class);
 
-    private final Set<String> topics;
     private final int sendAsyncThreadCount;
     private final BackoffRetryPolicy retryPolicy;
     private final TransactionChecker checker;
@@ -91,8 +91,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
      */
     ProducerImpl(ClientConfiguration clientConfiguration, Set<String> topics, int sendAsyncThreadCount,
         BackoffRetryPolicy retryPolicy, TransactionChecker checker) {
-        super(clientConfiguration);
-        this.topics = topics;
+        super(clientConfiguration, topics);
         this.sendAsyncThreadCount = sendAsyncThreadCount;
         this.retryPolicy = retryPolicy;
         this.checker = checker;
@@ -212,37 +211,48 @@ public class ProducerImpl extends ClientImpl implements Producer {
 
     private ListenableFuture<List<SendReceipt>> send0(final List<Message> messages, boolean transactionEnabled) {
         SettableFuture<List<SendReceipt>> future = SettableFuture.create();
+
+        List<PublishingMessageImpl> pubMessages = new ArrayList<>();
+        for (Message message : messages) {
+            try {
+                pubMessages.add(new PublishingMessageImpl(namespace, message, transactionEnabled));
+            } catch (IOException e) {
+                // Failed to refine message, no need to proceed.
+                LOGGER.error("Failed to refine message, namespace={}, clientId={}, message={}", namespace, clientId,
+                    message, e);
+                future.setException(e);
+                return future;
+            }
+        }
         // Collect topics to send message.
-        final Set<String> topics = messages.stream().map(Message::getTopic).collect(Collectors.toSet());
+        final Set<String> topics = pubMessages.stream().map(Message::getTopic).collect(Collectors.toSet());
         if (1 < topics.size()) {
             // Messages have different topics, no need to proceed.
-            final IllegalArgumentException e = new IllegalArgumentException("Messages to send have different topic");
+            final IllegalArgumentException e = new IllegalArgumentException("Messages to send have different topics");
             future.setException(e);
             LOGGER.error("Messages to send have different topics, no need to proceed, topics={}", topics, e);
+            return future;
+        }
+        // Collect message types.
+        final Set<MessageType> messageTypes = pubMessages.stream()
+            .map(PublishingMessageImpl::getMessageType)
+            .collect(Collectors.toSet());
+        if (1 < messageTypes.size()) {
+            // Messages have different message type, no need to proceed.
+            final IllegalArgumentException e = new IllegalArgumentException("Messages to send have different types");
+            future.setException(e);
+            LOGGER.error("Messages to send have different types, no need to proceed, types={}", messageTypes, e);
             return future;
         }
         // TODO: notify server.
         final String topic = topics.iterator().next();
         this.topics.add(topic);
-
-        List<PublishingMessageImpl> publishingMessages = new ArrayList<>();
-        for (Message message : messages) {
-            try {
-                publishingMessages.add(new PublishingMessageImpl(namespace, message, transactionEnabled));
-            } catch (IOException e) {
-                // Failed to refine message, no need to proceed.
-                LOGGER.error("Failed to refine message, namespace={}, topic={}, clientId={}, message={}", namespace,
-                    topic, clientId, message, e);
-                future.setException(e);
-                return future;
-            }
-        }
         // Get publishing topic route.
         final ListenableFuture<PublishingTopicRouteDataResult> routeFuture = getPublishingTopicRouteResult(topic);
         return Futures.transformAsync(routeFuture, result -> {
             // Prepare the candidate partitions for retry-sending in advance.
             final List<MessageQueueImpl> candidates = takeMessageQueues(result);
-            return send0(publishingMessages, candidates);
+            return send0(pubMessages, candidates);
         });
     }
 
@@ -300,6 +310,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
         );
 
         final int maxAttempts = retryPolicy.getMaxAttempts();
+        final String topic = messageQueue.getTopic();
         Futures.addCallback(attemptFuture, new FutureCallback<List<SendReceipt>>() {
             @Override
             public void onSuccess(List<SendReceipt> sendReceipts) {
@@ -311,13 +322,13 @@ public class ProducerImpl extends ClientImpl implements Producer {
                 future.set(sendReceipts);
                 // Resend message(s) successfully.
                 if (1 < attempt) {
-                    // Collect successful messageId(s) for logging.
+                    // Collect messageId(s) for logging.
                     List<MessageId> messageIds = new ArrayList<>();
                     for (SendReceipt receipt : sendReceipts) {
                         messageIds.add(receipt.getMessageId());
                     }
                     LOGGER.info("Resend message successfully, namespace={}, topic={}, messageId(s)={}, maxAttempts={}, "
-                            + "attempt={}, endpoints={}, clientId={}", namespace, messageQueue.getTopic(), messageIds, maxAttempts, attempt,
+                            + "attempt={}, endpoints={}, clientId={}", namespace, topic, messageIds, maxAttempts, attempt,
                         endpoints, clientId);
                 }
                 // Send message on first attempt, return directly.
@@ -325,24 +336,36 @@ public class ProducerImpl extends ClientImpl implements Producer {
 
             @Override
             public void onFailure(Throwable t) {
+                // Collect messageId(s) for logging.
+                List<MessageId> messageIds = new ArrayList<>();
+                for (PublishingMessageImpl message : messages) {
+                    messageIds.add(message.getMessageId());
+                }
                 // Isolate endpoints because of sending failure.
                 isolate(endpoints);
                 if (attempt >= maxAttempts) {
                     // No need more attempts.
                     future.setException(t);
-                    // Collect successful messageId(s) for logging.
-                    List<MessageId> messageIds = new ArrayList<>();
-                    for (PublishingMessageImpl message : messages) {
-                        messageIds.add(message.getMessageId());
-                    }
                     LOGGER.error("Failed to send message(s) finally, run out of attempt times, maxAttempts={}, " +
                             "attempt={}, namespace={}, topic={}, messageId(s)={}, endpoints={}, clientId={}",
-                        maxAttempts, attempt, namespace, messageQueue.getTopic(), messageIds, endpoints, clientId);
+                        maxAttempts, attempt, namespace, topic, messageIds, endpoints, clientId, t);
+                    return;
+                }
+                final MessageType messageType = messages.iterator().next().getMessageType();
+                // No need more attempts for transactional message.
+                if (MessageType.TRANSACTION.equals(messageType)) {
+                    future.setException(t);
+                    LOGGER.error("Failed to send transactional message, maxAttempts=1, attempt={}, namespace={}, " +
+                        "topic={}, messageId(s), endpoints={}, clientId={}", attempt, namespace, topic, messageIds,
+                        endpoints, clientId, t);
                     return;
                 }
                 // Try to do more attempts.
                 int nextAttempt = 1 + attempt;
                 final Duration delay = retryPolicy.getNextAttemptDelay(nextAttempt);
+                LOGGER.warn("Failed to send message, would attempt to resend after {}, maxAttempts={}, "
+                        + "attempt={}, namespace={}, topic={}, messageId(s)={}, endpoints={}, clientId={}", delay,
+                    maxAttempts, attempt, namespace, topic, messageIds, endpoints, clientId, t);
                 clientManager.getScheduler().schedule(() -> send0(future, candidates, messages, nextAttempt),
                     delay.getNano(), TimeUnit.NANOSECONDS);
             }

@@ -52,7 +52,7 @@ public class Signature {
         metadata.put(Metadata.Key.of(REQUEST_ID_KEY, Metadata.ASCII_STRING_MARSHALLER), requestId);
 
         final Optional<SessionCredentialsProvider> optionalSessionCredentialsProvider =
-                config.tryGetCredentialsProvider();
+                config.getCredentialsProvider();
         if (!optionalSessionCredentialsProvider.isPresent()) {
             return metadata;
         }

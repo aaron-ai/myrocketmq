@@ -17,6 +17,7 @@
 
 package org.apache.rocketmq.grpcclient.producer;
 
+import java.util.stream.Collectors;
 import org.apache.rocketmq.apis.ClientConfiguration;
 import org.apache.rocketmq.apis.producer.Producer;
 import org.apache.rocketmq.apis.producer.ProducerBuilder;
@@ -26,6 +27,7 @@ import org.apache.rocketmq.apis.retry.BackoffRetryPolicy;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
+import org.apache.rocketmq.grpcclient.message.MessageBuilderImpl;
 
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
@@ -54,7 +56,12 @@ public class ProducerBuilderImpl implements ProducerBuilder {
      */
     @Override
     public ProducerBuilder setTopics(String... topics) {
-        this.topics.addAll(Arrays.asList(topics));
+        final Set<String> set = Arrays.stream(topics).peek(topic -> {
+            checkNotNull(topic, "topic should not be null");
+            checkArgument(MessageBuilderImpl.TOPIC_PATTERN.matcher(topic).matches(), "topic does not match the regex [regex=%s]",
+                MessageBuilderImpl.TOPIC_PATTERN.pattern());
+        }).collect(Collectors.toSet());
+        this.topics.addAll(set);
         return this;
     }
 
@@ -91,9 +98,7 @@ public class ProducerBuilderImpl implements ProducerBuilder {
      */
     @Override
     public Producer build() {
-        checkNotNull(topics, "topics should not be null");
-        checkNotNull(retryPolicy, "retryPolicy should not be null");
-        checkNotNull(checker, "checker should not be null");
+        checkNotNull(clientConfiguration, "clientConfiguration has not been set yet");
         return new ProducerImpl(clientConfiguration, topics, asyncThreadCount, retryPolicy, checker);
     }
 }

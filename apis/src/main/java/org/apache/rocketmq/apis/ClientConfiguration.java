@@ -49,7 +49,7 @@ public class ClientConfiguration {
         return accessPoint;
     }
 
-    public Optional<SessionCredentialsProvider> tryGetCredentialsProvider() {
+    public Optional<SessionCredentialsProvider> getCredentialsProvider() {
         return null == sessionCredentialsProvider ? Optional.empty() : Optional.of(sessionCredentialsProvider);
     }
 

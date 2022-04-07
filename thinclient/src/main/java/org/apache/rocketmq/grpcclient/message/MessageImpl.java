@@ -18,7 +18,6 @@
 package org.apache.rocketmq.grpcclient.message;
 
 import com.google.common.base.MoreObjects;
-import java.io.IOException;
 import java.nio.ByteBuffer;
 import javax.annotation.Nullable;
 import org.apache.rocketmq.apis.message.Message;
@@ -28,11 +27,10 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-import org.apache.rocketmq.apis.message.MessageId;
 
 public class MessageImpl implements Message {
     private final String topic;
-    private final byte[] body;
+    final byte[] body;
 
     @Nullable
     private final String tag;

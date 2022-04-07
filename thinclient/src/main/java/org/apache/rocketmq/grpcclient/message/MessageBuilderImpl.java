@@ -33,7 +33,7 @@ import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public class MessageBuilderImpl implements MessageBuilder {
-    private static final Pattern TOPIC_PATTERN = Pattern.compile("^[%|a-zA-Z0-9._-]{1,127}$");
+    public static final Pattern TOPIC_PATTERN = Pattern.compile("^[%|a-zA-Z0-9._-]{1,127}$");
     private static final int MESSAGE_BODY_LENGTH_THRESHOLD = 1024 * 1024 * 4;
 
     private String topic = null;
@@ -43,11 +43,9 @@ public class MessageBuilderImpl implements MessageBuilder {
     private String traceContext = null;
     private Long deliveryTimestamp = null;
     private Collection<String> keys = new HashSet<>();
-    private final Map<String, String> properties;
-    private MessageType plainMessageType = MessageType.NORMAL;
+    private final Map<String, String> properties = new HashMap<>();
 
     public MessageBuilderImpl() {
-        this.properties = new HashMap<>();
     }
 
     /**
@@ -106,7 +104,6 @@ public class MessageBuilderImpl implements MessageBuilder {
         checkArgument(null == deliveryTimestamp, "messageGroup and deliveryTimestamp should not be set at same time");
         checkArgument(StringUtils.isNotBlank(messageGroup), "messageGroup should not be blank");
         this.messageGroup = messageGroup;
-        this.plainMessageType = MessageType.FIFO;
         return this;
     }
 
@@ -127,7 +124,6 @@ public class MessageBuilderImpl implements MessageBuilder {
     public MessageBuilder setDeliveryTimestamp(long deliveryTimestamp) {
         checkArgument(null == messageGroup, "deliveryTimestamp and messageGroup should not be set at same time");
         this.deliveryTimestamp = deliveryTimestamp;
-        this.plainMessageType = MessageType.DELAY;
         return this;
     }
 

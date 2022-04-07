@@ -17,9 +17,10 @@
 
 package org.apache.rocketmq.grpcclient.misc;
 
-import com.google.common.util.concurrent.AbstractIdleService;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
+import java.io.Closeable;
+import java.io.IOException;
 import org.apache.rocketmq.grpcclient.utility.ExecutorServices;
 import org.apache.rocketmq.grpcclient.utility.ThreadFactoryImpl;
 
@@ -59,8 +60,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *    └────────┘    └────────┘    └────────┘
  * </pre>
  */
-@SuppressWarnings("UnstableApiUsage")
-public abstract class Dispatcher extends AbstractIdleService {
+public abstract class Dispatcher implements Closeable {
     private static final Logger LOGGER = LoggerFactory.getLogger(Dispatcher.class);
     /**
      * Flag indicates that whether task is queued or not.
@@ -71,23 +71,23 @@ public abstract class Dispatcher extends AbstractIdleService {
     public Dispatcher() {
         this.dispatched = new AtomicBoolean(false);
         this.dispatcherExecutor = new ThreadPoolExecutor(
-                1,
-                1,
-                60,
-                TimeUnit.SECONDS,
-                new LinkedBlockingQueue<>(),
-                new ThreadFactoryImpl("Dispatcher"));
+            1,
+            1,
+            60,
+            TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(),
+            new ThreadFactoryImpl("Dispatcher"));
     }
 
     @Override
-    protected void startUp() {
-    }
-
-    @Override
-    protected void shutDown() throws Exception {
+    public void close() throws IOException {
         dispatcherExecutor.shutdown();
-        if (!ExecutorServices.awaitTerminated(dispatcherExecutor)) {
-            LOGGER.error("[Bug] Failed to shutdown the batch dispatcher.");
+        try {
+            if (!ExecutorServices.awaitTerminated(dispatcherExecutor)) {
+                LOGGER.error("[Bug] Failed to shutdown the batch dispatcher.");
+            }
+        } catch (InterruptedException e) {
+            throw new IOException(e);
         }
     }
 

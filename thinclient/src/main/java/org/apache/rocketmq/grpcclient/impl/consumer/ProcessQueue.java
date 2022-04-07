@@ -17,6 +17,7 @@
 
 package org.apache.rocketmq.grpcclient.impl.consumer;
 
+import java.util.Collection;
 import org.apache.rocketmq.apis.MessageQueue;
 import org.apache.rocketmq.apis.message.MessageView;
 
@@ -38,7 +39,7 @@ import java.util.Optional;
  *         └─────────────────────┘      └───────────┘
  *             pending messages      in-flight messages
  * </pre>
- * 3. {@link #eraseMessages(List, ConsumeStatus)} with 6 messages.
+ * 3. {@link #eraseMessages(Collection, boolean)} with 6 messages.
  * <pre>
  *         ┌─────────────────────┐      ┌───┐ 6 out
  *         │         26          │      │ 0 ├──────►
@@ -52,7 +53,7 @@ import java.util.Optional;
  *         └───────────────┘    └───────────┘
  *          pending messages    in-flight messages
  * </pre>
- * 5. {@link #eraseMessages(List, ConsumeStatus)} with 6 messages.
+ * 5. {@link #eraseMessages(Collection, boolean)} with 6 messages.
  * <pre>
  *   1 in  ┌─────────────────┐      ┌───┐ 6 out
  *   ──────►        21       │      │ 0 ├──────►
@@ -99,7 +100,7 @@ public interface ProcessQueue {
      * @param messageList messages to erase.
      * @param status      consume status.
      */
-    void eraseMessages(List<MessageView> messageList, ConsumeStatus status);
+    void eraseMessages(Collection<MessageView> messageViews, boolean success);
 
     /**
      * Try to take a FIFO message from cache.
@@ -114,7 +115,7 @@ public interface ProcessQueue {
      * @param message message to erase.
      * @param status  consume status.
      */
-    void eraseFifoMessage(MessageView message, ConsumeStatus status);
+    void eraseFifoMessage(MessageView messageView, boolean success);
 
     /**
      * Do some stats.

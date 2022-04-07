@@ -20,6 +20,7 @@ package org.apache.rocketmq.grpcclient.impl.consumer;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
+import java.util.Collection;
 import org.apache.rocketmq.apis.MessageQueue;
 import org.apache.rocketmq.apis.message.MessageView;
 
@@ -121,7 +122,7 @@ public class ProcessQueueImpl implements ProcessQueue {
     }
 
     @Override
-    public void eraseMessages(List<MessageView> messageList, ConsumeStatus status) {
+    public void eraseMessages(Collection<MessageView> messageViews, boolean consumeSuccess) {
     }
 
     @Override
@@ -130,7 +131,7 @@ public class ProcessQueueImpl implements ProcessQueue {
     }
 
     @Override
-    public void eraseFifoMessage(MessageView message, ConsumeStatus status) {
+    public void eraseFifoMessage(MessageView message, boolean consumeSuccess) {
     }
 
     @Override
