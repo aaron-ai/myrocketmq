@@ -16,7 +16,7 @@ import org.apache.rocketmq.apis.MessageQueue;
 import org.apache.rocketmq.apis.consumer.MessageListener;
 import org.apache.rocketmq.apis.message.MessageView;
 
-@SuppressWarnings(value = {"UnstableApiUsage", "NullableProblems"})
+@SuppressWarnings({"UnstableApiUsage", "NullableProblems"})
 public class FifoConsumeService extends ConsumeService {
     private static final Logger LOGGER = LoggerFactory.getLogger(FifoConsumeService.class);
 
