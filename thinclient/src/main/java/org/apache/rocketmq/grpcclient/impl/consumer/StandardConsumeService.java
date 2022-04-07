@@ -20,7 +20,8 @@ import org.apache.rocketmq.apis.MessageQueue;
 import org.apache.rocketmq.apis.consumer.MessageListener;
 import org.apache.rocketmq.apis.message.MessageView;
 
-@SuppressWarnings("UnstableApiUsage") public class StandardConsumeService extends ConsumeService {
+@SuppressWarnings(value = {"UnstableApiUsage", "NullableProblems"})
+public class StandardConsumeService extends ConsumeService {
     private static final Logger LOGGER = LoggerFactory.getLogger(StandardConsumeService.class);
 
     private final int maxBatchSize;
@@ -68,9 +69,6 @@ import org.apache.rocketmq.apis.message.MessageView;
 
         final ListenableFuture<Collection<MessageView>> future = consume(messageViews);
         Futures.addCallback(future, new FutureCallback<Collection<MessageView>>() {
-            /**
-             *
-             */
             @Override
             public void onSuccess(Collection<MessageView> successList) {
                 for (Map.Entry<MessageQueue, List<MessageView>> entry : messageViewTable.entrySet()) {
