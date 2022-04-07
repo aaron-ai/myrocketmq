@@ -12,7 +12,6 @@ import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
 @ThreadSafe
-@SuppressWarnings("UnstableApiUsage")
 public class ClientManagerFactory {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientManagerFactory.class);
 
@@ -22,7 +21,7 @@ public class ClientManagerFactory {
     private final Map<String, ClientManagerImpl> managersTable;
     private final Lock managersTableLock;
 
-    private ClientManagerFactory() { 
+    private ClientManagerFactory() {
         this.managersTable = new HashMap<>();
         this.managersTableLock = new ReentrantLock();
     }
@@ -64,6 +63,7 @@ public class ClientManagerFactory {
      * @param client    client to unregister.
      * @return {@link ClientManager} is removed or not.
      */
+    @SuppressWarnings("UnusedReturnValue")
     public boolean unregisterClient(String managerId, Client client) throws IOException {
         ClientManagerImpl removedManager = null;
         managersTableLock.lock();

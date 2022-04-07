@@ -1,5 +1,6 @@
 package org.apache.rocketmq.grpcclient.impl.consumer;
 
+import com.google.common.base.Function;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -10,8 +11,8 @@ import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -22,6 +23,7 @@ import org.apache.rocketmq.apis.consumer.MessageListener;
 import org.apache.rocketmq.apis.message.MessageView;
 import org.apache.rocketmq.grpcclient.misc.Dispatcher;
 
+@SuppressWarnings(value = {"UnstableApiUsage", "NullableProblems"})
 public abstract class ConsumeService extends Dispatcher {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConsumeService.class);
 
@@ -66,16 +68,16 @@ public abstract class ConsumeService extends Dispatcher {
         while (dispatched);
     }
 
-    public ListenableFuture<Collection<MessageView>> consume(MessageView messageView) {
-        final List<MessageView> messageViews = new ArrayList<>();
-        messageViews.add(messageView);
-        return consume(messageViews);
+    public ListenableFuture<Boolean> consume(MessageView messageView) {
+        final ListenableFuture<Collection<MessageView>> future = consume(Collections.singletonList(messageView));
+        return Futures.transform(future, (Function<Collection<MessageView>, Boolean>)
+            messageViews -> !messageViews.isEmpty());
     }
 
-    public ListenableFuture<Collection<MessageView>> consume(MessageView messageView, Duration delay) {
-        final List<MessageView> messageViews = new ArrayList<>();
-        messageViews.add(messageView);
-        return consume(messageViews, delay);
+    public ListenableFuture<Boolean> consume(MessageView messageView, Duration delay) {
+        final ListenableFuture<Collection<MessageView>> future = consume(Collections.singletonList(messageView), delay);
+        return Futures.transform(future, (Function<Collection<MessageView>, Boolean>)
+            messageViews -> !messageViews.isEmpty());
     }
 
     public ListenableFuture<Collection<MessageView>> consume(List<MessageView> messageViews) {
@@ -92,14 +94,12 @@ public abstract class ConsumeService extends Dispatcher {
         final SettableFuture<Collection<MessageView>> future0 = SettableFuture.create();
         scheduler.schedule(() -> {
             final ListenableFuture<Collection<MessageView>> future = executorService.submit(task);
-            //noinspection UnstableApiUsage
             Futures.addCallback(future, new FutureCallback<Collection<MessageView>>() {
                 @Override
                 public void onSuccess(Collection<MessageView> successCollection) {
                     future0.set(successCollection);
                 }
 
-                @SuppressWarnings("NullableProblems")
                 @Override
                 public void onFailure(Throwable t) {
                     // Should never reach here.

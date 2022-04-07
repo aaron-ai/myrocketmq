@@ -10,6 +10,8 @@ import org.apache.rocketmq.apis.consumer.FilterExpression;
 import org.apache.rocketmq.apis.consumer.MessageListener;
 import org.apache.rocketmq.apis.consumer.PushConsumer;
 import org.apache.rocketmq.apis.exception.ClientException;
+import org.apache.rocketmq.grpcclient.impl.consumer.ConsumeService;
+import org.apache.rocketmq.grpcclient.impl.consumer.FifoConsumeService;
 import org.apache.rocketmq.grpcclient.impl.consumer.ProcessQueue;
 
 public class PushConsumerImpl implements PushConsumer {
@@ -23,6 +25,7 @@ public class PushConsumerImpl implements PushConsumer {
     private final int maxCacheMessageSizeInBytes;
     private final int consumptionThreadCount;
 
+//    private final ConsumeService consumeService;
     private final ConcurrentMap<MessageQueue, ProcessQueue> processQueueTable;
 
     /**
