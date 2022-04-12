@@ -3,25 +3,28 @@ package org.apache.rocketmq.grpcclient.example;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.security.acl.LastOwnerException;
+import java.util.Collections;
 import org.apache.rocketmq.apis.ClientConfiguration;
 import org.apache.rocketmq.apis.ClientServiceProvider;
 import org.apache.rocketmq.apis.StaticSessionCredentialsProvider;
+import org.apache.rocketmq.apis.consumer.FilterExpression;
+import org.apache.rocketmq.apis.consumer.FilterExpressionType;
+import org.apache.rocketmq.apis.consumer.PushConsumer;
 import org.apache.rocketmq.apis.exception.ClientException;
-import org.apache.rocketmq.apis.message.Message;
-import org.apache.rocketmq.apis.producer.Producer;
-import org.apache.rocketmq.apis.producer.SendReceipt;
+import org.apache.rocketmq.apis.message.MessageView;
 
-public class ProducerExample {
+public class PushConsumerExample {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProducerExample.class);
 
     public static void main(String[] args) {
         String accessPoint = "http://MQ_INST_1080056302921134_BXxiFN4R.mq.cn-shenzhen.aliyuncs.com:80";
         String topic = "lingchu-test-topic";
         String tag = "tagA";
-        byte[] body = "Hello RocketMQ".getBytes(StandardCharsets.UTF_8);
+        String consumerGroup = "lingchu-test-group";
         String accessKey = "AccessKey";
         String secretKey = "secretKey";
+        FilterExpression filterExpression = new FilterExpression(tag, FilterExpressionType.TAG);
 
         final ClientServiceProvider provider = ClientServiceProvider.loadService();
         StaticSessionCredentialsProvider staticSessionCredentialsProvider = new StaticSessionCredentialsProvider(accessKey, secretKey);
@@ -29,18 +32,18 @@ public class ProducerExample {
             .setAccessPoint(accessPoint)
             .setCredentialProvider(staticSessionCredentialsProvider)
             .build();
-        final Message message = provider.newMessageBuilder()
-            .setTopic(topic)
-            .setBody(body)
-            .setTag(tag)
-            .build();
-        try (Producer producer = provider.newProducerBuilder()
+        try (PushConsumer ignored = provider.newPushConsumerBuilder()
             .setClientConfiguration(clientConfiguration)
-            .setTopics(topic)
+            .setConsumerGroup(consumerGroup)
+            .setSubscriptionExpressions(Collections.singletonMap(topic, filterExpression))
+            .setMessageListener((totalList, successList) -> {
+                for (MessageView messageView : totalList) {
+                    LOGGER.info("Receive message, message={}", messageView);
+                    successList.add(messageView);
+                }
+            })
             .build()) {
-            LOGGER.info("Start producer successfully.");
-            final SendReceipt sendReceipt = producer.send(message);
-            LOGGER.info("Send message successfully, sendReceipt={}", sendReceipt);
+            LOGGER.info("Start push consumer successfully.");
         } catch (IOException | ClientException e) {
             e.printStackTrace();
         }
