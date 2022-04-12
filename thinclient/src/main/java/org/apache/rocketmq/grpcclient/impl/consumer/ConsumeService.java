@@ -71,14 +71,12 @@ public abstract class ConsumeService extends Dispatcher {
 
     public ListenableFuture<Boolean> consume(MessageView messageView) {
         final ListenableFuture<Collection<MessageView>> future = consume(Collections.singletonList(messageView));
-        return Futures.transform(future, (Function<Collection<MessageView>, Boolean>)
-            messageViews -> !messageViews.isEmpty());
+        return Futures.transform(future, messageViews -> !messageViews.isEmpty(), MoreExecutors.directExecutor());
     }
 
     public ListenableFuture<Boolean> consume(MessageView messageView, Duration delay) {
         final ListenableFuture<Collection<MessageView>> future = consume(Collections.singletonList(messageView), delay);
-        return Futures.transform(future, (Function<Collection<MessageView>, Boolean>)
-            messageViews -> !messageViews.isEmpty());
+        return Futures.transform(future, messageViews -> !messageViews.isEmpty(), MoreExecutors.directExecutor());
     }
 
     public ListenableFuture<Collection<MessageView>> consume(List<MessageView> messageViews) {
@@ -107,8 +105,8 @@ public abstract class ConsumeService extends Dispatcher {
                     LOGGER.error("[Bug] Exception raised while submitting scheduled consumption task, clientId={}",
                         clientId, t);
                 }
-            });
-        }, delay.getNano(), TimeUnit.NANOSECONDS);
+            }, MoreExecutors.directExecutor());
+        }, delay.toNanos(), TimeUnit.NANOSECONDS);
         return future0;
     }
 }

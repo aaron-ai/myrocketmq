@@ -3,6 +3,7 @@ package org.apache.rocketmq.grpcclient.impl.consumer;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import java.util.ArrayList;
@@ -50,7 +51,7 @@ public class FifoConsumeService extends ConsumeService {
                     // Should never reach here.
                     LOGGER.error("[Bug] Exception raised in consumption callback, clientId={}", clientId, t);
                 }
-            });
+            }, MoreExecutors.directExecutor());
         }
         return dispatched;
     }

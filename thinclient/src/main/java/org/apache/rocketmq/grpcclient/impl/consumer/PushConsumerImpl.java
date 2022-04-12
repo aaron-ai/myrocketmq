@@ -7,6 +7,7 @@ import apache.rocketmq.v2.Resource;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
@@ -159,7 +160,7 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
             final Endpoints endpoints = topicRouteDataResult.getTopicRouteData().pickEndpointsToQueryAssignments();
             future0.set(endpoints);
             return future0;
-        });
+        }, MoreExecutors.directExecutor());
     }
 
     public Resource getProtobufGroup() {
@@ -182,7 +183,7 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
                 final QueryAssignmentRequest request = wrapQueryAssignmentRequest(topic);
                 return clientManager.queryAssignment(endpoints, metadata, request,
                     clientConfiguration.getRequestTimeout());
-            });
+            }, MoreExecutors.directExecutor());
         return Futures.transformAsync(responseFuture, response -> {
             SettableFuture<Assignments> future0 = SettableFuture.create();
             // TODO: check status
@@ -191,7 +192,7 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
             final Assignments assignments = new Assignments(assignmentList);
             future0.set(assignments);
             return future0;
-        });
+        }, MoreExecutors.directExecutor());
     }
 
     /**
@@ -310,7 +311,7 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
                         LOGGER.error("Exception raised while scanning the assignments, namespace={}, topic={}, "
                             + "clientId={}", namespace, topic, clientId, t);
                     }
-                });
+                }, MoreExecutors.directExecutor());
             }
         } catch (Throwable t) {
             LOGGER.error("Exception raised while scanning the assignments for all topics, clientId={}", clientId, t);

@@ -80,8 +80,8 @@ public class RpcClientImpl implements RpcClient {
         SslContext sslContext = builder.build();
 
         final NettyChannelBuilder channelBuilder =
-            NettyChannelBuilder.forTarget(endpoints.getFacade())
-                .keepAliveTime(KEEP_ALIVE_DURATION.getNano(), TimeUnit.NANOSECONDS)
+            NettyChannelBuilder.forTarget(endpoints.getGrpcTarget())
+                .keepAliveTime(KEEP_ALIVE_DURATION.toNanos(), TimeUnit.NANOSECONDS)
                 .maxInboundMessageSize(GRPC_MAX_MESSAGE_SIZE)
                 .intercept(LoggingInterceptor.getInstance())
                 .sslContext(sslContext);
@@ -115,7 +115,7 @@ public class RpcClientImpl implements RpcClient {
         Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
         return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
-            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).queryRoute(request);
+            .withDeadlineAfter(duration.toNanos(), TimeUnit.NANOSECONDS).queryRoute(request);
     }
 
     @Override
@@ -123,7 +123,7 @@ public class RpcClientImpl implements RpcClient {
         Duration duration) {
         this.activityNanoTime = System.nanoTime();
         return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
-            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).heartbeat(request);
+            .withDeadlineAfter(duration.toNanos(), TimeUnit.NANOSECONDS).heartbeat(request);
     }
 
     @Override
@@ -131,7 +131,7 @@ public class RpcClientImpl implements RpcClient {
         Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
         return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
-            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).sendMessage(request);
+            .withDeadlineAfter(duration.toNanos(), TimeUnit.NANOSECONDS).sendMessage(request);
     }
 
     @Override
@@ -139,7 +139,7 @@ public class RpcClientImpl implements RpcClient {
         Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
         return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
-            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).queryAssignment(request);
+            .withDeadlineAfter(duration.toNanos(), TimeUnit.NANOSECONDS).queryAssignment(request);
     }
 
     @Override
@@ -147,7 +147,7 @@ public class RpcClientImpl implements RpcClient {
         Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
         return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
-            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).receiveMessage(request);
+            .withDeadlineAfter(duration.toNanos(), TimeUnit.NANOSECONDS).receiveMessage(request);
     }
 
     @Override
@@ -155,7 +155,7 @@ public class RpcClientImpl implements RpcClient {
         Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
         return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
-            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).ackMessage(request);
+            .withDeadlineAfter(duration.toNanos(), TimeUnit.NANOSECONDS).ackMessage(request);
     }
 
     @Override
@@ -163,7 +163,7 @@ public class RpcClientImpl implements RpcClient {
         ChangeInvisibleDurationRequest request, Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
         return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
-            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).changeInvisibleDuration(request);
+            .withDeadlineAfter(duration.toNanos(), TimeUnit.NANOSECONDS).changeInvisibleDuration(request);
     }
 
     @Override
@@ -171,7 +171,7 @@ public class RpcClientImpl implements RpcClient {
         Metadata metadata, ForwardMessageToDeadLetterQueueRequest request, Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
         return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
-            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).forwardMessageToDeadLetterQueue(request);
+            .withDeadlineAfter(duration.toNanos(), TimeUnit.NANOSECONDS).forwardMessageToDeadLetterQueue(request);
     }
 
     @Override
@@ -179,7 +179,7 @@ public class RpcClientImpl implements RpcClient {
         Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
         return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
-            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).endTransaction(request);
+            .withDeadlineAfter(duration.toNanos(), TimeUnit.NANOSECONDS).endTransaction(request);
     }
 
     @Override
@@ -187,7 +187,7 @@ public class RpcClientImpl implements RpcClient {
         Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
         return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
-            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).queryOffset(request);
+            .withDeadlineAfter(duration.toNanos(), TimeUnit.NANOSECONDS).queryOffset(request);
     }
 
     @Override
@@ -195,7 +195,7 @@ public class RpcClientImpl implements RpcClient {
         Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
         return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
-            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).pullMessage(request);
+            .withDeadlineAfter(duration.toNanos(), TimeUnit.NANOSECONDS).pullMessage(request);
     }
 
     @Override
@@ -203,7 +203,7 @@ public class RpcClientImpl implements RpcClient {
         Metadata metadata, NotifyClientTerminationRequest request, Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
         return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
-            .withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS).notifyClientTermination(request);
+            .withDeadlineAfter(duration.toNanos(), TimeUnit.NANOSECONDS).notifyClientTermination(request);
     }
 
     @Override
@@ -211,7 +211,7 @@ public class RpcClientImpl implements RpcClient {
         StreamObserver<TelemetryCommand> responseObserver) {
         final ClientInterceptor interceptor = MetadataUtils.newAttachHeadersInterceptor(metadata);
         final MessagingServiceGrpc.MessagingServiceStub stub0 = this.stub.withInterceptors(interceptor)
-            .withExecutor(executor).withDeadlineAfter(duration.getNano(), TimeUnit.NANOSECONDS);
+            .withExecutor(executor).withDeadlineAfter(duration.toNanos(), TimeUnit.NANOSECONDS);
         return stub0.telemetry(responseObserver);
     }
 }

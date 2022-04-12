@@ -24,6 +24,7 @@ import apache.rocketmq.v2.Status;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
@@ -176,7 +177,7 @@ public class ProcessQueueImpl implements ProcessQueue {
     public void receiveMessageLater() {
         final ScheduledExecutorService scheduler = consumer.getScheduler();
         try {
-            scheduler.schedule(this::receiveMessage, RECEIVE_LATER_DELAY.getNano(), TimeUnit.NANOSECONDS);
+            scheduler.schedule(this::receiveMessage, RECEIVE_LATER_DELAY.toNanos(), TimeUnit.NANOSECONDS);
         } catch (Throwable t) {
             if (scheduler.isShutdown()) {
                 return;
@@ -234,7 +235,7 @@ public class ProcessQueueImpl implements ProcessQueue {
                         consumer.getClientId(), t);
                     receiveMessageLater();
                 }
-            });
+            }, MoreExecutors.directExecutor());
             consumer.getReceptionTimes().getAndIncrement();
         } catch (Throwable t) {
             LOGGER.error("Exception raised while message reception, would receive later, namespace={}, mq={}, clientId={}",

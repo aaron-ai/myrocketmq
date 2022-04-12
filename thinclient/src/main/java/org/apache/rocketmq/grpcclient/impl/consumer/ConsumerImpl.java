@@ -8,6 +8,7 @@ import apache.rocketmq.v2.Status;
 import com.google.common.base.Function;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.protobuf.util.Durations;
 import com.google.protobuf.util.Timestamps;
@@ -43,8 +44,8 @@ public abstract class ConsumerImpl extends ClientImpl {
             final Endpoints endpoints = messageQueue.getBroker().getEndpoints();
             final ListenableFuture<ReceiveMessageResponse> future =
                 clientManager.receiveMessage(endpoints, metadata, request, timeout);
-            return Futures.transform(future, (Function<ReceiveMessageResponse, ReceiveMessageResult>)
-                response -> processReceiveMessageResponse(messageQueue, response));
+            return Futures.transform(future, response -> processReceiveMessageResponse(messageQueue, response),
+                MoreExecutors.directExecutor());
         } catch (Throwable t) {
             future0.setException(t);
             return future0;

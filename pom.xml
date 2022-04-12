@@ -608,7 +608,7 @@
             <dependency>
                 <groupId>com.google.guava</groupId>
                 <artifactId>guava</artifactId>
-                <version>19.0</version>
+                <version>31.0.1-jre</version>
             </dependency>
             <dependency>
                 <groupId>com.googlecode.concurrentlinkedhashmap</groupId>
@@ -650,8 +650,6 @@
                 <artifactId>commons-validator</artifactId>
                 <version>1.7</version>
             </dependency>
-
-
         </dependencies>
     </dependencyManagement>
 </project>

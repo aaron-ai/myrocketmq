@@ -162,6 +162,13 @@ public class Endpoints {
         return this.facade;
     }
 
+    public String getGrpcTarget() {
+        if (AddressScheme.DOMAIN_NAME.equals(scheme)) {
+            return facade.substring(scheme.getPrefix().length());
+        }
+        return facade;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) {

@@ -30,6 +30,7 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
@@ -95,13 +96,17 @@ public abstract class ClientImpl implements Client {
             String domainName = split[0];
             domainName = domainName.replace("_", "-").toLowerCase(UtilAll.LOCALE);
             int port = split.length >= 2 ? Integer.parseInt(split[1]) : 80;
-            this.accessEndpoints = new Endpoints(AddressScheme.DOMAIN_NAME + domainName + port);
+            this.accessEndpoints = new Endpoints(AddressScheme.DOMAIN_NAME.getPrefix() + domainName + ":" + port);
         } else {
             this.namespace = StringUtils.EMPTY;
             this.accessEndpoints = new Endpoints(accessPoint);
         }
         this.topics = topics;
+        // 1, Generate client id firstly.
+        this.clientId = UtilAll.genClientId();
+        // 2. register client after client id generation.
         this.clientManager = ClientManagerFactory.getInstance().registerClient(namespace, this);
+
         this.topicRouteResultCache = new ConcurrentHashMap<>();
 
         this.inflightRouteFutureTable = new ConcurrentHashMap<>();
@@ -110,7 +115,6 @@ public abstract class ClientImpl implements Client {
         this.telemetryRequestObserverTable = new ConcurrentHashMap<>();
         this.telemetryResponseObserver = new TelemetryResponseObserver(this);
 
-        this.clientId = UtilAll.genClientId();
         this.getRouteDataResults();
     }
 
@@ -184,7 +188,7 @@ public abstract class ClientImpl implements Client {
                 public void onFailure(Throwable t) {
                     LOGGER.warn("Failed to send heartbeat, endpoints={}, clientId={}", endpoints, clientId, t);
                 }
-            });
+            }, MoreExecutors.directExecutor());
         } catch (Throwable e) {
             LOGGER.error("Exception raised while preparing heartbeat, endpoints={}, clientId={}", endpoints, clientId, e);
         }
@@ -213,7 +217,7 @@ public abstract class ClientImpl implements Client {
                         accessEndpoints, code, status.getMessage());
                 }
                 return new TopicRouteDataResult(new TopicRouteData(response.getMessageQueuesList()), status);
-            });
+            }, MoreExecutors.directExecutor());
         } catch (Throwable t) {
             future.setException(t);
             return future;
@@ -332,7 +336,7 @@ public abstract class ClientImpl implements Client {
                     inflightRouteFutureLock.unlock();
                 }
             }
-        });
+        }, MoreExecutors.directExecutor());
         return future0;
     }
 

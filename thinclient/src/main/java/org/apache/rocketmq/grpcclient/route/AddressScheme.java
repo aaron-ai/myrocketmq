@@ -63,6 +63,6 @@ public enum AddressScheme {
         if (AddressScheme.IPv6.getPrefix().equals(prefix)) {
             return AddressScheme.IPv6;
         }
-        throw new IllegalArgumentException("Unrecognized address scheme prefix");
+        throw new IllegalArgumentException("Unrecognized address scheme prefix: " + prefix);
     }
 }

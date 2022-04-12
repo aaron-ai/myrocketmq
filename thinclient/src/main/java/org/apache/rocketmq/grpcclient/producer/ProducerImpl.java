@@ -27,6 +27,7 @@ import com.google.common.base.Function;
 import com.google.common.math.IntMath;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.grpc.Metadata;
@@ -204,9 +205,9 @@ public class ProducerImpl extends ClientImpl implements Producer {
         final ArrayList<Message> messages = new ArrayList<>();
         messages.add(message);
         final ListenableFuture<List<SendReceipt>> future = send0(messages, transactionEnabled);
-        return Futures.transform(future, (Function<List<SendReceipt>, SendReceipt>)
+        return Futures.transform(future,
             // List size is 1 for single message.
-            sendReceipts -> sendReceipts.iterator().next());
+            sendReceipts -> sendReceipts.iterator().next(), MoreExecutors.directExecutor());
     }
 
     private ListenableFuture<List<SendReceipt>> send0(final List<Message> messages, boolean transactionEnabled) {
@@ -253,7 +254,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
             // Prepare the candidate partitions for retry-sending in advance.
             final List<MessageQueueImpl> candidates = takeMessageQueues(result);
             return send0(pubMessages, candidates);
-        });
+        }, MoreExecutors.directExecutor());
     }
 
     private ListenableFuture<List<SendReceipt>> send0(final List<PublishingMessageImpl> publishingMessages,
@@ -306,7 +307,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
                 // TODO: may throw exception.
                 future0.set(SendReceiptImpl.processSendResponse(messageQueue, checkNotNull(response)));
                 return future0;
-            }
+            }, MoreExecutors.directExecutor()
         );
 
         final int maxAttempts = retryPolicy.getMaxAttempts();
@@ -367,9 +368,9 @@ public class ProducerImpl extends ClientImpl implements Producer {
                         + "attempt={}, namespace={}, topic={}, messageId(s)={}, endpoints={}, clientId={}", delay,
                     maxAttempts, attempt, namespace, topic, messageIds, endpoints, clientId, t);
                 clientManager.getScheduler().schedule(() -> send0(future, candidates, messages, nextAttempt),
-                    delay.getNano(), TimeUnit.NANOSECONDS);
+                    delay.toNanos(), TimeUnit.NANOSECONDS);
             }
-        });
+        }, MoreExecutors.directExecutor());
     }
 
     private ListenableFuture<PublishingTopicRouteDataResult> getPublishingTopicRouteResult(final String topic) {
@@ -380,10 +381,10 @@ public class ProducerImpl extends ClientImpl implements Producer {
             return future0;
         }
         final ListenableFuture<TopicRouteDataResult> future = getRouteDataResult(topic);
-        return Futures.transform(future, (Function<TopicRouteDataResult, PublishingTopicRouteDataResult>) topicRouteDataResult -> {
+        return Futures.transform(future, topicRouteDataResult -> {
             final PublishingTopicRouteDataResult publishingTopicRouteDataResult = new PublishingTopicRouteDataResult(topicRouteDataResult);
             publishingRouteDataResultCache.put(topic, publishingTopicRouteDataResult);
             return publishingTopicRouteDataResult;
-        });
+        }, MoreExecutors.directExecutor());
     }
 }
