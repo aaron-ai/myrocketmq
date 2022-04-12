@@ -24,6 +24,8 @@ import com.google.common.base.MoreObjects;
 
 import java.time.Duration;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Future;
 
 /**
  * The {@link BackoffRetryPolicy} defines a policy to do more attempts when failure is encountered, mainly refer to

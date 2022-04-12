@@ -59,7 +59,7 @@ public enum Permission {
         }
     }
 
-    public static Permission fromProto(apache.rocketmq.v2.Permission permission) {
+    public static Permission fromProtobuf(apache.rocketmq.v2.Permission permission) {
         switch (permission) {
             case READ:
                 return Permission.READ;
@@ -70,6 +70,21 @@ public enum Permission {
             case NONE:
                 return Permission.NONE;
             case PERMISSION_UNSPECIFIED:
+            default:
+                throw new IllegalArgumentException("Message queue permission is not specified");
+        }
+    }
+
+    public static apache.rocketmq.v2.Permission toProtobuf(Permission permission) {
+        switch (permission) {
+            case READ:
+                return apache.rocketmq.v2.Permission.READ;
+            case WRITE:
+                return apache.rocketmq.v2.Permission.WRITE;
+            case READ_WRITE:
+                return apache.rocketmq.v2.Permission.READ_WRITE;
+            case NONE:
+                return apache.rocketmq.v2.Permission.NONE;
             default:
                 throw new IllegalArgumentException("Message queue permission is not specified");
         }

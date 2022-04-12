@@ -15,12 +15,13 @@ import java.util.concurrent.ThreadPoolExecutor;
 import org.apache.rocketmq.apis.MessageQueue;
 import org.apache.rocketmq.apis.consumer.MessageListener;
 import org.apache.rocketmq.apis.message.MessageView;
+import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 
 @SuppressWarnings({"UnstableApiUsage", "NullableProblems"})
 public class FifoConsumeService extends ConsumeService {
     private static final Logger LOGGER = LoggerFactory.getLogger(FifoConsumeService.class);
 
-    public FifoConsumeService(String clientId, ConcurrentMap<MessageQueue, ProcessQueue> processQueueTable,
+    public FifoConsumeService(String clientId, ConcurrentMap<MessageQueueImpl, ProcessQueue> processQueueTable,
         MessageListener messageListener, ThreadPoolExecutor consumptionExecutor, ScheduledExecutorService scheduler) {
         super(clientId, processQueueTable, messageListener, consumptionExecutor, scheduler);
     }

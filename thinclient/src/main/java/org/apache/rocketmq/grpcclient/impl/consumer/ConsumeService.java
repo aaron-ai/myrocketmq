@@ -22,19 +22,20 @@ import org.apache.rocketmq.apis.MessageQueue;
 import org.apache.rocketmq.apis.consumer.MessageListener;
 import org.apache.rocketmq.apis.message.MessageView;
 import org.apache.rocketmq.grpcclient.misc.Dispatcher;
+import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 
 @SuppressWarnings(value = {"UnstableApiUsage", "NullableProblems"})
 public abstract class ConsumeService extends Dispatcher {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConsumeService.class);
 
-    protected final ConcurrentMap<MessageQueue, ProcessQueue> processQueueTable;
+    protected final ConcurrentMap<MessageQueueImpl, ProcessQueue> processQueueTable;
 
     protected final String clientId;
     private final MessageListener messageListener;
     private final ThreadPoolExecutor consumptionExecutor;
     private final ScheduledExecutorService scheduler;
 
-    public ConsumeService(String clientId, ConcurrentMap<MessageQueue, ProcessQueue> processQueueTable,
+    public ConsumeService(String clientId, ConcurrentMap<MessageQueueImpl, ProcessQueue> processQueueTable,
         MessageListener messageListener, ThreadPoolExecutor consumptionExecutor, ScheduledExecutorService scheduler) {
         this.clientId = clientId;
         this.processQueueTable = processQueueTable;

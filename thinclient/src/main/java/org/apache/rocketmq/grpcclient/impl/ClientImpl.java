@@ -40,6 +40,7 @@ import java.io.UnsupportedEncodingException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.stream.Collectors;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.apis.ClientConfiguration;
@@ -199,8 +200,7 @@ public abstract class ClientImpl implements Client {
         final SettableFuture<TopicRouteDataResult> future = SettableFuture.create();
         try {
             Resource topicResource = Resource.newBuilder().setResourceNamespace(namespace).setName(topic).build();
-            final QueryRouteRequest request = QueryRouteRequest.newBuilder()
-                .setTopic(topicResource).setEndpoints(accessEndpoints.toProtobuf()).build();
+            final QueryRouteRequest request = QueryRouteRequest.newBuilder().setTopic(topicResource).build();
             final Metadata metadata = sign();
             final ListenableFuture<QueryRouteResponse> responseFuture =
                 clientManager.queryRoute(accessEndpoints, metadata, request, clientConfiguration.getRequestTimeout());
@@ -334,5 +334,13 @@ public abstract class ClientImpl implements Client {
             }
         });
         return future0;
+    }
+
+    public String getNamespace() {
+        return namespace;
+    }
+
+    public ScheduledExecutorService getScheduler() {
+        return clientManager.getScheduler();
     }
 }

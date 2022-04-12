@@ -21,6 +21,7 @@ import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.apache.rocketmq.apis.MessageQueue;
 import org.apache.rocketmq.grpcclient.message.MessageType;
 import org.apache.rocketmq.grpcclient.message.protocol.Resource;
@@ -34,20 +35,16 @@ public class MessageQueueImpl implements MessageQueue {
     private final List<MessageType> accept_message_types;
 
     public MessageQueueImpl(apache.rocketmq.v2.MessageQueue messageQueue) {
-        final apache.rocketmq.v2.Resource resource = messageQueue.getTopic();
-        this.topicResource = new Resource(resource.getResourceNamespace(), resource.getName());
+        this.topicResource = new Resource(messageQueue.getTopic());
         this.queueId = messageQueue.getId();
         final apache.rocketmq.v2.Permission perm = messageQueue.getPermission();
-        this.permission = Permission.fromProto(perm);
+        this.permission = Permission.fromProtobuf(perm);
         this.accept_message_types = new ArrayList<>();
         final List<apache.rocketmq.v2.MessageType> types = messageQueue.getAcceptMessageTypesList();
         for (apache.rocketmq.v2.MessageType type : types) {
             accept_message_types.add(MessageType.fromProtobuf(type));
         }
-        final String brokerName = messageQueue.getBroker().getName();
-        final int brokerId = messageQueue.getBroker().getId();
-        final apache.rocketmq.v2.Endpoints endpoints = messageQueue.getBroker().getEndpoints();
-        this.broker = new Broker(brokerName, brokerId, new Endpoints(endpoints));
+        this.broker = new Broker(messageQueue.getBroker());
     }
 
     public Resource getTopicResource() {
@@ -69,6 +66,18 @@ public class MessageQueueImpl implements MessageQueue {
 
     public boolean matchMessageType(MessageType messageType) {
         return accept_message_types.contains(messageType);
+    }
+
+    public apache.rocketmq.v2.MessageQueue toProtobuf() {
+        final List<apache.rocketmq.v2.MessageType> messageTypes = accept_message_types
+            .stream().map(MessageType::toProtobuf)
+            .collect(Collectors.toList());
+        return apache.rocketmq.v2.MessageQueue.newBuilder()
+            .setTopic(topicResource.toProtobuf())
+            .setId(queueId)
+            .setPermission(Permission.toProtobuf(permission))
+            .setBroker(broker.toProtobuf())
+            .addAllAcceptMessageTypes(messageTypes).build();
     }
 
     //TODO

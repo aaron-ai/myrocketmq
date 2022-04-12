@@ -17,6 +17,18 @@
 
 package org.apache.rocketmq.grpcclient.message;
 
+import apache.rocketmq.v2.Digest;
+import apache.rocketmq.v2.DigestType;
+import apache.rocketmq.v2.Encoding;
+import apache.rocketmq.v2.Message;
+import apache.rocketmq.v2.SystemProperties;
+import com.google.protobuf.ProtocolStringList;
+import com.google.protobuf.util.Timestamps;
+import io.github.aliyunmq.shaded.org.slf4j.Logger;
+import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.security.NoSuchAlgorithmException;
 import org.apache.rocketmq.apis.MessageQueue;
 import org.apache.rocketmq.apis.message.MessageId;
 import org.apache.rocketmq.apis.message.MessageView;
@@ -25,10 +37,14 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
+import org.apache.rocketmq.grpcclient.utility.UtilAll;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public class MessageViewImpl implements MessageView {
+    private static final Logger LOGGER = LoggerFactory.getLogger(MessageViewImpl.class);
+
     private final MessageId messageId;
     private final String topic;
     private final byte[] body;
@@ -40,14 +56,14 @@ public class MessageViewImpl implements MessageView {
     private final String bornHost;
     private final long bornTimestamp;
     private final int deliveryAttempt;
-    private final MessageQueue messageQueue;
+    private final MessageQueueImpl messageQueue;
     private final long offset;
     private final boolean corrupted;
 
     public MessageViewImpl(MessageId messageId, String topic, byte[] body, String tag, String messageGroup,
-                           Long deliveryTimestamp, Collection<String> keys, Map<String, String> properties,
-                           String bornHost, long bornTimestamp, int deliveryAttempt, MessageQueue messageQueue,
-                           long offset, boolean corrupted) {
+        Long deliveryTimestamp, Collection<String> keys, Map<String, String> properties,
+        String bornHost, long bornTimestamp, int deliveryAttempt, MessageQueueImpl messageQueue,
+        long offset, boolean corrupted) {
         this.messageId = checkNotNull(messageId, "messageId should not be null");
         this.topic = checkNotNull(topic, "topic should not be null");
         this.body = checkNotNull(body, "body should not be null");
@@ -84,8 +100,8 @@ public class MessageViewImpl implements MessageView {
      * @see MessageView#getBody()
      */
     @Override
-    public byte[] getBody() {
-        return body.clone();
+    public ByteBuffer getBody() {
+        return ByteBuffer.wrap(body).asReadOnlyBuffer();
     }
 
     /**
@@ -170,5 +186,76 @@ public class MessageViewImpl implements MessageView {
 
     public boolean isCorrupted() {
         return corrupted;
+    }
+
+    public static MessageViewImpl fromProtobuf(Message message, MessageQueueImpl mq) {
+        final SystemProperties systemProperties = message.getSystemProperties();
+        final String topic = message.getTopic().getName();
+        final MessageId messageId = MessageIdCodec.getInstance().decode(systemProperties.getMessageId());
+        final Digest bodyDigest = systemProperties.getBodyDigest();
+        byte[] body = message.getBody().toByteArray();
+        boolean corrupted = false;
+        final String checksum = bodyDigest.getChecksum();
+        String expectedChecksum;
+        final DigestType digestType = bodyDigest.getType();
+        switch (digestType) {
+            case CRC32:
+                expectedChecksum = UtilAll.crc32CheckSum(body);
+                if (!expectedChecksum.equals(checksum)) {
+                    corrupted = true;
+                }
+                break;
+            case MD5:
+                try {
+                    expectedChecksum = UtilAll.md5CheckSum(body);
+                    if (!expectedChecksum.equals(checksum)) {
+                        corrupted = true;
+                    }
+                } catch (NoSuchAlgorithmException e) {
+                    corrupted = true;
+                    LOGGER.error("MD5 is not supported unexpectedly, skip it, topic={}, messageId={}", topic, messageId);
+                }
+                break;
+            case SHA1:
+                try {
+                    expectedChecksum = UtilAll.sha1CheckSum(body);
+                    if (!expectedChecksum.equals(checksum)) {
+                        corrupted = true;
+                    }
+                } catch (NoSuchAlgorithmException e) {
+                    corrupted = true;
+                    LOGGER.error("SHA-1 is not supported unexpectedly, skip it, topic={}, messageId={}", topic, messageId);
+                }
+                break;
+            default:
+                LOGGER.error("Unsupported message body digest algorithm, digestType={}, topic={}, messageId={}", digestType, topic, messageId);
+        }
+        final Encoding bodyEncoding = systemProperties.getBodyEncoding();
+        switch (bodyEncoding) {
+            case GZIP:
+                try {
+                    body = UtilAll.uncompressBytesGzip(body);
+                } catch (IOException e) {
+                    LOGGER.error("Failed to uncompress message body, topic={}, messageId={}", topic, messageId);
+                    corrupted = true;
+                }
+                break;
+            case IDENTITY:
+                break;
+            default:
+                LOGGER.error("Unsupported message encoding algorithm, topic={}, messageId={}, bodyEncoding={}", topic, messageId, bodyEncoding);
+        }
+
+        String tag = systemProperties.hasTag() ? systemProperties.getTag() : null;
+        String messageGroup = systemProperties.hasMessageGroup() ? systemProperties.getMessageGroup() : null;
+        Long deliveryTimestamp = systemProperties.hasDeliveryTimestamp() ?
+            Timestamps.toMillis(systemProperties.getDeliveryTimestamp()) : null;
+        final ProtocolStringList keys = systemProperties.getKeysList();
+        final String bornHost = systemProperties.getBornHost();
+        final long bornTimestamp = Timestamps.toMillis(systemProperties.getBornTimestamp());
+        final int deliveryAttempt = systemProperties.getDeliveryAttempt();
+        final long offset = systemProperties.getQueueOffset();
+        final Map<String, String> properties = message.getUserPropertiesMap();
+        return new MessageViewImpl(messageId, topic, body, tag, messageGroup, deliveryTimestamp, keys, properties, bornHost, bornTimestamp, deliveryAttempt, mq, offset, corrupted);
     }
 }

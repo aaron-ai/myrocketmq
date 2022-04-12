@@ -19,6 +19,7 @@ package org.apache.rocketmq.apis.consumer;
 
 import com.google.common.util.concurrent.Service;
 import java.io.Closeable;
+import java.io.IOException;
 import java.util.Collection;
 
 import java.util.Map;
@@ -93,5 +94,5 @@ public interface PushConsumer extends Closeable {
      * {@link Service.State}.
      */
     @Override
-    void close();
+    void close() throws IOException;
 }

@@ -19,6 +19,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import org.apache.rocketmq.apis.MessageQueue;
 import org.apache.rocketmq.apis.consumer.MessageListener;
 import org.apache.rocketmq.apis.message.MessageView;
+import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 
 @SuppressWarnings(value = {"UnstableApiUsage", "NullableProblems"})
 public class StandardConsumeService extends ConsumeService {
@@ -26,7 +27,7 @@ public class StandardConsumeService extends ConsumeService {
 
     private final int maxBatchSize;
 
-    public StandardConsumeService(String clientId, ConcurrentMap<MessageQueue, ProcessQueue> processQueueTable,
+    public StandardConsumeService(String clientId, ConcurrentMap<MessageQueueImpl, ProcessQueue> processQueueTable,
         MessageListener messageListener, ThreadPoolExecutor consumptionExecutor, ScheduledExecutorService scheduler,
         int maxBatchSize) {
         super(clientId, processQueueTable, messageListener, consumptionExecutor, scheduler);

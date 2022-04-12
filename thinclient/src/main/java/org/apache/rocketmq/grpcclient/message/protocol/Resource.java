@@ -24,12 +24,13 @@ public class Resource {
     private String namespace;
     private String name;
 
-    public Resource(String namespace, String name) {
-        this.namespace = namespace;
-        this.name = name;
+    public Resource(apache.rocketmq.v2.Resource resource) {
+        this.namespace = resource.getResourceNamespace();
+        this.name = resource.getName();
     }
 
-    public Resource() {
+    public apache.rocketmq.v2.Resource toProtobuf() {
+        return apache.rocketmq.v2.Resource.newBuilder().setResourceNamespace(namespace).setName(namespace).build();
     }
 
     public String getNamespace() {
@@ -68,8 +69,8 @@ public class Resource {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                .add("namespace", namespace)
-                .add("name", name)
-                .toString();
+            .add("namespace", namespace)
+            .add("name", name)
+            .toString();
     }
 }

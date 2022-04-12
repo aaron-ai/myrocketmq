@@ -17,6 +17,7 @@
 
 package org.apache.rocketmq.apis.message;
 
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Map;
 import java.util.Optional;
@@ -48,7 +49,7 @@ public interface MessageView {
      *
      * @return the <strong>deep copy</strong> of message body.
      */
-    byte[] getBody();
+    ByteBuffer getBody();
 
     /**
      * Get the <strong>deep copy</strong> of message properties, which makes the modification of return value does

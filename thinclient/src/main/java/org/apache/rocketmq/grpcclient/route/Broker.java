@@ -28,10 +28,14 @@ public class Broker {
     private final int id;
     private final Endpoints endpoints;
 
-    public Broker(String name, int id, Endpoints endpoints) {
-        this.name = name;
-        this.id = id;
-        this.endpoints = endpoints;
+    public Broker(apache.rocketmq.v2.Broker broker) {
+        this.name = broker.getName();
+        this.id = broker.getId();
+        this.endpoints = new Endpoints(broker.getEndpoints());
+    }
+
+    public apache.rocketmq.v2.Broker toProtobuf() {
+        return apache.rocketmq.v2.Broker.newBuilder().setName(name).setId(id).setEndpoints(endpoints.toProtobuf()).build();
     }
 
     public String getName() {

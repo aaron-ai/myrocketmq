@@ -16,7 +16,7 @@
  */
 
 
-package org.apache.rocketmq.grpcclient.consumer;
+package org.apache.rocketmq.grpcclient.impl.consumer;
 
 import java.util.HashMap;
 import java.util.Map;

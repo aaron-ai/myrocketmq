@@ -59,9 +59,11 @@ public class PublishingMessageImpl extends MessageImpl {
             this.compressedBody = ByteBuffer.wrap(compressed).asReadOnlyBuffer();
             this.encoding = Encoding.GZIP;
         } else {
+            // No need to compress message body.
             this.compressedBody = null;
             this.encoding = Encoding.IDENTITY;
         }
+        // Generate message id.
         this.messageId = MessageIdCodec.getInstance().nextMessageId();
         // Normal message.
         if (!message.getMessageGroup().isPresent() &&

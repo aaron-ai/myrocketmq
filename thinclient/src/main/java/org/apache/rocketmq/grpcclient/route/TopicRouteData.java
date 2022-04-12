@@ -31,6 +31,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.rocketmq.grpcclient.utility.MixAll;
 
 public class TopicRouteData {
     public static final TopicRouteData EMPTY = new TopicRouteData(Collections.emptyList());
@@ -75,7 +76,7 @@ public class TopicRouteData {
             final MessageQueueImpl messageQueueImpl = messageQueueImpls.get(IntMath.mod(nextIndex++, messageQueueImpls.size()));
             final Broker broker = messageQueueImpl.getBroker();
             // TODO: polish magic code here.
-            if (0 != broker.getId()) {
+            if (MixAll.MASTER_BROKER_ID != broker.getId()) {
                 continue;
             }
             if (Permission.NONE == messageQueueImpl.getPermission()) {
