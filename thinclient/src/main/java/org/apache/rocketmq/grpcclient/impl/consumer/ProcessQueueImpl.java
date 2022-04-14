@@ -99,8 +99,8 @@ public class ProcessQueueImpl implements ProcessQueue {
     }
 
     @Override
-    public MessageQueue getMessageQueue() {
-        return null;
+    public MessageQueueImpl getMessageQueue() {
+        return mq;
     }
 
     @Override

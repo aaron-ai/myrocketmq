@@ -23,6 +23,7 @@ import org.apache.rocketmq.apis.message.MessageView;
 
 import java.util.List;
 import java.util.Optional;
+import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 
 /**
  * 1. Fetch 32 messages successfully from remote.
@@ -67,7 +68,7 @@ public interface ProcessQueue {
      *
      * @return bound message queue.
      */
-    MessageQueue getMessageQueue();
+    MessageQueueImpl getMessageQueue();
 
     /**
      * Drop current process queue, it would not fetch message from remote anymore if dropped.
