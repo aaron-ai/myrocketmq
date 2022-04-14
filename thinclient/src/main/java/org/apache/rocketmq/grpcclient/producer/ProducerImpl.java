@@ -332,7 +332,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
                             + "attempt={}, endpoints={}, clientId={}", namespace, topic, messageIds, maxAttempts, attempt,
                         endpoints, clientId);
                 }
-                // Send message on first attempt, return directly.
+                // Send message(s) successfully on first attempt, return directly.
             }
 
             @Override

@@ -15,7 +15,6 @@
  * limitations under the License.
  */
 
-
 package org.apache.rocketmq.grpcclient.impl.consumer;
 
 import java.util.HashMap;

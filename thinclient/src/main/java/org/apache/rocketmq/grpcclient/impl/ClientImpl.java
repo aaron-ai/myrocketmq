@@ -25,7 +25,6 @@ import apache.rocketmq.v2.QueryRouteResponse;
 import apache.rocketmq.v2.Resource;
 import apache.rocketmq.v2.Status;
 import apache.rocketmq.v2.TelemetryCommand;
-import com.google.common.base.Function;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -208,7 +207,7 @@ public abstract class ClientImpl implements Client {
             final Metadata metadata = sign();
             final ListenableFuture<QueryRouteResponse> responseFuture =
                 clientManager.queryRoute(accessEndpoints, metadata, request, clientConfiguration.getRequestTimeout());
-            return Futures.transform(responseFuture, (Function<QueryRouteResponse, TopicRouteDataResult>) response -> {
+            return Futures.transform(responseFuture, response -> {
                 final Status status = response.getStatus();
                 final Code code = status.getCode();
                 if (Code.OK != code) {

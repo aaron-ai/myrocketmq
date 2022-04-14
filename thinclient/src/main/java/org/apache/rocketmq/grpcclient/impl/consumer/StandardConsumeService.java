@@ -22,8 +22,7 @@ import org.apache.rocketmq.apis.consumer.MessageListener;
 import org.apache.rocketmq.apis.message.MessageView;
 import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 
-@SuppressWarnings(value = {"UnstableApiUsage", "NullableProblems"})
-public class StandardConsumeService extends ConsumeService {
+@SuppressWarnings("NullableProblems") public class StandardConsumeService extends ConsumeService {
     private static final Logger LOGGER = LoggerFactory.getLogger(StandardConsumeService.class);
 
     private final int maxBatchSize;
