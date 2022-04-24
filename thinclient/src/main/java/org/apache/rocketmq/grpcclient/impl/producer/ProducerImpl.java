@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.rocketmq.grpcclient.producer;
+package org.apache.rocketmq.grpcclient.impl.producer;
 
 import apache.rocketmq.v2.Broker;
 import apache.rocketmq.v2.HeartbeatRequest;
@@ -24,7 +24,6 @@ import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.Resource;
 import apache.rocketmq.v2.SendMessageRequest;
 import apache.rocketmq.v2.SendMessageResponse;
-import com.google.common.base.Function;
 import com.google.common.math.IntMath;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -72,7 +71,6 @@ import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 import org.apache.rocketmq.grpcclient.route.TopicRouteDataResult;
 import org.apache.rocketmq.grpcclient.utility.ExecutorServices;
 import org.apache.rocketmq.grpcclient.utility.ThreadFactoryImpl;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
@@ -282,20 +280,10 @@ public class ProducerImpl extends ClientImpl implements Producer {
     /**
      * The caller is supposed to make sure different messages have the same message type and same topic.
      */
-    private SendMessageRequest wrapSendMessageRequest(String topic, List<PublishingMessageImpl> messages,
-        MessageQueueImpl messageQueue) {
-        // The caller is supposed to have validated that all messages have the same topic.
-        final Resource topicResource = Resource.newBuilder().setResourceNamespace(namespace)
-            .setName(topic).build();
-
-        Broker broker = Broker.newBuilder().setName(messageQueue.getBroker().getName()).build();
-        MessageQueue mq = MessageQueue.newBuilder().setTopic(topicResource).setBroker(broker).build();
-
-        final SendMessageRequest.Builder requestBuilder = SendMessageRequest.newBuilder().setMessageQueue(mq);
-        for (PublishingMessageImpl messageImpl : messages) {
-            requestBuilder.addMessages(messageImpl.toProtobuf());
-        }
-        return requestBuilder.build();
+    private SendMessageRequest wrapSendMessageRequest(List<PublishingMessageImpl> messages) {
+        return SendMessageRequest.newBuilder()
+            .addAllMessages(messages.stream().map(PublishingMessageImpl::toProtobuf).collect(Collectors.toList()))
+            .build();
     }
 
     private void send0(SettableFuture<List<SendReceipt>> future, String topic, MessageType messageType,
@@ -311,7 +299,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
         // Calculate the current partition.
         final MessageQueueImpl messageQueue = candidates.get(IntMath.mod(attempt - 1, candidates.size()));
         final Endpoints endpoints = messageQueue.getBroker().getEndpoints();
-        final SendMessageRequest request = wrapSendMessageRequest(topic, messages, messageQueue);
+        final SendMessageRequest request = wrapSendMessageRequest(messages);
 
         final ListenableFuture<SendMessageResponse> responseFuture = clientManager.sendMessage(endpoints, metadata,
             request, clientConfiguration.getRequestTimeout());

@@ -27,7 +27,6 @@ public class ClientConfiguration {
     private final String accessPoint;
     private final SessionCredentialsProvider sessionCredentialsProvider;
     private final Duration requestTimeout;
-    private final boolean enableTracing;
 
     public static ClientConfigurationBuilder newBuilder() {
         return new ClientConfigurationBuilder();
@@ -37,12 +36,10 @@ public class ClientConfiguration {
      * The caller is supposed to have validated the arguments and handled throwing exception or
      * logging warnings already, so we avoid repeating args check here.
      */
-    ClientConfiguration(String accessPoint, SessionCredentialsProvider sessionCredentialsProvider,
-                        Duration requestTimeout, boolean enableTracing) {
+    ClientConfiguration(String accessPoint, SessionCredentialsProvider sessionCredentialsProvider, Duration requestTimeout) {
         this.accessPoint = accessPoint;
         this.sessionCredentialsProvider = sessionCredentialsProvider;
         this.requestTimeout = requestTimeout;
-        this.enableTracing = enableTracing;
     }
 
     public String getAccessPoint() {
@@ -55,9 +52,5 @@ public class ClientConfiguration {
 
     public Duration getRequestTimeout() {
         return requestTimeout;
-    }
-
-    public boolean isEnableTracing() {
-        return enableTracing;
     }
 }

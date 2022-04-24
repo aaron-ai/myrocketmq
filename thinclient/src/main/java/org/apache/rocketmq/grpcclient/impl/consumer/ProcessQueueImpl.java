@@ -296,9 +296,7 @@ public class ProcessQueueImpl implements ProcessQueue {
                     consumer.getReceivedMessagesQuantity().getAndAdd(messages.size());
                     consumer.getConsumeService().signal();
                 }
-                LOGGER.debug("Receive message with OK, namespace={}, mq={}, endpoints={}, messages found count={}, "
-                        + "clientId={}", consumer.getNamespace(), mq, endpoints, messages.size(),
-                    consumer.getClientId());
+                LOGGER.debug("Receive message with OK, namespace={}, mq={}, endpoints={}, messages found count={}, clientId={}", consumer.getNamespace(), mq, endpoints, messages.size(), consumer.getClientId());
                 receiveMessage();
                 break;
             // Fall through on purpose.

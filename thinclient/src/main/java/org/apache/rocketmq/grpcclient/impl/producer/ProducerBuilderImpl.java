@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.rocketmq.grpcclient.producer;
+package org.apache.rocketmq.grpcclient.impl.producer;
 
 import java.util.stream.Collectors;
 import org.apache.rocketmq.apis.ClientConfiguration;

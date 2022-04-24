@@ -17,15 +17,12 @@
 
 package org.apache.rocketmq.grpcclient.impl;
 
-import apache.rocketmq.v2.ApplyPassiveSettingsCommand;
-import apache.rocketmq.v2.ApplyPassiveSettingsResult;
 import apache.rocketmq.v2.Code;
 import apache.rocketmq.v2.HeartbeatRequest;
 import apache.rocketmq.v2.HeartbeatResponse;
 import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.QueryRouteRequest;
 import apache.rocketmq.v2.QueryRouteResponse;
-import apache.rocketmq.v2.ReportActiveSettingsCommand;
 import apache.rocketmq.v2.Resource;
 import apache.rocketmq.v2.Status;
 import com.google.common.collect.Sets;
@@ -101,8 +98,6 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
     private final ConcurrentMap<Endpoints, TelemetryRequestObserver> telemetryReqObserverTable;
     private final ReadWriteLock telemetryReqObserverTableLock;
 
-    final SettableFuture<ApplyPassiveSettingsCommand> startupPassiveSettingsFuture;
-
     protected final String clientId;
 
     public ClientImpl(ClientConfiguration clientConfiguration, Set<String> topics) {
@@ -132,8 +127,6 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
 
         this.telemetryReqObserverTable = new ConcurrentHashMap<>();
         this.telemetryReqObserverTableLock = new ReentrantReadWriteLock();
-
-        this.startupPassiveSettingsFuture = SettableFuture.create();
     }
 
     @Override
@@ -180,14 +173,6 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         }, 10, 30, TimeUnit.SECONDS);
         LOGGER.info("The rocketmq client starts successfully, clientId={}", clientId);
     }
-
-    protected abstract ReportActiveSettingsCommand wrapReportActiveSettingsCommand();
-
-//    private ApplyPassiveSettingsResult wrapApplyPassiveSettingsResult(String nonce) {
-//        final ApplyPassiveSettingsResult result = ApplyPassiveSettingsResult.newBuilder().setNonce(nonce).build();
-//    }
-
-    protected abstract void handlePassiveSettingsCommand(ApplyPassiveSettingsCommand command);
 
     protected String generateClientNonce() {
         return clientId + "_" + nonceIndex.incrementAndGet();
@@ -254,9 +239,6 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
             final RuntimeException exception = new RuntimeException(t);
             future.setException(exception);
         }
-    }
-
-    private void applyPassiveSettings() {
     }
 
     @Override

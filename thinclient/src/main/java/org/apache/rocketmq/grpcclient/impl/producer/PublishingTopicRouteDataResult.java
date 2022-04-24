@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.rocketmq.grpcclient.producer;
+package org.apache.rocketmq.grpcclient.impl.producer;
 
 import apache.rocketmq.v2.Code;
 import apache.rocketmq.v2.Status;

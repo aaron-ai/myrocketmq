@@ -28,7 +28,6 @@ public class ClientConfigurationBuilder {
     private String endpoints;
     private SessionCredentialsProvider sessionCredentialsProvider = null;
     private Duration requestTimeout = Duration.ofSeconds(1);
-    private boolean enableTracing = true;
 
     /**
      * Configure the access point with which the SDK should communicate.
@@ -70,19 +69,6 @@ public class ClientConfigurationBuilder {
     }
 
     /**
-     * Enable message tracing or not.
-     *
-     * <p>Tracing is enabled by default.
-     *
-     * @param enableTracing whether message tracing is enabled or not.
-     * @return the client configuration builder instance.
-     */
-    public ClientConfigurationBuilder enableTracing(boolean enableTracing) {
-        this.enableTracing = enableTracing;
-        return this;
-    }
-
-    /**
      * Finalize the build of {@link ClientConfiguration}.
      *
      * @return the client configuration builder instance.
@@ -90,6 +76,6 @@ public class ClientConfigurationBuilder {
     public ClientConfiguration build() {
         checkNotNull(endpoints, "endpoints should not be null");
         checkNotNull(requestTimeout, "requestTimeout should not be null");
-        return new ClientConfiguration(endpoints, sessionCredentialsProvider, requestTimeout, enableTracing);
+        return new ClientConfiguration(endpoints, sessionCredentialsProvider, requestTimeout);
     }
 }

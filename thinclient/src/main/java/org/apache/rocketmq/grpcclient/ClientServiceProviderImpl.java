@@ -23,7 +23,7 @@ import org.apache.rocketmq.apis.message.MessageBuilder;
 import org.apache.rocketmq.apis.producer.ProducerBuilder;
 import org.apache.rocketmq.grpcclient.impl.consumer.PushConsumerBuilderImpl;
 import org.apache.rocketmq.grpcclient.message.MessageBuilderImpl;
-import org.apache.rocketmq.grpcclient.producer.ProducerBuilderImpl;
+import org.apache.rocketmq.grpcclient.impl.producer.ProducerBuilderImpl;
 
 public class ClientServiceProviderImpl implements ClientServiceProvider {
     @Override
