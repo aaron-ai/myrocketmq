@@ -29,12 +29,8 @@ import apache.rocketmq.v2.HeartbeatRequest;
 import apache.rocketmq.v2.HeartbeatResponse;
 import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.NotifyClientTerminationResponse;
-import apache.rocketmq.v2.PullMessageRequest;
-import apache.rocketmq.v2.PullMessageResponse;
 import apache.rocketmq.v2.QueryAssignmentRequest;
 import apache.rocketmq.v2.QueryAssignmentResponse;
-import apache.rocketmq.v2.QueryOffsetRequest;
-import apache.rocketmq.v2.QueryOffsetResponse;
 import apache.rocketmq.v2.QueryRouteRequest;
 import apache.rocketmq.v2.QueryRouteResponse;
 import apache.rocketmq.v2.ReceiveMessageRequest;
@@ -47,6 +43,7 @@ import io.grpc.Metadata;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.time.Duration;
+import java.util.Iterator;
 import org.apache.rocketmq.apis.exception.ClientException;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 
@@ -90,7 +87,6 @@ public interface ClientManager {
      * @param metadata  gRPC request header metadata.
      * @param request   query route request.
      * @param duration  request max duration.
-     * @param timeUnit  duration time unit.
      * @return response future of topic route.
      */
     ListenableFuture<QueryRouteResponse> queryRoute(Endpoints endpoints, Metadata metadata, QueryRouteRequest request,
@@ -103,7 +99,6 @@ public interface ClientManager {
      * @param metadata  gRPC request header metadata.
      * @param request   heart beat request.
      * @param duration  request max duration.
-     * @param timeUnit  duration time unit.
      * @return response future of heart beat.
      */
     ListenableFuture<HeartbeatResponse> heartbeat(Endpoints endpoints, Metadata metadata, HeartbeatRequest request,
@@ -116,7 +111,6 @@ public interface ClientManager {
      * @param metadata  gRPC request header metadata.
      * @param request   send message request.
      * @param duration  request max duration.
-     * @param timeUnit  duration time unit.
      * @return response future of sending message.
      */
     ListenableFuture<SendMessageResponse> sendMessage(Endpoints endpoints, Metadata metadata,
@@ -129,7 +123,6 @@ public interface ClientManager {
      * @param metadata  gRPC request header metadata.
      * @param request   query assignment request.
      * @param duration  request max duration.
-     * @param timeUnit  duration time unit.
      * @return response future of query assignment.
      */
     ListenableFuture<QueryAssignmentResponse> queryAssignment(Endpoints endpoints, Metadata metadata,
@@ -138,14 +131,11 @@ public interface ClientManager {
     /**
      * Receiving message asynchronously from server, the method ensures no throwable.
      *
-     * @param endpoints requested endpoints.
-     * @param metadata  gRPC request header metadata.
-     * @param request   receiving message request.
-     * @param duration  request max duration.
-     * @param timeUnit  duration time unit.
-     * @return response future of receiving message.
+     * @param endpoints        requested endpoints.
+     * @param metadata         gRPC request header metadata.
+     * @param responseObserver gRPC response observer.
      */
-    ListenableFuture<ReceiveMessageResponse> receiveMessage(Endpoints endpoints, Metadata metadata,
+    ListenableFuture<Iterator<ReceiveMessageResponse>> receiveMessage(Endpoints endpoints, Metadata metadata,
         ReceiveMessageRequest request, Duration duration);
 
     /**
@@ -155,7 +145,6 @@ public interface ClientManager {
      * @param metadata  gRPC request header metadata.
      * @param request   ack message request.
      * @param duration  request max duration.
-     * @param timeUnit  duration time unit.
      * @return response future of ack message.
      */
     ListenableFuture<AckMessageResponse> ackMessage(Endpoints endpoints, Metadata metadata, AckMessageRequest request,
@@ -168,7 +157,6 @@ public interface ClientManager {
      * @param metadata  gRPC request header metadata.
      * @param request   nack message request.
      * @param duration  request max duration.
-     * @param timeUnit  duration time unit.
      * @return response future of nack message.
      */
     ListenableFuture<ChangeInvisibleDurationResponse> changeInvisibleDuration(Endpoints endpoints, Metadata metadata,
@@ -182,7 +170,6 @@ public interface ClientManager {
      * @param metadata  gRPC request header metadata.
      * @param request   request of sending message to DLQ.
      * @param duration  request max duration.
-     * @param timeUnit  duration time unit.
      * @return response future of sending message to DLQ.
      */
     ListenableFuture<ForwardMessageToDeadLetterQueueResponse> forwardMessageToDeadLetterQueue(
@@ -195,37 +182,10 @@ public interface ClientManager {
      * @param metadata  gRPC request header metadata.
      * @param request   end transaction request.
      * @param duration  request max duration.
-     * @param timeUnit  duration time unit.
      * @return response future of submitting transaction resolution.
      */
     ListenableFuture<EndTransactionResponse> endTransaction(Endpoints endpoints, Metadata metadata,
         EndTransactionRequest request, Duration duration);
-
-    /**
-     * Query offset asynchronously for pull, the method ensures no throwable.
-     *
-     * @param endpoints requested endpoints.
-     * @param metadata  gRPC request header metadata.
-     * @param request   query offset request.
-     * @param duration  gRPC asynchronous executor.
-     * @param timeUnit  duration time unit.
-     * @return response future of query offset.
-     */
-    ListenableFuture<QueryOffsetResponse> queryOffset(Endpoints endpoints, Metadata metadata,
-        QueryOffsetRequest request, Duration duration);
-
-    /**
-     * Pull message from remote asynchronously, the method ensures no throwable.
-     *
-     * @param endpoints requested endpoints.
-     * @param metadata  gRPC request header metadata.
-     * @param request   pull message request.
-     * @param duration  duration time unit.
-     * @param timeUnit  duration time unit.
-     * @return response future of pull message.
-     */
-    ListenableFuture<PullMessageResponse> pullMessage(Endpoints endpoints, Metadata metadata,
-        PullMessageRequest request, Duration duration);
 
     /**
      * Asynchronously notify server that client is terminated, the method ensures no throwable.
@@ -234,7 +194,6 @@ public interface ClientManager {
      * @param metadata  gRPC request header metadata.
      * @param request   notify client termination request.
      * @param duration  request max duration.
-     * @param timeUnit  duration time unit.
      * @return response future of notification of client termination.
      */
     @SuppressWarnings("UnusedReturnValue")

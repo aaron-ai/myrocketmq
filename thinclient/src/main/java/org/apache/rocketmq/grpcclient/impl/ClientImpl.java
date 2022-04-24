@@ -17,15 +17,19 @@
 
 package org.apache.rocketmq.grpcclient.impl;
 
+import apache.rocketmq.v2.ApplyPassiveSettingsCommand;
+import apache.rocketmq.v2.ApplyPassiveSettingsResult;
 import apache.rocketmq.v2.Code;
 import apache.rocketmq.v2.HeartbeatRequest;
 import apache.rocketmq.v2.HeartbeatResponse;
+import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.QueryRouteRequest;
 import apache.rocketmq.v2.QueryRouteResponse;
+import apache.rocketmq.v2.ReportActiveSettingsCommand;
 import apache.rocketmq.v2.Resource;
 import apache.rocketmq.v2.Status;
-import apache.rocketmq.v2.TelemetryCommand;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -35,15 +39,25 @@ import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import io.grpc.Metadata;
-import io.grpc.stub.StreamObserver;
 import java.io.UnsupportedEncodingException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.apis.ClientConfiguration;
+import org.apache.rocketmq.apis.exception.ResourceNotFoundException;
 import org.apache.rocketmq.grpcclient.remoting.Signature;
 import org.apache.rocketmq.grpcclient.route.AddressScheme;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
@@ -64,13 +78,17 @@ import java.util.concurrent.locks.ReentrantLock;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 @SuppressWarnings({"UnstableApiUsage", "NullableProblems"})
-public abstract class ClientImpl implements Client {
+public abstract class ClientImpl extends AbstractIdleService implements Client {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientImpl.class);
 
+    private final AtomicLong nonceIndex = new AtomicLong(0);
+
     protected final String namespace;
-    protected final ClientManager clientManager;
+    protected volatile ClientManager clientManager;
     protected final ClientConfiguration clientConfiguration;
     private final Endpoints accessEndpoints;
+
+    private volatile ScheduledFuture<?> updateRouteCacheFuture;
 
     protected final Set<String> topics;
     private final ConcurrentMap<String, TopicRouteDataResult> topicRouteResultCache;
@@ -79,8 +97,11 @@ public abstract class ClientImpl implements Client {
     private final Map<String /* topic */, Set<SettableFuture<TopicRouteDataResult>>> inflightRouteFutureTable;
     private final Lock inflightRouteFutureLock;
 
-    private final TelemetryResponseObserver telemetryResponseObserver;
-    private final ConcurrentMap<Endpoints, StreamObserver<TelemetryCommand>> telemetryRequestObserverTable;
+    @GuardedBy("telemetryReqObserverTableLock")
+    private final ConcurrentMap<Endpoints, TelemetryRequestObserver> telemetryReqObserverTable;
+    private final ReadWriteLock telemetryReqObserverTableLock;
+
+    final SettableFuture<ApplyPassiveSettingsCommand> startupPassiveSettingsFuture;
 
     protected final String clientId;
 
@@ -101,43 +122,172 @@ public abstract class ClientImpl implements Client {
             this.accessEndpoints = new Endpoints(accessPoint);
         }
         this.topics = topics;
-        // 1, Generate client id firstly.
+        // Generate client id firstly.
         this.clientId = UtilAll.genClientId();
-        // 2. register client after client id generation.
-        this.clientManager = ClientManagerFactory.getInstance().registerClient(namespace, this);
 
         this.topicRouteResultCache = new ConcurrentHashMap<>();
 
         this.inflightRouteFutureTable = new ConcurrentHashMap<>();
         this.inflightRouteFutureLock = new ReentrantLock();
 
-        this.telemetryRequestObserverTable = new ConcurrentHashMap<>();
-        this.telemetryResponseObserver = new TelemetryResponseObserver(this);
+        this.telemetryReqObserverTable = new ConcurrentHashMap<>();
+        this.telemetryReqObserverTableLock = new ReentrantReadWriteLock();
 
-        this.getRouteDataResults();
+        this.startupPassiveSettingsFuture = SettableFuture.create();
     }
 
-    private void getRouteDataResults() {
+    @Override
+    protected void startUp() throws ExecutionException, InterruptedException {
+        LOGGER.info("Begin to start the rocketmq client, clientId={}", clientId);
+        // Register client after client id generation.
+        this.clientManager = ClientManagerFactory.getInstance().registerClient(namespace, this);
+        final ScheduledExecutorService scheduler = clientManager.getScheduler();
+        // Fetch topic route from remote.
         try {
-            Futures.allAsList(topics.stream().map(this::getRouteDataResult).collect(Collectors.toList())).get();
+            LOGGER.info("Begin to fetch topic route data from remote during startup, clientId={}", clientId);
+            // Aggregate all topic route data futures into a composited future.
+            final List<ListenableFuture<TopicRouteDataResult>> futures = topics.stream()
+                .map(this::getRouteDataResult)
+                .collect(Collectors.toList());
+            final List<TopicRouteDataResult> results = Futures.allAsList(futures).get();
+            // Find any topic whose topic route data is failed to fetch from remote.
+            final Stream<TopicRouteDataResult> stream = results.stream()
+                .filter(topicRouteDataResult -> Code.OK != topicRouteDataResult.getStatus().getCode());
+            final Optional<TopicRouteDataResult> any = stream.findAny();
+            // There is a topic whose topic route data is failed to fetch from remote.
+            if (any.isPresent()) {
+                final TopicRouteDataResult result = any.get();
+                final Status status = result.getStatus();
+                // TODO: polish code here.
+                throw new ResourceNotFoundException(status.getCode().ordinal(), status.getMessage());
+            }
+            LOGGER.info("Fetch topic route data from remote successfully during startup, clientId={}", clientId);
         } catch (Throwable t) {
-            // TODO
+            // Should never reach here.
+            LOGGER.error("[Bug] Unexpected exception thrown while fetching topic route data from remote during startup, clientId={}", clientId, t);
             throw new RuntimeException(t);
+        }
+        // Report active settings during startup.
+        this.reportActiveSettings().get();
+        this.startupPassiveSettingsFuture.get();
+        // Update route cache periodically.
+        this.updateRouteCacheFuture = scheduler.scheduleWithFixedDelay(() -> {
+            try {
+                updateRouteCache();
+            } catch (Throwable t) {
+                LOGGER.error("Exception raised while updating topic route cache, clientId={}", clientId, t);
+            }
+        }, 10, 30, TimeUnit.SECONDS);
+        LOGGER.info("The rocketmq client starts successfully, clientId={}", clientId);
+    }
+
+    protected abstract ReportActiveSettingsCommand wrapReportActiveSettingsCommand();
+
+//    private ApplyPassiveSettingsResult wrapApplyPassiveSettingsResult(String nonce) {
+//        final ApplyPassiveSettingsResult result = ApplyPassiveSettingsResult.newBuilder().setNonce(nonce).build();
+//    }
+
+    protected abstract void handlePassiveSettingsCommand(ApplyPassiveSettingsCommand command);
+
+    protected String generateClientNonce() {
+        return clientId + "_" + nonceIndex.incrementAndGet();
+    }
+
+    private ListenableFuture<List<Void>> reportActiveSettings() {
+        final Set<Endpoints> totalRouteEndpoints = getTotalRouteEndpoints();
+        List<SettableFuture<Void>> futures = new ArrayList<>();
+        for (Endpoints endpoints : totalRouteEndpoints) {
+            final SettableFuture<Void> future = SettableFuture.create();
+            reportActiveSettings0(endpoints, future);
+            futures.add(future);
+        }
+        return Futures.allAsList(futures);
+    }
+
+    public TelemetryRequestObserver getTelemetryRequestObserver(Endpoints endpoints) {
+        telemetryReqObserverTableLock.readLock().lock();
+        TelemetryRequestObserver requestObserver;
+        try {
+            requestObserver = telemetryReqObserverTable.get(endpoints);
+            if (null != requestObserver) {
+                return requestObserver;
+            }
+        } finally {
+            telemetryReqObserverTableLock.readLock().unlock();
+        }
+        telemetryReqObserverTableLock.writeLock().lock();
+        try {
+            requestObserver = telemetryReqObserverTable.get(endpoints);
+            if (null != requestObserver) {
+                return requestObserver;
+            }
+            requestObserver = new TelemetryRequestObserver(this, endpoints);
+            telemetryReqObserverTable.put(endpoints, requestObserver);
+            return requestObserver;
+        } finally {
+            telemetryReqObserverTableLock.writeLock().unlock();
         }
     }
 
-    private void telemetry(Set<Endpoints> endpointsSet) {
+    private void reportActiveSettings0(Endpoints endpoints, SettableFuture<Void> future) {
         try {
-            for (Endpoints endpoints : endpointsSet) {
-                final Metadata metadata = sign();
-                final Duration duration = clientConfiguration.getRequestTimeout();
-                final StreamObserver<TelemetryCommand> requestObserver =
-                    clientManager.telemetry(endpoints, metadata, duration, telemetryResponseObserver);
-                telemetryRequestObserverTable.put(endpoints, requestObserver);
+            if (!this.endpointsIsUsed(endpoints)) {
+                LOGGER.info("Current endpoints is not used, forgive retries for reporting active settings, endpoints={}, clientId={}", endpoints, clientId);
+            }
+            final TelemetryRequestObserver requestObserver = this.getTelemetryRequestObserver(endpoints);
+            final SettableFuture<Void> future0 = requestObserver.reportActiveSettings();
+            final ListenableFuture<Void> futureWithTimeout = Futures.withTimeout(future0, Duration.ofSeconds(5), this.getScheduler());
+            Futures.addCallback(futureWithTimeout, new FutureCallback<Void>() {
+                @Override
+                public void onSuccess(Void result) {
+                    future.set(null);
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+                    LOGGER.error("Failed to await report active settings result from remote, endpoints={}, clientId={}", endpoints, clientId, t);
+                    // Repeated reporting until success.
+                    getScheduler().schedule(() -> reportActiveSettings0(endpoints, future), 3, TimeUnit.SECONDS);
+                }
+            }, MoreExecutors.directExecutor());
+        } catch (Throwable t) {
+            final RuntimeException exception = new RuntimeException(t);
+            future.setException(exception);
+        }
+    }
+
+    private void applyPassiveSettings() {
+    }
+
+    @Override
+    protected void shutDown() throws IOException {
+        LOGGER.info("Begin to shutdown the rocketmq client, clientId={}", clientId);
+        notifyClientTermination();
+        if (null != this.updateRouteCacheFuture) {
+            updateRouteCacheFuture.cancel(false);
+        }
+        ClientManagerFactory.getInstance().unregisterClient(namespace, this);
+        LOGGER.info("Shutdown the rocketmq client, clientId={}", clientId);
+    }
+
+    private void updateRouteCache() {
+
+    }
+
+    public abstract NotifyClientTerminationRequest wrapNotifyClientTerminationRequest();
+
+    private void notifyClientTermination() {
+        LOGGER.info("Notify that client is terminated, clientId={}", clientId);
+        final Set<Endpoints> routeEndpointsSet = getTotalRouteEndpoints();
+        final NotifyClientTerminationRequest notifyClientTerminationRequest = wrapNotifyClientTerminationRequest();
+        try {
+            final Metadata metadata = sign();
+            for (Endpoints endpoints : routeEndpointsSet) {
+                clientManager.notifyClientTermination(endpoints, metadata, notifyClientTerminationRequest,
+                    clientConfiguration.getRequestTimeout());
             }
         } catch (Throwable t) {
-            // TODO
-            throw new RuntimeException(t);
+            LOGGER.error("Exception raised while notifying client's termination, clientId={}", clientId, t);
         }
     }
 
@@ -229,6 +379,11 @@ public abstract class ClientImpl implements Client {
             totalRouteEndpoints.addAll(result.getTopicRouteData().getTotalEndpoints());
         }
         return totalRouteEndpoints;
+    }
+
+    protected boolean endpointsIsUsed(Endpoints endpoints) {
+        final Set<Endpoints> totalRouteEndpoints = getTotalRouteEndpoints();
+        return totalRouteEndpoints.contains(endpoints);
     }
 
     private synchronized Set<Endpoints> updateTopicRouteResultCache(String topic, TopicRouteDataResult newResult) {

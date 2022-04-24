@@ -29,12 +29,8 @@ import apache.rocketmq.v2.HeartbeatRequest;
 import apache.rocketmq.v2.HeartbeatResponse;
 import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.NotifyClientTerminationResponse;
-import apache.rocketmq.v2.PullMessageRequest;
-import apache.rocketmq.v2.PullMessageResponse;
 import apache.rocketmq.v2.QueryAssignmentRequest;
 import apache.rocketmq.v2.QueryAssignmentResponse;
-import apache.rocketmq.v2.QueryOffsetRequest;
-import apache.rocketmq.v2.QueryOffsetResponse;
 import apache.rocketmq.v2.QueryRouteRequest;
 import apache.rocketmq.v2.QueryRouteResponse;
 import apache.rocketmq.v2.ReceiveMessageRequest;
@@ -49,7 +45,6 @@ import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import io.grpc.Metadata;
 import io.grpc.stub.StreamObserver;
-import java.util.concurrent.Executor;
 import org.apache.rocketmq.apis.exception.ClientException;
 import org.apache.rocketmq.apis.exception.SslException;
 import org.apache.rocketmq.grpcclient.remoting.RpcClient;
@@ -360,13 +355,13 @@ public class ClientManagerImpl implements ClientManager {
     }
 
     @Override
-    public ListenableFuture<ReceiveMessageResponse> receiveMessage(Endpoints endpoints, Metadata metadata,
+    public ListenableFuture<Iterator<ReceiveMessageResponse>> receiveMessage(Endpoints endpoints, Metadata metadata,
         ReceiveMessageRequest request, Duration duration) {
         try {
             final RpcClient rpcClient = getRpcClient(endpoints);
             return rpcClient.receiveMessage(metadata, request, asyncWorker, duration);
         } catch (Throwable t) {
-            final SettableFuture<ReceiveMessageResponse> future = SettableFuture.create();
+            SettableFuture<Iterator<ReceiveMessageResponse>> future = SettableFuture.create();
             future.setException(t);
             return future;
         }
@@ -419,32 +414,6 @@ public class ClientManagerImpl implements ClientManager {
             return rpcClient.endTransaction(metadata, request, asyncWorker, duration);
         } catch (Throwable t) {
             SettableFuture<EndTransactionResponse> future = SettableFuture.create();
-            future.setException(t);
-            return future;
-        }
-    }
-
-    @Override
-    public ListenableFuture<QueryOffsetResponse> queryOffset(Endpoints endpoints, Metadata metadata,
-        QueryOffsetRequest request, Duration duration) {
-        try {
-            final RpcClient rpcClient = getRpcClient(endpoints);
-            return rpcClient.queryOffset(metadata, request, asyncWorker, duration);
-        } catch (Throwable t) {
-            final SettableFuture<QueryOffsetResponse> future = SettableFuture.create();
-            future.setException(t);
-            return future;
-        }
-    }
-
-    @Override
-    public ListenableFuture<PullMessageResponse> pullMessage(Endpoints endpoints, Metadata metadata,
-        PullMessageRequest request, Duration duration) {
-        try {
-            final RpcClient rpcClient = getRpcClient(endpoints);
-            return rpcClient.pullMessage(metadata, request, asyncWorker, duration);
-        } catch (Throwable t) {
-            final SettableFuture<PullMessageResponse> future = SettableFuture.create();
             future.setException(t);
             return future;
         }

@@ -3,6 +3,7 @@ package org.apache.rocketmq.grpcclient.example;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import java.io.IOException;
+import java.nio.ReadOnlyBufferException;
 import java.nio.charset.StandardCharsets;
 import org.apache.rocketmq.apis.ClientConfiguration;
 import org.apache.rocketmq.apis.ClientServiceProvider;
@@ -16,33 +17,37 @@ public class ProducerExample {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProducerExample.class);
 
     public static void main(String[] args) {
-        String accessPoint = "http://MQ_INST_1080056302921134_BXxiFN4R.mq.cn-shenzhen.aliyuncs.com:80";
-        String topic = "lingchu-test-topic";
-        String tag = "tagA";
-        byte[] body = "Hello RocketMQ".getBytes(StandardCharsets.UTF_8);
-        String accessKey = "AccessKey";
-        String secretKey = "secretKey";
+        try {
+            String accessPoint = "http://MQ_INST_1080056302921134_BXxiFN4R.mq.cn-shenzhen.aliyuncs.com:80";
+            String topic = "lingchu-test-topic";
+            String tag = "tagA";
+            byte[] body = "Hello RocketMQ".getBytes(StandardCharsets.UTF_8);
+            String accessKey = "AccessKey";
+            String secretKey = "secretKey";
 
-        final ClientServiceProvider provider = ClientServiceProvider.loadService();
-        StaticSessionCredentialsProvider staticSessionCredentialsProvider = new StaticSessionCredentialsProvider(accessKey, secretKey);
-        ClientConfiguration clientConfiguration = ClientConfiguration.newBuilder()
-            .setAccessPoint(accessPoint)
-            .setCredentialProvider(staticSessionCredentialsProvider)
-            .build();
-        final Message message = provider.newMessageBuilder()
-            .setTopic(topic)
-            .setBody(body)
-            .setTag(tag)
-            .build();
-        try (Producer producer = provider.newProducerBuilder()
-            .setClientConfiguration(clientConfiguration)
-            .setTopics(topic)
-            .build()) {
-            LOGGER.info("Start producer successfully.");
-            final SendReceipt sendReceipt = producer.send(message);
-            LOGGER.info("Send message successfully, sendReceipt={}", sendReceipt);
-        } catch (IOException | ClientException e) {
-            e.printStackTrace();
+            final ClientServiceProvider provider = ClientServiceProvider.loadService();
+            StaticSessionCredentialsProvider staticSessionCredentialsProvider = new StaticSessionCredentialsProvider(accessKey, secretKey);
+            ClientConfiguration clientConfiguration = ClientConfiguration.newBuilder()
+                .setAccessPoint(accessPoint)
+                .setCredentialProvider(staticSessionCredentialsProvider)
+                .build();
+            final Message message = provider.newMessageBuilder()
+                .setTopic(topic)
+                .setBody(body)
+                .setTag(tag)
+                .build();
+            try (Producer producer = provider.newProducerBuilder()
+                .setClientConfiguration(clientConfiguration)
+                .setTopics(topic)
+                .build()) {
+                LOGGER.info("Start producer successfully.");
+                final SendReceipt sendReceipt = producer.send(message);
+                LOGGER.info("Send message successfully, sendReceipt={}", sendReceipt);
+            } catch (Throwable e) {
+                e.printStackTrace();
+            }
+        } catch (ReadOnlyBufferException t) {
+            System.out.println(t);
         }
     }
 }

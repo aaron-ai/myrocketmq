@@ -30,12 +30,8 @@ import apache.rocketmq.v2.HeartbeatResponse;
 import apache.rocketmq.v2.MessagingServiceGrpc;
 import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.NotifyClientTerminationResponse;
-import apache.rocketmq.v2.PullMessageRequest;
-import apache.rocketmq.v2.PullMessageResponse;
 import apache.rocketmq.v2.QueryAssignmentRequest;
 import apache.rocketmq.v2.QueryAssignmentResponse;
-import apache.rocketmq.v2.QueryOffsetRequest;
-import apache.rocketmq.v2.QueryOffsetResponse;
 import apache.rocketmq.v2.QueryRouteRequest;
 import apache.rocketmq.v2.QueryRouteResponse;
 import apache.rocketmq.v2.ReceiveMessageRequest;
@@ -44,16 +40,20 @@ import apache.rocketmq.v2.SendMessageRequest;
 import apache.rocketmq.v2.SendMessageResponse;
 import apache.rocketmq.v2.TelemetryCommand;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.SettableFuture;
 import io.grpc.ClientInterceptor;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
+import io.grpc.netty.shaded.io.netty.channel.ChannelOption;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContextBuilder;
 import io.grpc.netty.shaded.io.netty.handler.ssl.util.InsecureTrustManagerFactory;
 import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
+import java.util.ArrayList;
+import java.util.Iterator;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 
 import javax.net.ssl.SSLException;
@@ -69,6 +69,7 @@ public class RpcClientImpl implements RpcClient {
 
     private final ManagedChannel channel;
     private final MessagingServiceGrpc.MessagingServiceFutureStub futureStub;
+    private final MessagingServiceGrpc.MessagingServiceBlockingStub blockingStub;
     private final MessagingServiceGrpc.MessagingServiceStub stub;
 
     private long activityNanoTime;
@@ -81,6 +82,7 @@ public class RpcClientImpl implements RpcClient {
 
         final NettyChannelBuilder channelBuilder =
             NettyChannelBuilder.forTarget(endpoints.getGrpcTarget())
+                .withOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, 3)
                 .keepAliveTime(KEEP_ALIVE_DURATION.toNanos(), TimeUnit.NANOSECONDS)
                 .maxInboundMessageSize(GRPC_MAX_MESSAGE_SIZE)
                 .intercept(LoggingInterceptor.getInstance())
@@ -96,6 +98,7 @@ public class RpcClientImpl implements RpcClient {
 
         this.channel = channelBuilder.build();
         this.futureStub = MessagingServiceGrpc.newFutureStub(channel);
+        this.blockingStub = MessagingServiceGrpc.newBlockingStub(channel);
         this.stub = MessagingServiceGrpc.newStub(channel);
         this.activityNanoTime = System.nanoTime();
     }
@@ -143,11 +146,15 @@ public class RpcClientImpl implements RpcClient {
     }
 
     @Override
-    public ListenableFuture<ReceiveMessageResponse> receiveMessage(Metadata metadata, ReceiveMessageRequest request,
-        Executor executor, Duration duration) {
+    public SettableFuture<Iterator<ReceiveMessageResponse>> receiveMessage(Metadata metadata,
+        ReceiveMessageRequest request, Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
-        return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
+        SettableFuture<Iterator<ReceiveMessageResponse>> future = SettableFuture.create();
+        final Iterator<ReceiveMessageResponse> it = blockingStub
+            .withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
             .withDeadlineAfter(duration.toNanos(), TimeUnit.NANOSECONDS).receiveMessage(request);
+        future.set(it);
+        return future;
     }
 
     @Override
@@ -180,22 +187,6 @@ public class RpcClientImpl implements RpcClient {
         this.activityNanoTime = System.nanoTime();
         return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
             .withDeadlineAfter(duration.toNanos(), TimeUnit.NANOSECONDS).endTransaction(request);
-    }
-
-    @Override
-    public ListenableFuture<QueryOffsetResponse> queryOffset(Metadata metadata, QueryOffsetRequest request,
-        Executor executor, Duration duration) {
-        this.activityNanoTime = System.nanoTime();
-        return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
-            .withDeadlineAfter(duration.toNanos(), TimeUnit.NANOSECONDS).queryOffset(request);
-    }
-
-    @Override
-    public ListenableFuture<PullMessageResponse> pullMessage(Metadata metadata, PullMessageRequest request,
-        Executor executor, Duration duration) {
-        this.activityNanoTime = System.nanoTime();
-        return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
-            .withDeadlineAfter(duration.toNanos(), TimeUnit.NANOSECONDS).pullMessage(request);
     }
 
     @Override

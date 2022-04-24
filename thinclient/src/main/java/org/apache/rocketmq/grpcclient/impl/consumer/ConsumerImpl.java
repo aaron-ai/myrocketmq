@@ -5,6 +5,7 @@ import apache.rocketmq.v2.Message;
 import apache.rocketmq.v2.ReceiveMessageRequest;
 import apache.rocketmq.v2.ReceiveMessageResponse;
 import apache.rocketmq.v2.Status;
+import com.google.common.base.Function;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -16,6 +17,7 @@ import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import io.grpc.Metadata;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import org.apache.rocketmq.apis.ClientConfiguration;
@@ -35,47 +37,37 @@ public abstract class ConsumerImpl extends ClientImpl {
     }
 
     @SuppressWarnings("SameParameterValue")
-    protected ListenableFuture<ReceiveMessageResult> receiveMessage(ReceiveMessageRequest request,
-        MessageQueueImpl messageQueue, Duration timeout) {
+    protected ListenableFuture<ReceiveMessageResult> receiveMessage(ReceiveMessageRequest request, MessageQueueImpl mq,
+        Duration timeout) {
+        List<MessageView> messages = new ArrayList<>();
         final SettableFuture<ReceiveMessageResult> future0 = SettableFuture.create();
         try {
             Metadata metadata = sign();
-            final Endpoints endpoints = messageQueue.getBroker().getEndpoints();
-            final ListenableFuture<ReceiveMessageResponse> future =
-                clientManager.receiveMessage(endpoints, metadata, request, timeout);
-            return Futures.transform(future, response -> processReceiveMessageResponse(messageQueue, response),
-                MoreExecutors.directExecutor());
+            final Endpoints endpoints = mq.getBroker().getEndpoints();
+            final ListenableFuture<Iterator<ReceiveMessageResponse>> future = clientManager.receiveMessage(endpoints, metadata, request, timeout);
+            return Futures.transform(future, it -> {
+                // Null here means status not set yet.
+                Status status = null;
+                while (it.hasNext()) {
+                    final ReceiveMessageResponse response = it.next();
+                    switch (response.getContentCase()) {
+                        case STATUS:
+                            status = response.getStatus();
+                            break;
+                        case MESSAGE:
+                            final Message message = response.getMessage();
+                            final MessageViewImpl messageView = MessageViewImpl.fromProtobuf(message, mq);
+                            messages.add(messageView);
+                            break;
+                        default:
+                            LOGGER.warn("[Bug] Not recognized content for receive message response, mq={}, resp={}", mq, response);
+                    }
+                }
+                return new ReceiveMessageResult(endpoints, status, messages);
+            }, MoreExecutors.directExecutor());
         } catch (Throwable t) {
             future0.setException(t);
             return future0;
         }
-    }
-
-    public ReceiveMessageResult processReceiveMessageResponse(MessageQueueImpl mq, ReceiveMessageResponse response) {
-        final Endpoints endpoints = mq.getBroker().getEndpoints();
-        final Status status = response.getStatus();
-        final Code code = status.getCode();
-        switch (code) {
-            case OK:
-                break;
-            // Fall through on purpose.
-            case UNAUTHORIZED:
-            case FORBIDDEN:
-            case TOO_MANY_REQUESTS:
-            default:
-                LOGGER.error("Failed to receive message from remote, clientId={}, code={}, mq={}," +
-                    " status message=[{}]", clientId, code, mq, status.getMessage());
-
-        }
-        List<MessageView> messages = new ArrayList<>();
-        if (Code.OK.equals(code)) {
-            final List<Message> messageList = response.getMessagesList();
-            for (Message message : messageList) {
-                final MessageViewImpl messageView = MessageViewImpl.fromProtobuf(message, mq);
-                messages.add(messageView);
-            }
-        }
-        return new ReceiveMessageResult(endpoints, status, Timestamps.toMillis(response.getDeliveryTimestamp()),
-            Durations.toMillis(response.getInvisibleDuration()), messages);
     }
 }

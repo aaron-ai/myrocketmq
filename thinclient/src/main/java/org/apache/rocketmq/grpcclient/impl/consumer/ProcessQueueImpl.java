@@ -32,7 +32,6 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import org.apache.rocketmq.apis.MessageQueue;
 import org.apache.rocketmq.apis.consumer.FilterExpression;
 import org.apache.rocketmq.apis.consumer.FilterExpressionType;
 import org.apache.rocketmq.apis.message.MessageView;
@@ -50,7 +49,7 @@ import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 /**
  * @see ProcessQueue
  */
-@SuppressWarnings("UnstableApiUsage")
+@SuppressWarnings({"UnstableApiUsage", "NullableProblems"})
 public class ProcessQueueImpl implements ProcessQueue {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProcessQueueImpl.class);
 
@@ -210,16 +209,14 @@ public class ProcessQueueImpl implements ProcessQueue {
             final Endpoints endpoints = mq.getBroker().getEndpoints();
             final ReceiveMessageRequest request = wrapReceiveMessageRequest();
             activityNanoTime = System.nanoTime();
-            // intercept before receive
-            final ListenableFuture<ReceiveMessageResult> future =
-                consumer.receiveMessage(request, mq, RECEIVE_LONG_POLLING_DURATION);
+            final ListenableFuture<ReceiveMessageResult> future = consumer.receiveMessage(request, mq, RECEIVE_LONG_POLLING_DURATION);
             Futures.addCallback(future, new FutureCallback<ReceiveMessageResult>() {
                 @Override
-                public void onSuccess(ReceiveMessageResult receiveMessageResult) {
+                public void onSuccess(ReceiveMessageResult result) {
                     try {
-                        onReceiveMessageResult(receiveMessageResult);
+                        onReceiveMessageResult(result);
                     } catch (Throwable t) {
-                        // should never reach here.
+                        // Should never reach here.
                         LOGGER.error("[Bug] Exception raised while handling receive result, would receive later, "
                                 + "namespace={}, mq={}, endpoints={}, clientId={}", consumer.getNamespace(), mq,
                             endpoints, consumer.getClientId(), t);
@@ -229,7 +226,6 @@ public class ProcessQueueImpl implements ProcessQueue {
 
                 @Override
                 public void onFailure(Throwable t) {
-                    // intercept after receive
                     LOGGER.error("Exception raised while message reception, would receive later, namespace={}, mq={}, "
                             + "endpoints={}, clientId={}", consumer.getNamespace(), mq, endpoints,
                         consumer.getClientId(), t);
@@ -280,20 +276,28 @@ public class ProcessQueueImpl implements ProcessQueue {
     }
 
     private void onReceiveMessageResult(ReceiveMessageResult result) {
-        final Status status = result.getStatus();
-        final List<MessageView> messageViews = result.getMessagesFound();
+        Optional<Status> status = result.getStatus();
+        final List<MessageView> messages = result.getMessages();
         final Endpoints endpoints = result.getEndpoints();
-
-        final Code code = status.getCode();
+        if (!status.isPresent()) {
+            // Should not reach here.
+            LOGGER.error("[Bug] Status in receive message result is not set, namespace={}, mq={}, endpoints={}", consumer.getNamespace(), mq, endpoints);
+            if (messages.isEmpty()) {
+                receiveMessage();
+            }
+            status = Optional.of(Status.newBuilder().setCode(Code.OK).build());
+            LOGGER.error("[Bug] Status not set but message(s) found in the receive result, fix the status to OK, namespace={}, mq={}, endpoints={}", consumer.getNamespace(), mq, endpoints);
+        }
+        final Code code = status.get().getCode();
         switch (code) {
             case OK:
-                if (!messageViews.isEmpty()) {
-                    cacheMessages(messageViews);
-                    consumer.getReceivedMessagesQuantity().getAndAdd(messageViews.size());
+                if (!messages.isEmpty()) {
+                    cacheMessages(messages);
+                    consumer.getReceivedMessagesQuantity().getAndAdd(messages.size());
                     consumer.getConsumeService().signal();
                 }
                 LOGGER.debug("Receive message with OK, namespace={}, mq={}, endpoints={}, messages found count={}, "
-                        + "clientId={}", consumer.getNamespace(), mq, endpoints, messageViews.size(),
+                        + "clientId={}", consumer.getNamespace(), mq, endpoints, messages.size(),
                     consumer.getClientId());
                 receiveMessage();
                 break;

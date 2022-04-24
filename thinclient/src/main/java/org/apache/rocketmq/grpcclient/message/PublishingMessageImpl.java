@@ -37,7 +37,7 @@ public class PublishingMessageImpl extends MessageImpl {
     private final MessageType messageType;
     private volatile String traceContext;
 
-    public PublishingMessageImpl(String namespace, Message message, boolean transactionEnabled) throws IOException {
+    public PublishingMessageImpl(String namespace, Message message, boolean txEnabled) throws IOException {
         super(message);
         this.namespace = namespace;
         this.traceContext = null;
@@ -67,23 +67,23 @@ public class PublishingMessageImpl extends MessageImpl {
         this.messageId = MessageIdCodec.getInstance().nextMessageId();
         // Normal message.
         if (!message.getMessageGroup().isPresent() &&
-            !message.getDeliveryTimestamp().isPresent() && !transactionEnabled) {
+            !message.getDeliveryTimestamp().isPresent() && !txEnabled) {
             messageType = MessageType.NORMAL;
             return;
         }
         // Fifo message.
-        if (message.getMessageGroup().isPresent() && !transactionEnabled) {
+        if (message.getMessageGroup().isPresent() && !txEnabled) {
             messageType = MessageType.FIFO;
             return;
         }
         // Delay message.
-        if (message.getDeliveryTimestamp().isPresent() && !transactionEnabled) {
+        if (message.getDeliveryTimestamp().isPresent() && !txEnabled) {
             messageType = MessageType.DELAY;
             return;
         }
         // Transaction message.
         if (message.getMessageGroup().isPresent() &&
-            message.getDeliveryTimestamp().isPresent() && transactionEnabled) {
+            message.getDeliveryTimestamp().isPresent() && txEnabled) {
             messageType = MessageType.TRANSACTION;
             return;
         }
