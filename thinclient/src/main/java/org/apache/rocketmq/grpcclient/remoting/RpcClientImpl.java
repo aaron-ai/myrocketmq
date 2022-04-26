@@ -146,7 +146,7 @@ public class RpcClientImpl implements RpcClient {
     }
 
     @Override
-    public SettableFuture<Iterator<ReceiveMessageResponse>> receiveMessage(Metadata metadata,
+    public ListenableFuture<Iterator<ReceiveMessageResponse>> receiveMessage(Metadata metadata,
         ReceiveMessageRequest request, Executor executor, Duration duration) {
         this.activityNanoTime = System.nanoTime();
         SettableFuture<Iterator<ReceiveMessageResponse>> future = SettableFuture.create();

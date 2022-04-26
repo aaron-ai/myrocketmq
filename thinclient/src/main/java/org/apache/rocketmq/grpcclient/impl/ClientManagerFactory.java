@@ -46,6 +46,7 @@ public class ClientManagerFactory {
             if (null == manager) {
                 // create and start manager.
                 manager = new ClientManagerImpl(managerId);
+                manager.startAsync().awaitRunning();
                 managersTable.put(managerId, manager);
             }
             manager.registerClient(client);
@@ -85,7 +86,7 @@ public class ClientManagerFactory {
         }
         // no need to hold the lock here.
         if (null != removedManager) {
-            removedManager.close();
+            removedManager.shutDown();
         }
         return null != removedManager;
     }

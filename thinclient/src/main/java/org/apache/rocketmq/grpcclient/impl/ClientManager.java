@@ -50,8 +50,6 @@ import org.apache.rocketmq.grpcclient.route.Endpoints;
 import java.util.concurrent.ScheduledExecutorService;
 
 public interface ClientManager {
-    void close() throws IOException;
-
     /**
      * Register client.
      *
@@ -131,9 +129,8 @@ public interface ClientManager {
     /**
      * Receiving message asynchronously from server, the method ensures no throwable.
      *
-     * @param endpoints        requested endpoints.
-     * @param metadata         gRPC request header metadata.
-     * @param responseObserver gRPC response observer.
+     * @param endpoints requested endpoints.
+     * @param metadata  gRPC request header metadata.
      */
     ListenableFuture<Iterator<ReceiveMessageResponse>> receiveMessage(Endpoints endpoints, Metadata metadata,
         ReceiveMessageRequest request, Duration duration);

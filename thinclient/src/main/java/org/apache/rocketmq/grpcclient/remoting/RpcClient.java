@@ -122,7 +122,7 @@ public interface RpcClient {
      * @param request  receiving message request.
      * @param executor gRPC asynchronous executor.
      */
-    SettableFuture<Iterator<ReceiveMessageResponse>> receiveMessage(Metadata metadata, ReceiveMessageRequest request,
+    ListenableFuture<Iterator<ReceiveMessageResponse>> receiveMessage(Metadata metadata, ReceiveMessageRequest request,
         Executor executor, Duration duration);
 
     /**
