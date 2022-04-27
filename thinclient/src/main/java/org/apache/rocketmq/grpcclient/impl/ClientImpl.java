@@ -57,6 +57,7 @@ import java.util.stream.Stream;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.apis.ClientConfiguration;
 import org.apache.rocketmq.apis.exception.ResourceNotFoundException;
+import org.apache.rocketmq.apis.exception.TelemetryException;
 import org.apache.rocketmq.grpcclient.remoting.Signature;
 import org.apache.rocketmq.grpcclient.route.AddressScheme;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
@@ -191,24 +192,30 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
 
     @Override
     public void reportSettings() {
-        reportSettings0(true);
+        try {
+            reportSettings0(true);
+        } catch (Throwable t) {
+            // Should never reach here.
+            LOGGER.error("[Bug] Unexpected exception thrown during setting reporting, client id={}", clientId, t);
+        }
     }
 
-    public void reportSettings0(boolean throwableIgnore) {
+    public void reportSettings0(boolean throwableIgnore) throws TelemetryException {
         final Settings settings = localSettings();
         final TelemetryCommand command = TelemetryCommand.newBuilder().setSettings(settings).build();
         telemetryCommand(command, throwableIgnore);
     }
 
-    public void telemetryCommand(TelemetryCommand command, boolean throwableIgnore) {
+    public void telemetryCommand(TelemetryCommand command, boolean throwableIgnore) throws TelemetryException {
         final Set<Endpoints> totalRouteEndpoints = getTotalRouteEndpoints();
         for (Endpoints endpoints : totalRouteEndpoints) {
             try {
                 final TelemetryRequestObserver requestObserver = this.getTelemetryRequestObserver(endpoints);
-                requestObserver.telemetryCommand(command);
+                Metadata metadata = sign();
+                requestObserver.telemetryCommand(metadata, command);
             } catch (Throwable t) {
                 if (!throwableIgnore) {
-                    throw t;
+                    throw new TelemetryException("Failed to send telemetry command", t);
                 }
                 LOGGER.error("Failed to send telemetry command to remote, client id={}, endpoints={}, command={}", clientId, endpoints, command, t);
             }
