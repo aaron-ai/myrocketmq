@@ -71,12 +71,12 @@ public class ClientManagerFactory {
         try {
             final ClientManagerImpl manager = managersTable.get(managerId);
             if (null == manager) {
-                // should never reach here.
+                // Should never reach here.
                 LOGGER.error("[Bug] manager not found by managerId={}", managerId);
                 return false;
             }
             manager.unregisterClient(client);
-            // shutdown the manager if no client registered.
+            // Shutdown the manager if no client registered.
             if (manager.isEmpty()) {
                 removedManager = manager;
                 managersTable.remove(managerId);

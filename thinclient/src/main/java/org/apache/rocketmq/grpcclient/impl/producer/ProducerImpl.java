@@ -24,6 +24,7 @@ import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.Resource;
 import apache.rocketmq.v2.SendMessageRequest;
 import apache.rocketmq.v2.SendMessageResponse;
+import apache.rocketmq.v2.Settings;
 import com.google.common.math.IntMath;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -78,6 +79,8 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public class ProducerImpl extends ClientImpl implements Producer {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProducerImpl.class);
 
+    private final ProducerSettings producerSettings;
+
     private final int sendAsyncThreadCount;
     private final BackoffRetryPolicy retryPolicy;
     private final TransactionChecker checker;
@@ -96,6 +99,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
     ProducerImpl(ClientConfiguration clientConfiguration, Set<String> topics, int sendAsyncThreadCount,
         BackoffRetryPolicy retryPolicy, TransactionChecker checker) {
         super(clientConfiguration, topics);
+        this.producerSettings = null;
         this.sendAsyncThreadCount = sendAsyncThreadCount;
         this.retryPolicy = retryPolicy;
         this.checker = checker;
@@ -111,6 +115,20 @@ public class ProducerImpl extends ClientImpl implements Producer {
             TimeUnit.SECONDS,
             new LinkedBlockingQueue<>(),
             new ThreadFactoryImpl("SendAsyncWorker"));
+    }
+
+    @Override
+    public void applySettings(Settings settings) {
+        if (!Settings.PubSubCase.PUBLISHING.equals(settings.getPubSubCase())) {
+            LOGGER.warn("Settings not match with the client type, ignore it, client id={}, settings={}", clientId, settings);
+            return;
+        }
+        producerSettings.applySettings(settings);
+    }
+
+    @Override
+    public Settings localSettings() {
+        return producerSettings.toProtobuf();
     }
 
     @Override
@@ -149,7 +167,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
         } catch (ExecutionException t) {
             final Throwable cause = t.getCause();
             if (cause instanceof ClientException) {
-                throw (ClientException)cause;
+                throw (ClientException) cause;
             }
 
         }

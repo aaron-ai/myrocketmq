@@ -24,7 +24,9 @@ import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.QueryRouteRequest;
 import apache.rocketmq.v2.QueryRouteResponse;
 import apache.rocketmq.v2.Resource;
+import apache.rocketmq.v2.Settings;
 import apache.rocketmq.v2.Status;
+import apache.rocketmq.v2.TelemetryCommand;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.util.concurrent.FutureCallback;
@@ -162,7 +164,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         }
         // Report active settings during startup.
         this.reportActiveSettings().get();
-        this.startupPassiveSettingsFuture.get();
+//        this.startupPassiveSettingsFuture.get();
         // Update route cache periodically.
         this.updateRouteCacheFuture = scheduler.scheduleWithFixedDelay(() -> {
             try {
@@ -174,19 +176,43 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         LOGGER.info("The rocketmq client starts successfully, clientId={}", clientId);
     }
 
-    protected String generateClientNonce() {
-        return clientId + "_" + nonceIndex.incrementAndGet();
+    public abstract void applySettings(Settings settings);
+
+//    private ListenableFuture<List<Void>> reportActiveSettings() {
+//        final Set<Endpoints> totalRouteEndpoints = getTotalRouteEndpoints();
+//        List<SettableFuture<Void>> futures = new ArrayList<>();
+//        for (Endpoints endpoints : totalRouteEndpoints) {
+//            final SettableFuture<Void> future = SettableFuture.create();
+//            reportActiveSettings0(endpoints, future);
+//            futures.add(future);
+//        }
+//        return Futures.allAsList(futures);
+//    }
+
+    @Override
+    public void reportSettings() {
+        reportSettings0(true);
     }
 
-    private ListenableFuture<List<Void>> reportActiveSettings() {
+    public void reportSettings0(boolean throwableIgnore) {
+        final Settings settings = localSettings();
+        final TelemetryCommand command = TelemetryCommand.newBuilder().setSettings(settings).build();
+        telemetryCommand(command, throwableIgnore);
+    }
+
+    public void telemetryCommand(TelemetryCommand command, boolean throwableIgnore) {
         final Set<Endpoints> totalRouteEndpoints = getTotalRouteEndpoints();
-        List<SettableFuture<Void>> futures = new ArrayList<>();
         for (Endpoints endpoints : totalRouteEndpoints) {
-            final SettableFuture<Void> future = SettableFuture.create();
-            reportActiveSettings0(endpoints, future);
-            futures.add(future);
+            try {
+                final TelemetryRequestObserver requestObserver = this.getTelemetryRequestObserver(endpoints);
+                requestObserver.telemetryCommand(command);
+            } catch (Throwable t) {
+                if (!throwableIgnore) {
+                    throw t;
+                }
+                LOGGER.error("Failed to send telemetry command to remote, client id={}, endpoints={}, command={}", clientId, endpoints, command, t);
+            }
         }
-        return Futures.allAsList(futures);
     }
 
     public TelemetryRequestObserver getTelemetryRequestObserver(Endpoints endpoints) {
@@ -215,6 +241,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
     }
 
     private void reportActiveSettings0(Endpoints endpoints, SettableFuture<Void> future) {
+        SettableFuture<Void> future0 = SettableFuture.create();
         try {
             if (!this.endpointsIsUsed(endpoints)) {
                 LOGGER.info("Current endpoints is not used, forgive retries for reporting active settings, endpoints={}, clientId={}", endpoints, clientId);
@@ -240,6 +267,8 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
             future.setException(exception);
         }
     }
+
+    public abstract Settings localSettings();
 
     @Override
     protected void shutDown() throws IOException {

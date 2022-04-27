@@ -32,6 +32,8 @@ public interface Client {
      */
     void doHeartbeat();
 
+    void reportSettings();
+
     /**
      * Do some stats for client.
      */

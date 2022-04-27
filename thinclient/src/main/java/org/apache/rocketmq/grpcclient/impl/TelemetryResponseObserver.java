@@ -1,24 +1,17 @@
 package org.apache.rocketmq.grpcclient.impl;
 
-import apache.rocketmq.v2.ApplyPassiveSettingsCommand;
-import apache.rocketmq.v2.ApplyPassiveSettingsResult;
-import apache.rocketmq.v2.ReportActiveSettingsResult;
+import apache.rocketmq.v2.Settings;
 import apache.rocketmq.v2.TelemetryCommand;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import com.google.common.util.concurrent.SettableFuture;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import io.grpc.stub.StreamObserver;
-import java.time.Duration;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 
 public class TelemetryResponseObserver implements StreamObserver<TelemetryCommand> {
     private static final Logger LOGGER = LoggerFactory.getLogger(TelemetryResponseObserver.class);
 
-
     public TelemetryResponseObserver(ClientImpl impl, Endpoints endpoints) {
-
     }
 
     public SettableFuture<Void> registerActiveSettingsResultFuture(String nonce) {
@@ -31,6 +24,7 @@ public class TelemetryResponseObserver implements StreamObserver<TelemetryComman
     public void onNext(TelemetryCommand serverCommand) {
         switch (serverCommand.getCommandCase()) {
             case SETTINGS:
+                final Settings settings = serverCommand.getSettings();
 
             case RECOVER_ORPHANED_TRANSACTION_COMMAND:
             case VERIFY_MESSAGE_COMMAND:

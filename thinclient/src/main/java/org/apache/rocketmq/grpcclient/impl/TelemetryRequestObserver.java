@@ -17,19 +17,21 @@
 
 package org.apache.rocketmq.grpcclient.impl;
 
-import apache.rocketmq.v2.ReportActiveSettingsCommand;
 import apache.rocketmq.v2.TelemetryCommand;
-import com.google.common.util.concurrent.SettableFuture;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
+import io.grpc.Metadata;
 import io.grpc.stub.StreamObserver;
+import java.io.UnsupportedEncodingException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import javafx.util.Pair;
+import org.apache.rocketmq.apis.exception.ClientException;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 
 public class TelemetryRequestObserver {
     private static final Logger LOGGER = LoggerFactory.getLogger(TelemetryRequestObserver.class);
-    private volatile Pair<StreamObserver<TelemetryCommand>, TelemetryResponseObserver> pair;
+    private final TelemetryResponseObserver responseObserver;
 
     private final ClientImpl impl;
     private final Endpoints endpoints;
@@ -37,76 +39,32 @@ public class TelemetryRequestObserver {
     public TelemetryRequestObserver(ClientImpl impl, Endpoints endpoints) {
         this.impl = impl;
         this.endpoints = endpoints;
-        this.generateObserver();
+        this.responseObserver = new TelemetryResponseObserver(impl, endpoints);
     }
 
-    private void generateObserver() {
+    public void telemetryCommand(TelemetryCommand command) {
+        Metadata metadata;
         try {
-            TelemetryResponseObserver responseObserver = new TelemetryResponseObserver(impl, endpoints);
-            StreamObserver<TelemetryCommand> requestObserver = impl.clientManager.telemetry(endpoints, impl.sign(), Duration.ofNanos(Long.MAX_VALUE), responseObserver);
-            this.pair = new Pair<>(requestObserver, responseObserver);
-        } catch (Throwable t) {
-            generateObserver();
+            metadata = impl.sign();
+        } catch (UnsupportedEncodingException | NoSuchAlgorithmException | InvalidKeyException e) {
+            // TODO: throw exception here.
+            LOGGER.error("Failed to generate signature for telemetry command.", e);
+            return;
         }
-    }
-
-    SettableFuture<Void> reportActiveSettings() {
-        final ReportActiveSettingsCommand command = impl.wrapReportActiveSettingsCommand();
-        final String nonce = command.getNonce();
-        TelemetryCommand telemetryCommand = TelemetryCommand.newBuilder().setReportActiveSettingsCommand(command).build();
+        StreamObserver<TelemetryCommand> requestObserver;
         try {
-            final StreamObserver<TelemetryCommand> requestObserver = pair.getKey();
-            final TelemetryResponseObserver responseObserver = pair.getValue();
-            final SettableFuture<Void> future = responseObserver.registerActiveSettingsResultFuture(nonce);
-            requestObserver.onNext(telemetryCommand);
-            return future;
-        } catch (Throwable t) {
-            return reportActiveSettings0(1);
+            requestObserver = impl.clientManager.telemetry(endpoints, metadata, Duration.ofNanos(Long.MAX_VALUE), responseObserver);
+        } catch (ClientException e) {
+            // TODO: throw exception here.
+            LOGGER.error("Failed to generate request observer.", e);
+            return;
         }
-    }
-
-    SettableFuture<Void> reportActiveSettings0(int attempt) {
-        final ReportActiveSettingsCommand command = impl.wrapReportActiveSettingsCommand();
         try {
-            if (!impl.endpointsIsUsed(endpoints)) {
-                LOGGER.info("Current endpoints is not used, forgive retries for reporting active settings, endpoints={}, clientId={}", endpoints, impl.clientId);
-            }
-            TelemetryResponseObserver responseObserver = new TelemetryResponseObserver(impl, endpoints);
-            final StreamObserver<TelemetryCommand> requestObserver = impl.clientManager.telemetry(endpoints, impl.sign(), Duration.ofNanos(Long.MAX_VALUE), responseObserver);
-            this.pair = new Pair<>(requestObserver, responseObserver);
-            final String nonce = command.getNonce();
-            final SettableFuture<Void> future = responseObserver.registerActiveSettingsResultFuture(nonce);
-            TelemetryCommand telemetryCommand = TelemetryCommand.newBuilder().setReportActiveSettingsCommand(command).build();
-            requestObserver.onNext(telemetryCommand);
-            return future;
-        } catch (Throwable t) {
-            LOGGER.error("Exception raised during the retries for active settings, endpoints={}, command={}, clientId={}", endpoints, command, impl.clientId, t);
-            return reportActiveSettings0(++attempt);
+            requestObserver.onNext(command);
+        } catch (RuntimeException e) {
+            requestObserver.onError(e);
+            throw e;
         }
-    }
-
-    void next(TelemetryCommand telemetryCommand) {
-        try {
-            final StreamObserver<TelemetryCommand> requestObserver = pair.getKey();
-            requestObserver.onNext(telemetryCommand);
-        } catch (Throwable t) {
-            LOGGER.error("Exception raised during the invocation of client-side stream, endpoints={}, telemetryCommand={}, clientId={}", endpoints, telemetryCommand, impl.clientId, t);
-            next0(telemetryCommand, 1);
-        }
-    }
-
-    void next0(TelemetryCommand telemetryCommand, int attempt) {
-        try {
-            if (!impl.endpointsIsUsed(endpoints)) {
-                LOGGER.info("Current endpoints is not used, forgive retries for telemetry command, endpoints={}, telemetryCommand={}, clientId={}", endpoints, telemetryCommand, impl.clientId);
-            }
-            TelemetryResponseObserver responseObserver = new TelemetryResponseObserver(impl, endpoints);
-            final StreamObserver<TelemetryCommand> requestObserver = impl.clientManager.telemetry(endpoints, impl.sign(), Duration.ofNanos(Long.MAX_VALUE), responseObserver);
-            this.pair = new Pair<>(requestObserver, responseObserver);
-            requestObserver.onNext(telemetryCommand);
-        } catch (Throwable t) {
-            LOGGER.error("Exception raised during the retries for telemetry command, endpoints={}, telemetryCommand={}, clientId={}", endpoints, telemetryCommand, impl.clientId, t);
-            next0(telemetryCommand, ++attempt);
-        }
+        requestObserver.onCompleted();
     }
 }
