@@ -50,7 +50,7 @@ import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 /**
  * @see ProcessQueue
  */
-@SuppressWarnings({"UnstableApiUsage", "NullableProblems"})
+@SuppressWarnings("NullableProblems")
 public class ProcessQueueImpl implements ProcessQueue {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProcessQueueImpl.class);
 
@@ -182,7 +182,7 @@ public class ProcessQueueImpl implements ProcessQueue {
             if (scheduler.isShutdown()) {
                 return;
             }
-            // should never reach here.
+            // Should never reach here.
             LOGGER.error("[Bug] Failed to schedule receive message request, namespace={}, mq={}, clientId={}",
                 consumer.getNamespace(), mq, consumer.getClientId(), t);
             receiveMessageLater();
