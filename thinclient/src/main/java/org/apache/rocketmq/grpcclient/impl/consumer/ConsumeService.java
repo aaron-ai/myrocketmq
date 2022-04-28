@@ -1,6 +1,5 @@
 package org.apache.rocketmq.grpcclient.impl.consumer;
 
-import com.google.common.base.Function;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -11,21 +10,17 @@ import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.time.Duration;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import org.apache.rocketmq.apis.MessageQueue;
 import org.apache.rocketmq.apis.consumer.ConsumeResult;
 import org.apache.rocketmq.apis.consumer.MessageListener;
 import org.apache.rocketmq.apis.message.MessageView;
 import org.apache.rocketmq.grpcclient.misc.Dispatcher;
 import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 
-@SuppressWarnings(value = {"UnstableApiUsage", "NullableProblems"})
+@SuppressWarnings("NullableProblems")
 public abstract class ConsumeService extends Dispatcher {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConsumeService.class);
 
