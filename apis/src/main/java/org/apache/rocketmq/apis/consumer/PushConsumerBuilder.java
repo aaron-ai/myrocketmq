@@ -39,13 +39,6 @@ public interface PushConsumerBuilder {
     PushConsumerBuilder setConsumerGroup(String consumerGroup);
 
     /**
-     * Enable fifo consumption, message consumption will maintain the order by MessageGroup.
-     *
-     * @return
-     */
-    PushConsumerBuilder enableFifoConsumption();
-
-    /**
      * Add {@link SubscriptionExpression} for consumer.
      *
      * @param subscriptionExpressions subscriptions to add.
@@ -60,14 +53,6 @@ public interface PushConsumerBuilder {
      * @return the consumer builder instance.
      */
     PushConsumerBuilder setMessageListener(MessageListener listener);
-
-    /**
-     * Set the max batch size for {@link MessageListener}
-     *
-     * @param batchSize max batch size count by number of messages
-     * @return the consumer builder instance.
-     */
-    PushConsumerBuilder setMaxBatchSize(int batchSize);
 
     /**
      * Set the maximum number of messages cached locally.

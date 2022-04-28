@@ -70,11 +70,9 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
     private final ClientConfiguration clientConfiguration;
     private final PushConsumerSettings pushConsumerSettings;
     private final String consumerGroup;
-    private final boolean enableFifoConsumption;
-    private final ConcurrentMap<String /* topic */, FilterExpression> subscriptionExpressions;
+    private final Map<String /* topic */, FilterExpression> subscriptionExpressions;
     private final ConcurrentMap<String /* topic */, Assignments> cacheAssignments;
     private final MessageListener messageListener;
-    private final int maxBatchSize;
     private final int maxCacheMessageCount;
     private final int maxCacheMessageSizeInBytes;
     private final int consumptionThreadCount;
@@ -99,19 +97,16 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
      * logging warnings already, so we avoid repeating args check here.
      */
     public PushConsumerImpl(ClientConfiguration clientConfiguration, String consumerGroup,
-        boolean enableFifoConsumption, ConcurrentMap<String, FilterExpression> subscriptionExpressions,
-        MessageListener messageListener, int maxBatchSize, int maxCacheMessageCount, int maxCacheMessageSizeInBytes,
-        int consumptionThreadCount) {
+        Map<String, FilterExpression> subscriptionExpressions, MessageListener messageListener,
+        int maxCacheMessageCount, int maxCacheMessageSizeInBytes, int consumptionThreadCount) {
         super(clientConfiguration, subscriptionExpressions.keySet());
         org.apache.rocketmq.grpcclient.message.protocol.Resource groupResource = new org.apache.rocketmq.grpcclient.message.protocol.Resource(namespace, consumerGroup);
         this.pushConsumerSettings = new PushConsumerSettings(clientId, accessEndpoints, groupResource, clientConfiguration.getRequestTimeout(), subscriptionExpressions);
         this.clientConfiguration = clientConfiguration;
         this.consumerGroup = consumerGroup;
-        this.enableFifoConsumption = enableFifoConsumption;
         this.subscriptionExpressions = subscriptionExpressions;
         this.cacheAssignments = new ConcurrentHashMap<>();
         this.messageListener = messageListener;
-        this.maxBatchSize = maxBatchSize;
         this.maxCacheMessageCount = maxCacheMessageCount;
         this.maxCacheMessageSizeInBytes = maxCacheMessageSizeInBytes;
         this.consumptionThreadCount = consumptionThreadCount;
@@ -404,10 +399,6 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
             return 0;
         }
         return Math.max(1, maxCacheMessageCount / size);
-    }
-
-    int getMaxBatchSize() {
-        return maxBatchSize;
     }
 
     public AtomicLong getReceptionTimes() {

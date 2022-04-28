@@ -19,6 +19,8 @@ package org.apache.rocketmq.grpcclient.impl.consumer;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
 import org.apache.rocketmq.apis.ClientConfiguration;
 import org.apache.rocketmq.apis.consumer.FilterExpression;
@@ -35,11 +37,8 @@ public class PushConsumerBuilderImpl implements PushConsumerBuilder {
 
     private ClientConfiguration clientConfiguration = null;
     private String consumerGroup = null;
-    private boolean enableFifoConsumption = false;
-    private Map<String, FilterExpression> subscriptionExpressions = new HashMap<>();
+    private Map<String, FilterExpression> subscriptionExpressions = new ConcurrentHashMap<>();
     private MessageListener messageListener = null;
-    private int maxBatchSize = 1;
-    // TODO
     private int maxCacheMessageCount = 5000;
     private int maxCacheMessageSizeInBytes = 500 * 1024 * 1024;
     private int consumptionThreadCount = 20;
@@ -66,15 +65,6 @@ public class PushConsumerBuilderImpl implements PushConsumerBuilder {
     }
 
     /**
-     * @see PushConsumerBuilder#enableFifoConsumption()
-     */
-    @Override
-    public PushConsumerBuilder enableFifoConsumption() {
-        this.enableFifoConsumption = true;
-        return this;
-    }
-
-    /**
      * @see PushConsumerBuilder#setSubscriptionExpressions(Map)
      */
     @Override
@@ -91,16 +81,6 @@ public class PushConsumerBuilderImpl implements PushConsumerBuilder {
     @Override
     public PushConsumerBuilder setMessageListener(MessageListener messageListener) {
         this.messageListener = checkNotNull(messageListener, "messageListener should not be null");
-        return this;
-    }
-
-    /**
-     * @see PushConsumerBuilder#setMaxBatchSize(int)
-     */
-    @Override
-    public PushConsumerBuilder setMaxBatchSize(int maxBatchSize) {
-        checkArgument(maxBatchSize > 0, "maxBatchSize should be positive");
-        this.maxBatchSize = maxBatchSize;
         return this;
     }
 
@@ -143,6 +123,6 @@ public class PushConsumerBuilderImpl implements PushConsumerBuilder {
         checkNotNull(consumerGroup, "consumerGroup has not been set yet");
         checkNotNull(messageListener, "messageListener has not been set yet");
         checkArgument(!subscriptionExpressions.isEmpty(), "subscriptionExpressions have not been set yet");
-        return new PushConsumerImpl(clientConfiguration, consumerGroup, );
+        return new PushConsumerImpl(clientConfiguration, consumerGroup, subscriptionExpressions, messageListener, maxCacheMessageCount, maxCacheMessageSizeInBytes, consumptionThreadCount);
     }
 }
