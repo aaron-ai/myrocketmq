@@ -19,6 +19,7 @@ package org.apache.rocketmq.grpcclient;
 
 import org.apache.rocketmq.apis.ClientServiceProvider;
 import org.apache.rocketmq.apis.consumer.PushConsumerBuilder;
+import org.apache.rocketmq.apis.consumer.SimpleConsumerBuilder;
 import org.apache.rocketmq.apis.message.MessageBuilder;
 import org.apache.rocketmq.apis.producer.ProducerBuilder;
 import org.apache.rocketmq.grpcclient.impl.consumer.PushConsumerBuilderImpl;
@@ -34,6 +35,11 @@ public class ClientServiceProviderImpl implements ClientServiceProvider {
     @Override
     public PushConsumerBuilder newPushConsumerBuilder() {
         return new PushConsumerBuilderImpl();
+    }
+
+    @Override
+    public SimpleConsumerBuilder newSimpleConsumerBuilder() {
+        return null;
     }
 
     @Override

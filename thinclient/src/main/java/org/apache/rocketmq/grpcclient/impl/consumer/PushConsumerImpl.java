@@ -22,7 +22,6 @@ import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.QueryAssignmentRequest;
 import apache.rocketmq.v2.QueryAssignmentResponse;
 import apache.rocketmq.v2.RecoverOrphanedTransactionCommand;
-import apache.rocketmq.v2.Resource;
 import apache.rocketmq.v2.Settings;
 import apache.rocketmq.v2.VerifyMessageCommand;
 import com.google.common.util.concurrent.FutureCallback;
@@ -57,6 +56,7 @@ import org.apache.rocketmq.apis.consumer.FilterExpression;
 import org.apache.rocketmq.apis.consumer.MessageListener;
 import org.apache.rocketmq.apis.consumer.PushConsumer;
 import org.apache.rocketmq.apis.exception.ClientException;
+import org.apache.rocketmq.grpcclient.message.protocol.Resource;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 import org.apache.rocketmq.grpcclient.route.TopicRouteDataResult;
@@ -99,10 +99,10 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
     public PushConsumerImpl(ClientConfiguration clientConfiguration, String consumerGroup,
         Map<String, FilterExpression> subscriptionExpressions, MessageListener messageListener,
         int maxCacheMessageCount, int maxCacheMessageSizeInBytes, int consumptionThreadCount) {
-        super(clientConfiguration, subscriptionExpressions.keySet());
-        org.apache.rocketmq.grpcclient.message.protocol.Resource groupResource = new org.apache.rocketmq.grpcclient.message.protocol.Resource(namespace, consumerGroup);
-        this.pushConsumerSettings = new PushConsumerSettings(clientId, accessEndpoints, groupResource, clientConfiguration.getRequestTimeout(), subscriptionExpressions);
+        super(clientConfiguration, consumerGroup, subscriptionExpressions.keySet());
         this.clientConfiguration = clientConfiguration;
+        Resource groupResource = new Resource(namespace, consumerGroup);
+        this.pushConsumerSettings = new PushConsumerSettings(clientId, accessEndpoints, groupResource, clientConfiguration.getRequestTimeout(), subscriptionExpressions);
         this.consumerGroup = consumerGroup;
         this.subscriptionExpressions = subscriptionExpressions;
         this.cacheAssignments = new ConcurrentHashMap<>();
@@ -198,12 +198,8 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
         }, MoreExecutors.directExecutor());
     }
 
-    public Resource getProtobufGroup() {
-        return Resource.newBuilder().setResourceNamespace(namespace).setName(consumerGroup).build();
-    }
-
     private QueryAssignmentRequest wrapQueryAssignmentRequest(String topic) {
-        Resource topicResource = Resource.newBuilder().setResourceNamespace(namespace).setName(topic).build();
+        apache.rocketmq.v2.Resource topicResource = apache.rocketmq.v2.Resource.newBuilder().setResourceNamespace(namespace).setName(topic).build();
         return QueryAssignmentRequest.newBuilder().setTopic(topicResource)
             .setGroup(getProtobufGroup()).build();
     }
@@ -352,7 +348,8 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
         }
     }
 
-    @Override protected void awaitFirstSettingApplied(
+    @Override
+    protected void awaitFirstSettingApplied(
         Duration duration) throws ExecutionException, InterruptedException, TimeoutException {
         pushConsumerSettings.getFirstApplyCompletedFuture().get(duration.toNanos(), TimeUnit.NANOSECONDS);
     }

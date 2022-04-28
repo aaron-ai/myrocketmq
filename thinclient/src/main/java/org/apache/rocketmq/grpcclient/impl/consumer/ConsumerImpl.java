@@ -1,9 +1,11 @@
 package org.apache.rocketmq.grpcclient.impl.consumer;
 
 import apache.rocketmq.v2.Code;
+import apache.rocketmq.v2.HeartbeatRequest;
 import apache.rocketmq.v2.Message;
 import apache.rocketmq.v2.ReceiveMessageRequest;
 import apache.rocketmq.v2.ReceiveMessageResponse;
+import apache.rocketmq.v2.Resource;
 import apache.rocketmq.v2.Status;
 import com.google.common.base.Function;
 import com.google.common.util.concurrent.Futures;
@@ -32,8 +34,11 @@ import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 public abstract class ConsumerImpl extends ClientImpl {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerImpl.class);
 
-    ConsumerImpl(ClientConfiguration clientConfiguration, Set<String> topics) {
+    private final String consumerGroup;
+
+    ConsumerImpl(ClientConfiguration clientConfiguration, String consumerGroup, Set<String> topics) {
         super(clientConfiguration, topics);
+        this.consumerGroup = consumerGroup;
     }
 
     @SuppressWarnings("SameParameterValue")
@@ -70,4 +75,14 @@ public abstract class ConsumerImpl extends ClientImpl {
             return future0;
         }
     }
+
+    @Override
+    public HeartbeatRequest wrapHeartbeatRequest() {
+        return HeartbeatRequest.newBuilder().setGroup(getProtobufGroup()).build();
+    }
+
+    protected Resource getProtobufGroup() {
+        return Resource.newBuilder().setResourceNamespace(namespace).setName(consumerGroup).build();
+    }
+
 }

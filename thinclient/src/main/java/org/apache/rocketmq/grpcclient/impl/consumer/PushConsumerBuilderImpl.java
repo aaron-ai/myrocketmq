@@ -17,10 +17,8 @@
 
 package org.apache.rocketmq.grpcclient.impl.consumer;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
 import java.util.regex.Pattern;
 import org.apache.rocketmq.apis.ClientConfiguration;
 import org.apache.rocketmq.apis.consumer.FilterExpression;

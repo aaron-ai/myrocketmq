@@ -153,9 +153,9 @@ public class ProducerImpl extends ClientImpl implements Producer {
     }
 
     @Override
-    public void close() throws IOException {
+    public void shutDown() throws IOException {
         LOGGER.info("Begin to close the rocketmq producer, clientId={}", clientId);
-        super.close();
+        super.shutDown();
         try {
             if (!ExecutorServices.awaitTerminated(sendAsyncExecutor)) {
                 LOGGER.error("[Bug] Failed to shutdown default send async executor, clientId={}", clientId);
@@ -236,6 +236,11 @@ public class ProducerImpl extends ClientImpl implements Producer {
     @Override
     public Transaction beginTransaction() throws ClientException {
         return null;
+    }
+
+    @Override
+    public void close() throws IOException {
+        this.stopAsync().awaitTerminated();
     }
 
     /**
