@@ -57,10 +57,10 @@ public class BackOffRetryPolicyBuilder {
         return this;
     }
 
-    public BackoffRetryPolicy build() {
+    public ExponentialBackoffRetryPolicy build() {
         checkArgument(maxBackoff.compareTo(initialBackoff) >= 0, "initialBackoff should not be minor than maxBackoff");
         checkArgument(maxAttempts > 0, "maxAttempts must be positive");
         checkNotNull(initialBackoff, "initialBackoff should not be null");
-        return new BackoffRetryPolicy(maxAttempts, initialBackoff, maxBackoff, backoffMultiplier);
+        return new ExponentialBackoffRetryPolicy(maxAttempts, initialBackoff, maxBackoff, backoffMultiplier);
     }
 }

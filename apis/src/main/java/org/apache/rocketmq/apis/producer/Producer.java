@@ -24,6 +24,7 @@ import java.util.concurrent.CompletableFuture;
 
 import org.apache.rocketmq.apis.exception.ClientException;
 import org.apache.rocketmq.apis.message.Message;
+import org.apache.rocketmq.apis.retry.ExponentialBackoffRetryPolicy;
 
 /**
  * Producer is a thread-safe rocketmq client which is used to publish messages.
@@ -46,7 +47,7 @@ public interface Producer extends Closeable {
     /**
      * Sends a transactional message synchronously.
      *
-     * <p>This method applies the {@link org.apache.rocketmq.apis.retry.BackoffRetryPolicy} to do the internal retries.
+     * <p>This method applies the {@link ExponentialBackoffRetryPolicy} to do the internal retries.
      *
      * @param message     message to send.
      * @param transaction transaction to bind.
@@ -59,7 +60,7 @@ public interface Producer extends Closeable {
      *
      * <p>This method returns immediately, the result is included in the {@link CompletableFuture};
      *
-     * <p>This method applies the {@link org.apache.rocketmq.apis.retry.BackoffRetryPolicy} to do the internal retries.
+     * <p>This method applies the {@link ExponentialBackoffRetryPolicy} to do the internal retries.
      *
      * @param message message to send.
      * @return a future that indicates send receipt.
@@ -72,7 +73,7 @@ public interface Producer extends Closeable {
      * <p>This method does not return until it gets the definitive result.
      *
      * <p>All messages to send should have the same topic, this method applies the
-     * {@link org.apache.rocketmq.apis.retry.BackoffRetryPolicy} to do the internal retries.
+     * {@link ExponentialBackoffRetryPolicy} to do the internal retries.
      *
      * @param messages batch messages to send.
      * @return collection indicates send receipt.

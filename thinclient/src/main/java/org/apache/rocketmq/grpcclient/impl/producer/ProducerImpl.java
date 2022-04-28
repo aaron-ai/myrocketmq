@@ -19,7 +19,6 @@ package org.apache.rocketmq.grpcclient.impl.producer;
 
 import apache.rocketmq.v2.HeartbeatRequest;
 import apache.rocketmq.v2.NotifyClientTerminationRequest;
-import apache.rocketmq.v2.PrintThreadStackTraceCommand;
 import apache.rocketmq.v2.RecoverOrphanedTransactionCommand;
 import apache.rocketmq.v2.SendMessageRequest;
 import apache.rocketmq.v2.SendMessageResponse;
@@ -64,7 +63,7 @@ import org.apache.rocketmq.apis.producer.Producer;
 import org.apache.rocketmq.apis.producer.SendReceipt;
 import org.apache.rocketmq.apis.producer.Transaction;
 import org.apache.rocketmq.apis.producer.TransactionChecker;
-import org.apache.rocketmq.apis.retry.BackoffRetryPolicy;
+import org.apache.rocketmq.apis.retry.ExponentialBackoffRetryPolicy;
 import org.apache.rocketmq.grpcclient.impl.ClientImpl;
 import org.apache.rocketmq.grpcclient.message.MessageType;
 import org.apache.rocketmq.grpcclient.message.PublishingMessageImpl;
@@ -81,7 +80,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
     private final ProducerSettings producerSettings;
 
     private final int sendAsyncThreadCount;
-    private final BackoffRetryPolicy retryPolicy;
+    private final ExponentialBackoffRetryPolicy retryPolicy;
     private final TransactionChecker checker;
     private final ConcurrentMap<String/* topic */, PublishingTopicRouteDataResult> publishingRouteDataResultCache;
 
@@ -96,7 +95,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
      * logging warnings already, so we avoid repeating args check here.
      */
     ProducerImpl(ClientConfiguration clientConfiguration, Set<String> topics, int sendAsyncThreadCount,
-        BackoffRetryPolicy retryPolicy, TransactionChecker checker) {
+        ExponentialBackoffRetryPolicy retryPolicy, TransactionChecker checker) {
         super(clientConfiguration, topics);
         this.producerSettings = null;
         this.sendAsyncThreadCount = sendAsyncThreadCount;

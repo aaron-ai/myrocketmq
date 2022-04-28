@@ -20,9 +20,7 @@ package org.apache.rocketmq.apis.producer;
 import org.apache.rocketmq.apis.ClientConfiguration;
 import org.apache.rocketmq.apis.exception.ClientException;
 import org.apache.rocketmq.apis.message.Message;
-import org.apache.rocketmq.apis.retry.BackoffRetryPolicy;
-
-import java.util.List;
+import org.apache.rocketmq.apis.retry.ExponentialBackoffRetryPolicy;
 
 /**
  * Builder to config and start {@link Producer}.
@@ -64,7 +62,7 @@ public interface ProducerBuilder {
      * @param retryPolicy policy to re-send message when failure encountered.
      * @return the producer builder instance.
      */
-    ProducerBuilder setRetryPolicy(BackoffRetryPolicy retryPolicy);
+    ProducerBuilder setRetryPolicy(ExponentialBackoffRetryPolicy retryPolicy);
 
     /**
      * Set the transaction checker for producer.

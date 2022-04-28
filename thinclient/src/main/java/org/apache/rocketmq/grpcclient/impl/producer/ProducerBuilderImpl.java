@@ -22,7 +22,7 @@ import org.apache.rocketmq.apis.ClientConfiguration;
 import org.apache.rocketmq.apis.producer.Producer;
 import org.apache.rocketmq.apis.producer.ProducerBuilder;
 import org.apache.rocketmq.apis.producer.TransactionChecker;
-import org.apache.rocketmq.apis.retry.BackoffRetryPolicy;
+import org.apache.rocketmq.apis.retry.ExponentialBackoffRetryPolicy;
 
 import java.util.Arrays;
 import java.util.HashSet;
@@ -36,7 +36,7 @@ public class ProducerBuilderImpl implements ProducerBuilder {
     private ClientConfiguration clientConfiguration = null;
     private final Set<String> topics = new HashSet<>();
     private int asyncThreadCount = Runtime.getRuntime().availableProcessors();
-    private BackoffRetryPolicy retryPolicy = BackoffRetryPolicy.newBuilder().build();
+    private ExponentialBackoffRetryPolicy retryPolicy = ExponentialBackoffRetryPolicy.newBuilder().build();
     private TransactionChecker checker = null;
 
     public ProducerBuilderImpl() {
@@ -76,10 +76,10 @@ public class ProducerBuilderImpl implements ProducerBuilder {
     }
 
     /**
-     * @see ProducerBuilder#setRetryPolicy(BackoffRetryPolicy)
+     * @see ProducerBuilder#setRetryPolicy(ExponentialBackoffRetryPolicy)
      */
     @Override
-    public ProducerBuilder setRetryPolicy(BackoffRetryPolicy retryPolicy) {
+    public ProducerBuilder setRetryPolicy(ExponentialBackoffRetryPolicy retryPolicy) {
         this.retryPolicy = checkNotNull(retryPolicy, "retryPolicy should not be null");
         return this;
     }

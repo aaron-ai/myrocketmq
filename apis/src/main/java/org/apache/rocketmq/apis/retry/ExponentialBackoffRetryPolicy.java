@@ -24,14 +24,12 @@ import com.google.common.base.MoreObjects;
 
 import java.time.Duration;
 import java.util.Random;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Future;
 
 /**
- * The {@link BackoffRetryPolicy} defines a policy to do more attempts when failure is encountered, mainly refer to
+ * The {@link ExponentialBackoffRetryPolicy} defines a policy to do more attempts when failure is encountered, mainly refer to
  * <a href="https://github.com/grpc/proposal/blob/master/A6-client-retries.md">gRPC Retry Design</a>.
  */
-public class BackoffRetryPolicy implements RetryPolicy {
+public class ExponentialBackoffRetryPolicy implements RetryPolicy {
     public static BackOffRetryPolicyBuilder newBuilder() {
         return new BackOffRetryPolicyBuilder();
     }
@@ -40,13 +38,14 @@ public class BackoffRetryPolicy implements RetryPolicy {
     private final int maxAttempts;
     private final Duration initialBackoff;
     private final Duration maxBackoff;
-    private final int backoffMultiplier;
+    private final double backoffMultiplier;
 
     /**
      * The caller is supposed to have validated the arguments and handled throwing exception or
      * logging warnings already, so we avoid repeating args check here.
      */
-    public BackoffRetryPolicy(int maxAttempts, Duration initialBackoff, Duration maxBackoff, int backoffMultiplier) {
+    public ExponentialBackoffRetryPolicy(int maxAttempts, Duration initialBackoff, Duration maxBackoff,
+        double backoffMultiplier) {
         this.random = new Random();
         this.maxAttempts = maxAttempts;
         this.initialBackoff = initialBackoff;
@@ -62,7 +61,7 @@ public class BackoffRetryPolicy implements RetryPolicy {
     @Override
     public Duration getNextAttemptDelay(int attempt) {
         checkArgument(attempt > 0, "attempt must be positive");
-        int randomNumberBound = Math.min(initialBackoff.getNano() * (backoffMultiplier ^ (attempt - 1)),
+        int randomNumberBound = (int) Math.min(initialBackoff.getNano() * Math.pow(backoffMultiplier, 1.0 * (attempt - 1)),
             maxBackoff.getNano());
         return Duration.ofNanos(random.nextInt(randomNumberBound));
     }
@@ -75,7 +74,7 @@ public class BackoffRetryPolicy implements RetryPolicy {
         return maxBackoff;
     }
 
-    public int getBackoffMultiplier() {
+    public double getBackoffMultiplier() {
         return backoffMultiplier;
     }
 
