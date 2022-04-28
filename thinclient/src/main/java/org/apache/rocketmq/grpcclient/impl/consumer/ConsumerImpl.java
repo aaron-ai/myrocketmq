@@ -3,6 +3,7 @@ package org.apache.rocketmq.grpcclient.impl.consumer;
 import apache.rocketmq.v2.Code;
 import apache.rocketmq.v2.HeartbeatRequest;
 import apache.rocketmq.v2.Message;
+import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.ReceiveMessageRequest;
 import apache.rocketmq.v2.ReceiveMessageResponse;
 import apache.rocketmq.v2.Resource;
@@ -85,4 +86,8 @@ public abstract class ConsumerImpl extends ClientImpl {
         return Resource.newBuilder().setResourceNamespace(namespace).setName(consumerGroup).build();
     }
 
+    @Override
+    public NotifyClientTerminationRequest wrapNotifyClientTerminationRequest() {
+        return NotifyClientTerminationRequest.newBuilder().setGroup(getProtobufGroup()).build();
+    }
 }

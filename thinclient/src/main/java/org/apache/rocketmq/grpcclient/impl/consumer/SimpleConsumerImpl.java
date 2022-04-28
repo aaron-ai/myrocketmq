@@ -124,11 +124,6 @@ public class SimpleConsumerImpl extends ConsumerImpl implements SimpleConsumer {
 
     @Override
     public Settings localSettings() {
-        return null;
-    }
-
-    @Override
-    public NotifyClientTerminationRequest wrapNotifyClientTerminationRequest() {
-        return null;
+        return simpleConsumerSettings.toProtobuf();
     }
 }

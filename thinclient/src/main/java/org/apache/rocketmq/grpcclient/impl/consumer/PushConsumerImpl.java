@@ -359,11 +359,6 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
         return pushConsumerSettings.toProtobuf();
     }
 
-    @Override
-    public NotifyClientTerminationRequest wrapNotifyClientTerminationRequest() {
-        return NotifyClientTerminationRequest.newBuilder().setGroup(getProtobufGroup()).build();
-    }
-
     /**
      * @see PushConsumer#close()
      */
