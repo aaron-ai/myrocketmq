@@ -60,5 +60,6 @@ public class PushConsumerSettings extends ClientSettings {
         this.fifo = subscription.getFifo();
         this.receiveBatchSize = subscription.getReceiveBatchSize();
         this.longPollingTimeout = Duration.ofNanos(Durations.toNanos(subscription.getLongPollingTimeout()));
+        this.firstApplyCompletedFuture.set(null);
     }
 }

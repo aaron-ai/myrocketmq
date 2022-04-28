@@ -17,14 +17,14 @@
 
 package org.apache.rocketmq.grpcclient.impl.producer;
 
-import apache.rocketmq.v2.Broker;
 import apache.rocketmq.v2.HeartbeatRequest;
-import apache.rocketmq.v2.MessageQueue;
 import apache.rocketmq.v2.NotifyClientTerminationRequest;
-import apache.rocketmq.v2.Resource;
+import apache.rocketmq.v2.PrintThreadStackTraceCommand;
+import apache.rocketmq.v2.RecoverOrphanedTransactionCommand;
 import apache.rocketmq.v2.SendMessageRequest;
 import apache.rocketmq.v2.SendMessageResponse;
 import apache.rocketmq.v2.Settings;
+import apache.rocketmq.v2.VerifyMessageCommand;
 import com.google.common.math.IntMath;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -51,6 +51,7 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
@@ -72,8 +73,6 @@ import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 import org.apache.rocketmq.grpcclient.route.TopicRouteDataResult;
 import org.apache.rocketmq.grpcclient.utility.ExecutorServices;
 import org.apache.rocketmq.grpcclient.utility.ThreadFactoryImpl;
-
-import static com.google.common.base.Preconditions.checkNotNull;
 
 @SuppressWarnings({"UnstableApiUsage", "NullableProblems"})
 public class ProducerImpl extends ClientImpl implements Producer {
@@ -118,12 +117,18 @@ public class ProducerImpl extends ClientImpl implements Producer {
     }
 
     @Override
-    public void applySettings(Settings settings) {
-        if (!Settings.PubSubCase.PUBLISHING.equals(settings.getPubSubCase())) {
-            LOGGER.warn("Settings not match with the client type, ignore it, client id={}, settings={}", clientId, settings);
-            return;
-        }
+    public void applySettings(Endpoints endpoints, Settings settings) {
         producerSettings.applySettings(settings);
+    }
+
+    @Override
+    public void onVerifyMessageCommand(Endpoints endpoints, VerifyMessageCommand verifyMessageCommand) {
+        LOGGER.warn("Ignore verify message command from remote, which is not expected for producer, client id={}, command={}", clientId, verifyMessageCommand);
+    }
+
+    @Override
+    public void onRecoverOrphanedTransactionCommand(Endpoints endpoints,
+        RecoverOrphanedTransactionCommand recoverOrphanedTransactionCommand) {
     }
 
     @Override
@@ -134,6 +139,12 @@ public class ProducerImpl extends ClientImpl implements Producer {
     @Override
     public NotifyClientTerminationRequest wrapNotifyClientTerminationRequest() {
         return NotifyClientTerminationRequest.newBuilder().build();
+    }
+
+    @Override
+    protected void awaitFirstSettingApplied(
+        Duration duration) throws ExecutionException, InterruptedException, TimeoutException {
+        producerSettings.getFirstApplyCompletedFuture().get(duration.toNanos(), TimeUnit.NANOSECONDS);
     }
 
     @Override
@@ -162,15 +173,17 @@ public class ProducerImpl extends ClientImpl implements Producer {
     @Override
     public SendReceipt send(Message message) throws ClientException {
         final CompletableFuture<SendReceipt> future = sendAsync(message);
+        // TODO: polish code.
         try {
             return future.get();
-        } catch (ExecutionException t) {
+        } catch (Exception t) {
             final Throwable cause = t.getCause();
             if (cause instanceof ClientException) {
                 throw (ClientException) cause;
             }
 
         }
+        return null;
     }
 
     /**

@@ -17,6 +17,10 @@
 
 package org.apache.rocketmq.grpcclient.impl;
 
+import apache.rocketmq.v2.PrintThreadStackTraceCommand;
+import apache.rocketmq.v2.RecoverOrphanedTransactionCommand;
+import apache.rocketmq.v2.Settings;
+import apache.rocketmq.v2.VerifyMessageCommand;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 
 public interface Client {
@@ -32,7 +36,43 @@ public interface Client {
      */
     void doHeartbeat();
 
-    void reportSettings();
+    /**
+     * Voluntary announce settings to remote.
+     */
+    void announceSettings() throws Throwable;
+
+    /**
+     * Apply setting from remote.
+     *
+     * @param endpoints remote endpoints.
+     * @param settings  settings received from remote.
+     */
+    void applySettings(Endpoints endpoints, Settings settings);
+
+    /**
+     * This method is invoked while request of printing thread stack trace is received from remote.
+     *
+     * @param endpoints                    remote endpoints.
+     * @param printThreadStackTraceCommand request of printing thread stack trace from remote.
+     */
+    void onPrintThreadStackCommand(Endpoints endpoints, PrintThreadStackTraceCommand printThreadStackTraceCommand);
+
+    /**
+     * This method is invoked while request of message consume verification is received from remote.
+     *
+     * @param endpoints            remote endpoints.
+     * @param verifyMessageCommand request of message consume verification from remote.
+     */
+    void onVerifyMessageCommand(Endpoints endpoints, VerifyMessageCommand verifyMessageCommand);
+
+    /**
+     * This method is invoked while request of orphaned transaction recovery is received from remote.
+     *
+     * @param endpoints                         remote endpoints.
+     * @param recoverOrphanedTransactionCommand request of orphaned transaction recovery from remote.
+     */
+    void onRecoverOrphanedTransactionCommand(Endpoints endpoints,
+        RecoverOrphanedTransactionCommand recoverOrphanedTransactionCommand);
 
     /**
      * Do some stats for client.

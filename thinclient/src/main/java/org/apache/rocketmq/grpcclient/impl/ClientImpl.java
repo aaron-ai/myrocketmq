@@ -21,12 +21,14 @@ import apache.rocketmq.v2.Code;
 import apache.rocketmq.v2.HeartbeatRequest;
 import apache.rocketmq.v2.HeartbeatResponse;
 import apache.rocketmq.v2.NotifyClientTerminationRequest;
+import apache.rocketmq.v2.PrintThreadStackTraceCommand;
 import apache.rocketmq.v2.QueryRouteRequest;
 import apache.rocketmq.v2.QueryRouteResponse;
 import apache.rocketmq.v2.Resource;
 import apache.rocketmq.v2.Settings;
 import apache.rocketmq.v2.Status;
 import apache.rocketmq.v2.TelemetryCommand;
+import apache.rocketmq.v2.ThreadStackTrace;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.util.concurrent.FutureCallback;
@@ -38,18 +40,18 @@ import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import io.grpc.Metadata;
+import io.grpc.stub.StreamObserver;
 import java.io.UnsupportedEncodingException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
@@ -81,9 +83,9 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public abstract class ClientImpl extends AbstractIdleService implements Client {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientImpl.class);
 
-    private final AtomicLong nonceIndex = new AtomicLong(0);
+    private static final Duration AWAIT_SETTINGS_APPLIED_DURATION = Duration.ofSeconds(30);
 
-    protected final String namespace;
+    protected final String namespace = StringUtils.EMPTY;
     protected volatile ClientManager clientManager;
     protected final ClientConfiguration clientConfiguration;
     private final Endpoints accessEndpoints;
@@ -98,8 +100,8 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
     private final Lock inflightRouteFutureLock;
 
     @GuardedBy("telemetryReqObserverTableLock")
-    private final ConcurrentMap<Endpoints, TelemetryRequestObserver> telemetryReqObserverTable;
-    private final ReadWriteLock telemetryReqObserverTableLock;
+    private final ConcurrentMap<Endpoints, TelemetryResponseObserver> telemetryResponseObserverTable;
+    private final ReadWriteLock telemetryResponseObserverTableLock;
 
     protected final String clientId;
 
@@ -109,14 +111,12 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         boolean httpPatternMatched = accessPoint.startsWith(MixAll.HTTP_PREFIX) || accessPoint.startsWith(MixAll.HTTPS_PREFIX);
         if (httpPatternMatched) {
             final int startIndex = accessPoint.lastIndexOf('/') + 1;
-            this.namespace = accessPoint.substring(startIndex, accessPoint.indexOf('.'));
             final String[] split = accessPoint.substring(startIndex).split(":");
             String domainName = split[0];
             domainName = domainName.replace("_", "-").toLowerCase(UtilAll.LOCALE);
             int port = split.length >= 2 ? Integer.parseInt(split[1]) : 80;
             this.accessEndpoints = new Endpoints(AddressScheme.DOMAIN_NAME.getPrefix() + domainName + ":" + port);
         } else {
-            this.namespace = StringUtils.EMPTY;
             this.accessEndpoints = new Endpoints(accessPoint);
         }
         this.topics = topics;
@@ -128,12 +128,36 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         this.inflightRouteFutureTable = new ConcurrentHashMap<>();
         this.inflightRouteFutureLock = new ReentrantLock();
 
-        this.telemetryReqObserverTable = new ConcurrentHashMap<>();
-        this.telemetryReqObserverTableLock = new ReentrantReadWriteLock();
+        this.telemetryResponseObserverTable = new ConcurrentHashMap<>();
+        this.telemetryResponseObserverTableLock = new ReentrantReadWriteLock();
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    abstract protected void awaitFirstSettingApplied(
+        Duration duration) throws ExecutionException, InterruptedException, TimeoutException;
+
+    @Override
+    public void onPrintThreadStackCommand(Endpoints endpoints,
+        PrintThreadStackTraceCommand printThreadStackTraceCommand) {
+        LOGGER.info("Receive print thread stack command from remote, client id={}, endpoints={}", clientId, endpoints);
+        final String stackTrace = UtilAll.stackTrace();
+        final String nonce = printThreadStackTraceCommand.getNonce();
+        Status status = Status.newBuilder().setCode(Code.OK).build();
+        ThreadStackTrace threadStackTrace = ThreadStackTrace.newBuilder()
+            .setThreadStackTrace(stackTrace)
+            .setNonce(nonce)
+            .setStatus(status)
+            .build();
+        TelemetryCommand telemetryCommand = TelemetryCommand.newBuilder().setThreadStackTrace(threadStackTrace).build();
+        try {
+            telemetryCommand(endpoints, telemetryCommand);
+        } catch (Throwable t) {
+            LOGGER.error("Failed to send thread stack command to remote, endpoints={}, client id={}", endpoints, clientId, t);
+        }
     }
 
     @Override
-    protected void startUp() throws ExecutionException, InterruptedException {
+    protected void startUp() throws Exception {
         LOGGER.info("Begin to start the rocketmq client, clientId={}", clientId);
         // Register client after client id generation.
         this.clientManager = ClientManagerFactory.getInstance().registerClient(namespace, this);
@@ -164,8 +188,8 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
             throw new RuntimeException(t);
         }
         // Report active settings during startup.
-        this.reportActiveSettings().get();
-//        this.startupPassiveSettingsFuture.get();
+        this.announceSettings();
+        this.awaitFirstSettingApplied(AWAIT_SETTINGS_APPLIED_DURATION);
         // Update route cache periodically.
         this.updateRouteCacheFuture = scheduler.scheduleWithFixedDelay(() -> {
             try {
@@ -177,101 +201,64 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         LOGGER.info("The rocketmq client starts successfully, clientId={}", clientId);
     }
 
-    public abstract void applySettings(Settings settings);
-
-//    private ListenableFuture<List<Void>> reportActiveSettings() {
-//        final Set<Endpoints> totalRouteEndpoints = getTotalRouteEndpoints();
-//        List<SettableFuture<Void>> futures = new ArrayList<>();
-//        for (Endpoints endpoints : totalRouteEndpoints) {
-//            final SettableFuture<Void> future = SettableFuture.create();
-//            reportActiveSettings0(endpoints, future);
-//            futures.add(future);
-//        }
-//        return Futures.allAsList(futures);
-//    }
-
     @Override
-    public void reportSettings() {
-        try {
-            reportSettings0(true);
-        } catch (Throwable t) {
-            // Should never reach here.
-            LOGGER.error("[Bug] Unexpected exception thrown during setting reporting, client id={}", clientId, t);
-        }
-    }
-
-    public void reportSettings0(boolean throwableIgnore) throws TelemetryException {
+    public void announceSettings() throws Exception {
         final Settings settings = localSettings();
         final TelemetryCommand command = TelemetryCommand.newBuilder().setSettings(settings).build();
-        telemetryCommand(command, throwableIgnore);
-    }
-
-    public void telemetryCommand(TelemetryCommand command, boolean throwableIgnore) throws TelemetryException {
         final Set<Endpoints> totalRouteEndpoints = getTotalRouteEndpoints();
+        Exception exception = null;
         for (Endpoints endpoints : totalRouteEndpoints) {
             try {
-                final TelemetryRequestObserver requestObserver = this.getTelemetryRequestObserver(endpoints);
-                Metadata metadata = sign();
-                requestObserver.telemetryCommand(metadata, command);
-            } catch (Throwable t) {
-                if (!throwableIgnore) {
-                    throw new TelemetryException("Failed to send telemetry command", t);
-                }
-                LOGGER.error("Failed to send telemetry command to remote, client id={}, endpoints={}, command={}", clientId, endpoints, command, t);
+                telemetryCommand(endpoints, command);
+            } catch (Exception e) {
+                exception = e;
             }
+        }
+        if (null != exception) {
+            throw exception;
         }
     }
 
-    public TelemetryRequestObserver getTelemetryRequestObserver(Endpoints endpoints) {
-        telemetryReqObserverTableLock.readLock().lock();
-        TelemetryRequestObserver requestObserver;
+    public void telemetryCommand(Endpoints endpoints, TelemetryCommand command) throws TelemetryException {
+        StreamObserver<TelemetryCommand> requestObserver;
         try {
-            requestObserver = telemetryReqObserverTable.get(endpoints);
-            if (null != requestObserver) {
-                return requestObserver;
-            }
-        } finally {
-            telemetryReqObserverTableLock.readLock().unlock();
-        }
-        telemetryReqObserverTableLock.writeLock().lock();
-        try {
-            requestObserver = telemetryReqObserverTable.get(endpoints);
-            if (null != requestObserver) {
-                return requestObserver;
-            }
-            requestObserver = new TelemetryRequestObserver(this, endpoints);
-            telemetryReqObserverTable.put(endpoints, requestObserver);
-            return requestObserver;
-        } finally {
-            telemetryReqObserverTableLock.writeLock().unlock();
-        }
-    }
-
-    private void reportActiveSettings0(Endpoints endpoints, SettableFuture<Void> future) {
-        SettableFuture<Void> future0 = SettableFuture.create();
-        try {
-            if (!this.endpointsIsUsed(endpoints)) {
-                LOGGER.info("Current endpoints is not used, forgive retries for reporting active settings, endpoints={}, clientId={}", endpoints, clientId);
-            }
-            final TelemetryRequestObserver requestObserver = this.getTelemetryRequestObserver(endpoints);
-            final SettableFuture<Void> future0 = requestObserver.reportActiveSettings();
-            final ListenableFuture<Void> futureWithTimeout = Futures.withTimeout(future0, Duration.ofSeconds(5), this.getScheduler());
-            Futures.addCallback(futureWithTimeout, new FutureCallback<Void>() {
-                @Override
-                public void onSuccess(Void result) {
-                    future.set(null);
-                }
-
-                @Override
-                public void onFailure(Throwable t) {
-                    LOGGER.error("Failed to await report active settings result from remote, endpoints={}, clientId={}", endpoints, clientId, t);
-                    // Repeated reporting until success.
-                    getScheduler().schedule(() -> reportActiveSettings0(endpoints, future), 3, TimeUnit.SECONDS);
-                }
-            }, MoreExecutors.directExecutor());
+            final TelemetryResponseObserver responseObserver = this.getTelemetryResponseObserver(endpoints);
+            Metadata metadata = sign();
+            requestObserver = clientManager.telemetry(endpoints, metadata, Duration.ofNanos(Long.MAX_VALUE), responseObserver);
         } catch (Throwable t) {
-            final RuntimeException exception = new RuntimeException(t);
-            future.setException(exception);
+            throw new TelemetryException("Failed to send telemetry command", t);
+        }
+        try {
+            requestObserver.onNext(command);
+        } catch (RuntimeException e) {
+            requestObserver.onError(e);
+            throw e;
+        }
+        requestObserver.onCompleted();
+    }
+
+    public TelemetryResponseObserver getTelemetryResponseObserver(Endpoints endpoints) {
+        telemetryResponseObserverTableLock.readLock().lock();
+        TelemetryResponseObserver responseObserver;
+        try {
+            responseObserver = telemetryResponseObserverTable.get(endpoints);
+            if (null != responseObserver) {
+                return responseObserver;
+            }
+        } finally {
+            telemetryResponseObserverTableLock.readLock().unlock();
+        }
+        telemetryResponseObserverTableLock.writeLock().lock();
+        try {
+            responseObserver = telemetryResponseObserverTable.get(endpoints);
+            if (null != responseObserver) {
+                return responseObserver;
+            }
+            responseObserver = new TelemetryResponseObserver(this, endpoints);
+            telemetryResponseObserverTable.put(endpoints, responseObserver);
+            return responseObserver;
+        } finally {
+            telemetryResponseObserverTableLock.writeLock().unlock();
         }
     }
 
