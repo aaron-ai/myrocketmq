@@ -24,6 +24,11 @@ public class Resource {
     private String namespace;
     private String name;
 
+    public Resource(String namespace, String name) {
+        this.namespace = namespace;
+        this.name = name;
+    }
+
     public Resource(apache.rocketmq.v2.Resource resource) {
         this.namespace = resource.getResourceNamespace();
         this.name = resource.getName();

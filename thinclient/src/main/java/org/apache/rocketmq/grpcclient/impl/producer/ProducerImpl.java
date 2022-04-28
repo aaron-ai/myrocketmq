@@ -67,6 +67,7 @@ import org.apache.rocketmq.apis.retry.ExponentialBackoffRetryPolicy;
 import org.apache.rocketmq.grpcclient.impl.ClientImpl;
 import org.apache.rocketmq.grpcclient.message.MessageType;
 import org.apache.rocketmq.grpcclient.message.PublishingMessageImpl;
+import org.apache.rocketmq.grpcclient.message.protocol.Resource;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 import org.apache.rocketmq.grpcclient.route.TopicRouteDataResult;
@@ -97,7 +98,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
     ProducerImpl(ClientConfiguration clientConfiguration, Set<String> topics, int sendAsyncThreadCount,
         ExponentialBackoffRetryPolicy retryPolicy, TransactionChecker checker) {
         super(clientConfiguration, topics);
-        this.producerSettings = null;
+        this.producerSettings = new ProducerSettings(clientId, accessEndpoints, retryPolicy, clientConfiguration.getRequestTimeout(), topics.stream().map(topic -> new Resource(namespace, topic)).collect(Collectors.toSet()));
         this.sendAsyncThreadCount = sendAsyncThreadCount;
         this.retryPolicy = retryPolicy;
         this.checker = checker;

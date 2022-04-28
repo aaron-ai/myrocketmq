@@ -88,7 +88,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
     protected final String namespace = StringUtils.EMPTY;
     protected volatile ClientManager clientManager;
     protected final ClientConfiguration clientConfiguration;
-    private final Endpoints accessEndpoints;
+    protected final Endpoints accessEndpoints;
 
     private volatile ScheduledFuture<?> updateRouteCacheFuture;
 
