@@ -19,6 +19,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import org.apache.rocketmq.apis.MessageQueue;
+import org.apache.rocketmq.apis.consumer.ConsumeResult;
 import org.apache.rocketmq.apis.consumer.MessageListener;
 import org.apache.rocketmq.apis.message.MessageView;
 import org.apache.rocketmq.grpcclient.misc.Dispatcher;
@@ -69,34 +70,24 @@ public abstract class ConsumeService extends Dispatcher {
         while (dispatched);
     }
 
-    public ListenableFuture<Boolean> consume(MessageView messageView) {
-        final ListenableFuture<Collection<MessageView>> future = consume(Collections.singletonList(messageView));
-        return Futures.transform(future, messageViews -> !messageViews.isEmpty(), MoreExecutors.directExecutor());
+    public ListenableFuture<ConsumeResult> consume(MessageView messageView) {
+        return consume(messageView, Duration.ZERO);
     }
 
-    public ListenableFuture<Boolean> consume(MessageView messageView, Duration delay) {
-        final ListenableFuture<Collection<MessageView>> future = consume(Collections.singletonList(messageView), delay);
-        return Futures.transform(future, messageViews -> !messageViews.isEmpty(), MoreExecutors.directExecutor());
-    }
-
-    public ListenableFuture<Collection<MessageView>> consume(List<MessageView> messageViews) {
-        return consume(messageViews, Duration.ZERO);
-    }
-
-    public ListenableFuture<Collection<MessageView>> consume(List<MessageView> messageViews, Duration delay) {
+    public ListenableFuture<ConsumeResult> consume(MessageView messageView, Duration delay) {
         final ListeningExecutorService executorService = MoreExecutors.listeningDecorator(consumptionExecutor);
-        final ConsumeTask task = new ConsumeTask(clientId, messageListener, messageViews);
+        final ConsumeTask task = new ConsumeTask(clientId, messageListener, messageView);
         // Consume message with no delay.
         if (Duration.ZERO.compareTo(delay) <= 0) {
             return executorService.submit(task);
         }
-        final SettableFuture<Collection<MessageView>> future0 = SettableFuture.create();
+        final SettableFuture<ConsumeResult> future0 = SettableFuture.create();
         scheduler.schedule(() -> {
-            final ListenableFuture<Collection<MessageView>> future = executorService.submit(task);
-            Futures.addCallback(future, new FutureCallback<Collection<MessageView>>() {
+            final ListenableFuture<ConsumeResult> future = executorService.submit(task);
+            Futures.addCallback(future, new FutureCallback<ConsumeResult>() {
                 @Override
-                public void onSuccess(Collection<MessageView> successCollection) {
-                    future0.set(successCollection);
+                public void onSuccess(ConsumeResult consumeResult) {
+                    future0.set(consumeResult);
                 }
 
                 @Override

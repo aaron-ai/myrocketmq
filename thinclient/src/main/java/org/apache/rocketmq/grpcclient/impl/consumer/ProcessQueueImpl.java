@@ -32,6 +32,7 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import org.apache.rocketmq.apis.consumer.ConsumeResult;
 import org.apache.rocketmq.apis.consumer.FilterExpression;
 import org.apache.rocketmq.apis.consumer.FilterExpressionType;
 import org.apache.rocketmq.apis.message.MessageView;
@@ -339,7 +340,7 @@ public class ProcessQueueImpl implements ProcessQueue {
     }
 
     @Override
-    public void eraseMessages(Collection<MessageView> messageViews, boolean consumeSuccess) {
+    public void eraseMessage(MessageView messageView, ConsumeResult consumeResult) {
     }
 
     @Override
@@ -348,7 +349,7 @@ public class ProcessQueueImpl implements ProcessQueue {
     }
 
     @Override
-    public void eraseFifoMessage(MessageView message, boolean consumeSuccess) {
+    public void eraseFifoMessage(MessageView message, ConsumeResult consumeResult) {
     }
 
     @Override

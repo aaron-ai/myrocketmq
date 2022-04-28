@@ -18,9 +18,13 @@
 package org.apache.rocketmq.grpcclient.impl.consumer;
 
 import apache.rocketmq.v2.HeartbeatRequest;
+import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.QueryAssignmentRequest;
 import apache.rocketmq.v2.QueryAssignmentResponse;
+import apache.rocketmq.v2.RecoverOrphanedTransactionCommand;
 import apache.rocketmq.v2.Resource;
+import apache.rocketmq.v2.Settings;
+import apache.rocketmq.v2.VerifyMessageCommand;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -30,6 +34,7 @@ import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import io.grpc.Metadata;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -37,11 +42,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.Collectors;
 import org.apache.rocketmq.apis.ClientConfiguration;
@@ -61,6 +68,7 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
     private static final Logger LOGGER = LoggerFactory.getLogger(PushConsumerImpl.class);
 
     private final ClientConfiguration clientConfiguration;
+    private final PushConsumerSettings pushConsumerSettings;
     private final String consumerGroup;
     private final boolean enableFifoConsumption;
     private final ConcurrentMap<String /* topic */, FilterExpression> subscriptionExpressions;
@@ -82,7 +90,7 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
 
     private final ThreadPoolExecutor consumptionExecutor;
     private final ConcurrentMap<MessageQueueImpl, ProcessQueue> processQueueTable;
-    private final ConsumeService consumeService;
+    private ConsumeService consumeService;
 
     private volatile ScheduledFuture<?> scanAssignmentsFuture;
 
@@ -95,6 +103,8 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
         MessageListener messageListener, int maxBatchSize, int maxCacheMessageCount, int maxCacheMessageSizeInBytes,
         int consumptionThreadCount) {
         super(clientConfiguration, subscriptionExpressions.keySet());
+        org.apache.rocketmq.grpcclient.message.protocol.Resource groupResource = new org.apache.rocketmq.grpcclient.message.protocol.Resource(namespace, consumerGroup);
+        this.pushConsumerSettings = new PushConsumerSettings(clientId, accessEndpoints, groupResource, clientConfiguration.getRequestTimeout(), subscriptionExpressions);
         this.clientConfiguration = clientConfiguration;
         this.consumerGroup = consumerGroup;
         this.enableFifoConsumption = enableFifoConsumption;
@@ -115,17 +125,15 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
             TimeUnit.SECONDS,
             new LinkedBlockingQueue<>(),
             new ThreadFactoryImpl("MessageConsumption"));
+    }
 
+    @Override
+    protected void startUp() throws Exception {
+        super.startUp();
         final ScheduledExecutorService scheduler = clientManager.getScheduler();
-
-        // Construct consume service according to FIFO flag.
-        if (enableFifoConsumption) {
-            this.consumeService = new FifoConsumeService(clientId, processQueueTable, messageListener,
-                consumptionExecutor, scheduler);
-        } else {
-            this.consumeService = new StandardConsumeService(clientId, processQueueTable, messageListener,
-                consumptionExecutor, scheduler, maxBatchSize);
-        }
+        this.consumeService = pushConsumerSettings.isFifo() ? new FifoConsumeService(clientId, processQueueTable, messageListener,
+            consumptionExecutor, scheduler) : new StandardConsumeService(clientId, processQueueTable, messageListener,
+            consumptionExecutor, scheduler);
         // Scan assignments periodically.
         scanAssignmentsFuture = scheduler.scheduleWithFixedDelay(() -> {
             try {
@@ -134,6 +142,21 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
                 LOGGER.error("Exception raised while scanning the load assignments, clientId={}", clientId, t);
             }
         }, 1, 5, TimeUnit.SECONDS);
+    }
+
+    @Override
+    public void shutDown() throws IOException {
+        if (null != scanAssignmentsFuture) {
+            scanAssignmentsFuture.cancel(false);
+        }
+        super.shutDown();
+        consumeService.close();
+        consumptionExecutor.shutdown();
+        try {
+            ExecutorServices.awaitTerminated(consumptionExecutor);
+        } catch (Throwable t) {
+            throw new IOException("Failed to shutdown consumption executor, clientId=" + clientId, t);
+        }
     }
 
     /**
@@ -242,7 +265,6 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
         return processQueue;
     }
 
-
     @Override
     public HeartbeatRequest wrapHeartbeatRequest() {
         return HeartbeatRequest.newBuilder().setGroup(getProtobufGroup()).build();
@@ -335,22 +357,27 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
         }
     }
 
+    @Override protected void awaitFirstSettingApplied(
+        Duration duration) throws ExecutionException, InterruptedException, TimeoutException {
+        pushConsumerSettings.getFirstApplyCompletedFuture().get(duration.toNanos(), TimeUnit.NANOSECONDS);
+    }
+
+    @Override
+    public Settings localSettings() {
+        return pushConsumerSettings.toProtobuf();
+    }
+
+    @Override
+    public NotifyClientTerminationRequest wrapNotifyClientTerminationRequest() {
+        return NotifyClientTerminationRequest.newBuilder().setGroup(getProtobufGroup()).build();
+    }
+
     /**
      * @see PushConsumer#close()
      */
     @Override
     public void close() throws IOException {
-        if (null != scanAssignmentsFuture) {
-            scanAssignmentsFuture.cancel(false);
-        }
-        super.close();
-        consumeService.close();
-        consumptionExecutor.shutdown();
-        try {
-            ExecutorServices.awaitTerminated(consumptionExecutor);
-        } catch (Throwable t) {
-            throw new IOException("Failed to shutdown consumption executor, clientId=" + clientId, t);
-        }
+        this.stopAsync().awaitTerminated();
     }
 
     public MessageListener getMessageListener() {
@@ -393,5 +420,21 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
 
     public ConsumeService getConsumeService() {
         return consumeService;
+    }
+
+    @Override
+    public void applySettings(Endpoints endpoints, Settings settings) {
+        pushConsumerSettings.applySettings(settings);
+    }
+
+    @Override
+    public void onVerifyMessageCommand(Endpoints endpoints, VerifyMessageCommand verifyMessageCommand) {
+        // TODO
+    }
+
+    @Override
+    public void onRecoverOrphanedTransactionCommand(Endpoints endpoints,
+        RecoverOrphanedTransactionCommand recoverOrphanedTransactionCommand) {
+        LOGGER.warn("Ignore orphaned transaction recovery command from remote, which is not expected for push consumer, client id={}, command={}", clientId, recoverOrphanedTransactionCommand);
     }
 }

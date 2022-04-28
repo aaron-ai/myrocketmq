@@ -143,6 +143,6 @@ public class PushConsumerBuilderImpl implements PushConsumerBuilder {
         checkNotNull(consumerGroup, "consumerGroup has not been set yet");
         checkNotNull(messageListener, "messageListener has not been set yet");
         checkArgument(!subscriptionExpressions.isEmpty(), "subscriptionExpressions have not been set yet");
-        return null;
+        return new PushConsumerImpl(clientConfiguration, consumerGroup, );
     }
 }

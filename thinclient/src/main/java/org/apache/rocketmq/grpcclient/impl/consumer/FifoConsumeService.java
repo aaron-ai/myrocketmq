@@ -31,6 +31,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import org.apache.rocketmq.apis.MessageQueue;
+import org.apache.rocketmq.apis.consumer.ConsumeResult;
 import org.apache.rocketmq.apis.consumer.MessageListener;
 import org.apache.rocketmq.apis.message.MessageView;
 import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
@@ -50,17 +51,18 @@ public class FifoConsumeService extends ConsumeService {
         Collections.shuffle(processQueues);
         boolean dispatched = false;
         for (final ProcessQueue pq : processQueues) {
-            final Optional<MessageView> messageView = pq.tryTakeFifoMessage();
-            if (!messageView.isPresent()) {
+            final Optional<MessageView> optionalMessageView = pq.tryTakeFifoMessage();
+            if (!optionalMessageView.isPresent()) {
                 continue;
             }
             dispatched = true;
-            LOGGER.debug("Take fifo message already, messageId={}", messageView.get().getMessageId());
-            final ListenableFuture<Boolean> future = consume(messageView.get());
-            Futures.addCallback(future, new FutureCallback<Boolean>() {
+            final MessageView messageView = optionalMessageView.get();
+            LOGGER.debug("Take fifo message already, messageId={}", messageView.getMessageId());
+            final ListenableFuture<ConsumeResult> future = consume(messageView);
+            Futures.addCallback(future, new FutureCallback<ConsumeResult>() {
                 @Override
-                public void onSuccess(Boolean success) {
-                    pq.eraseFifoMessage(messageView.get(), success);
+                public void onSuccess(ConsumeResult consumeResult) {
+                    pq.eraseFifoMessage(messageView, consumeResult);
                 }
 
                 @Override

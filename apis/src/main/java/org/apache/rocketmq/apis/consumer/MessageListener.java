@@ -17,7 +17,6 @@
 
 package org.apache.rocketmq.apis.consumer;
 
-import java.util.Collection;
 import org.apache.rocketmq.apis.message.MessageView;
 
 /**
@@ -28,12 +27,11 @@ import org.apache.rocketmq.apis.message.MessageView;
  */
 public interface MessageListener {
     /**
-     * The callback interface for consume message. You should process the collection of {@link MessageView}
-     * and put committed totalList to committedList. Push consumer will commit the committedList to server.
-     * If consume message throw unexpected exception, Push consumer also commit the committedList.
+     * The callback interface to consume message.
      *
-     * @param totalList are batch of messages which need consume. this message in the collection may come from different topics and the collection size control by setBatchSize(int batchSize) in {@link PushConsumerBuilder}
-     * @param successList  are collection of messages which already consume success and need ack to server.
+     * <p>You should process the {@link MessageView} and return the corresponding {@link ConsumeResult}.
+     * The consumption is successful only when {@link ConsumeResult#OK } is returned, null pointer is returned
+     * or exception is thrown would cause message consumption failure too.
      */
-    void consume(Collection<MessageView> totalList, Collection<MessageView> successList);
+    ConsumeResult consume(MessageView messageView);
 }

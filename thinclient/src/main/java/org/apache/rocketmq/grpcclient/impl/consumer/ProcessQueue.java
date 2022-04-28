@@ -19,6 +19,7 @@ package org.apache.rocketmq.grpcclient.impl.consumer;
 
 import java.util.Collection;
 import org.apache.rocketmq.apis.MessageQueue;
+import org.apache.rocketmq.apis.consumer.ConsumeResult;
 import org.apache.rocketmq.apis.message.MessageView;
 
 import java.util.List;
@@ -93,7 +94,7 @@ public interface ProcessQueue {
      * @param batchMaxSize max batch size to take messages.
      * @return messages which have been taken.
      */
-    List<MessageView> tryTakeMessages(int batchMaxSize);
+    Optional<MessageView> tryTakeMessages();
 
     /**
      * Erase messages which haven been taken except FIFO messages.
@@ -101,7 +102,7 @@ public interface ProcessQueue {
      * @param messageList messages to erase.
      * @param status      consume status.
      */
-    void eraseMessages(Collection<MessageView> messageViews, boolean success);
+    void eraseMessage(MessageView messageView, ConsumeResult consumeResult);
 
     /**
      * Try to take a FIFO message from cache.
@@ -116,7 +117,7 @@ public interface ProcessQueue {
      * @param message message to erase.
      * @param status  consume status.
      */
-    void eraseFifoMessage(MessageView messageView, boolean success);
+    void eraseFifoMessage(MessageView messageView, ConsumeResult consumeResult);
 
     /**
      * Do some stats.

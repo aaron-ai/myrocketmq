@@ -116,6 +116,10 @@ public class ProducerImpl extends ClientImpl implements Producer {
             new ThreadFactoryImpl("SendAsyncWorker"));
     }
 
+    public int getSendAsyncThreadCount() {
+        return sendAsyncThreadCount;
+    }
+
     @Override
     public void applySettings(Endpoints endpoints, Settings settings) {
         producerSettings.applySettings(settings);
@@ -129,6 +133,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
     @Override
     public void onRecoverOrphanedTransactionCommand(Endpoints endpoints,
         RecoverOrphanedTransactionCommand recoverOrphanedTransactionCommand) {
+        // TODO
     }
 
     @Override
@@ -305,7 +310,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
             final SettableFuture<List<SendReceipt>> future0 = SettableFuture.create();
             send0(future0, topic, messageType, candidates, pubMessages, 1);
             return future0;
-        }, MoreExecutors.directExecutor());
+        }, sendAsyncExecutor);
     }
 
     /**

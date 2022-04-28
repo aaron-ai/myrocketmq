@@ -296,12 +296,6 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         }
     }
 
-    public void close() throws IOException {
-        LOGGER.info("Begin to close the rocketmq client, clientId={}", clientId);
-        ClientManagerFactory.getInstance().unregisterClient(namespace, this);
-        LOGGER.info("Close the rocketmq client successfully, clientId={}", clientId);
-    }
-
     @Override
     public String getClientId() {
         return clientId;
