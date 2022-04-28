@@ -18,7 +18,6 @@
 package org.apache.rocketmq.grpcclient.impl.consumer;
 
 import apache.rocketmq.v2.HeartbeatRequest;
-import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.QueryAssignmentRequest;
 import apache.rocketmq.v2.QueryAssignmentResponse;
 import apache.rocketmq.v2.RecoverOrphanedTransactionCommand;
