@@ -310,16 +310,18 @@ public class ProcessQueueImpl implements ProcessQueue {
     }
 
     @Override
-    public List<MessageView> tryTakeMessages(int batchMaxSize) {
+    public Optional<MessageView> tryTakeMessage() {
         pendingMessagesLock.writeLock().lock();
         inflightMessagesLock.writeLock().lock();
         try {
-            final int actualSize = Math.min(pendingMessages.size(), batchMaxSize);
-            final List<MessageView> subList = new ArrayList<>(pendingMessages.subList(0, actualSize));
-            List<MessageView> messageExtList = new ArrayList<>(subList);
-            inflightMessages.addAll(subList);
-            pendingMessages.removeAll(subList);
-            return messageExtList;
+            final Optional<MessageView> first = pendingMessages.stream().findFirst();
+            if (!first.isPresent()) {
+                return first;
+            }
+            final MessageView messageView = first.get();
+            inflightMessages.add(messageView);
+            pendingMessages.remove(messageView);
+            return first;
         } finally {
             inflightMessagesLock.writeLock().unlock();
             pendingMessagesLock.writeLock().lock();

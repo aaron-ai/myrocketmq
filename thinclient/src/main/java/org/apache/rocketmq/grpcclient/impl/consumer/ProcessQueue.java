@@ -94,7 +94,7 @@ public interface ProcessQueue {
      * @param batchMaxSize max batch size to take messages.
      * @return messages which have been taken.
      */
-    Optional<MessageView> tryTakeMessages();
+    Optional<MessageView> tryTakeMessage();
 
     /**
      * Erase messages which haven been taken except FIFO messages.
