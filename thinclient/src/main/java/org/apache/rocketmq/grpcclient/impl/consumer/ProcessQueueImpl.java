@@ -25,20 +25,16 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.RateLimiter;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
-import com.sun.istack.internal.NotNull;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import java.time.Duration;
-import java.util.Collection;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.rocketmq.apis.consumer.ConsumeResult;
 import org.apache.rocketmq.apis.consumer.FilterExpression;
 import org.apache.rocketmq.apis.consumer.FilterExpressionType;
-import org.apache.rocketmq.apis.message.MessageView;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -50,7 +46,6 @@ import org.apache.rocketmq.grpcclient.consumer.ReceiveMessageResult;
 import org.apache.rocketmq.grpcclient.message.MessageViewImpl;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
-import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * @see ProcessQueue
@@ -362,14 +357,14 @@ public class ProcessQueueImpl implements ProcessQueue {
         pendingMessagesLock.writeLock().lock();
         inflightMessagesLock.writeLock().lock();
         try {
-            // no new message arrived.
             final Optional<MessageViewImpl> first = pendingMessages.stream().findFirst();
+            // No new message arrived.
             if (!first.isPresent()) {
                 return first;
             }
-            // failed to lock.
+            // Failed to lock.
             if (!fifoConsumptionInbound()) {
-                LOGGER.debug("Fifo consumption task are not finished, mq={}, clientId={}", mq, consumer.getClientId());
+                LOGGER.debug("Fifo consumption task are not finished, consumerGroup={}, mq={}, clientId={}", consumer.getConsumerGroup(), mq, consumer.getClientId());
                 return Optional.empty();
             }
             final MessageViewImpl messageView = first.get();
