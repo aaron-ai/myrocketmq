@@ -46,22 +46,17 @@ public class ClientManagerRegistry {
      *
      * <p>Different client would share the same {@link ClientManager} if they have the same manager id.
      *
-     * @param managerId client manager id.
-     * @param client    client to register.
+     * @param client client to register.
      * @return the client manager which is started.
      */
     public static ClientManager registerClient(Client client) {
-        if (null == singleton) {
-            synchronized (ClientManagerRegistry.class) {
-                if (null == singleton) {
-                    final ClientManagerImpl clientManager = new ClientManagerImpl();
-                    clientManager.startAsync().awaitRunning();
-                    singleton = clientManager;
-                }
-            }
-        }
         clientIdsLock.lock();
         try {
+            if (null == singleton) {
+                final ClientManagerImpl clientManager = new ClientManagerImpl();
+                clientManager.startAsync().awaitRunning();
+                singleton = clientManager;
+            }
             clientIds.add(client.getClientId());
             singleton.registerClient(client);
             return singleton;
@@ -78,7 +73,7 @@ public class ClientManagerRegistry {
      * @return {@link ClientManager} is removed or not.
      */
     @SuppressWarnings("UnusedReturnValue")
-    public static boolean unregisterClient(Client client) throws IOException {
+    public static boolean unregisterClient(Client client) {
         ClientManagerImpl clientManager = null;
         clientIdsLock.lock();
         try {
@@ -91,7 +86,7 @@ public class ClientManagerRegistry {
         } finally {
             clientIdsLock.unlock();
         }
-        // no need to hold the lock here.
+        // No need to hold the lock here.
         if (null != clientManager) {
             clientManager.stopAsync().awaitTerminated();
         }

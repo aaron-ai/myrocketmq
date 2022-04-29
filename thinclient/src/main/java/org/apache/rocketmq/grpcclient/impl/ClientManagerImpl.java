@@ -377,7 +377,7 @@ public class ClientManagerImpl extends AbstractIdleService implements ClientMana
 
     @Override
     protected void startUp() {
-        LOGGER.info("Begin to start the client manager.");
+        LOGGER.info("Begin to start the client manager");
         scheduler.scheduleWithFixedDelay(
             () -> {
                 try {
@@ -438,7 +438,7 @@ public class ClientManagerImpl extends AbstractIdleService implements ClientMana
             if (!ExecutorServices.awaitTerminated(scheduler)) {
                 LOGGER.error("[Bug] Timeout to shutdown the client scheduler");
             } else {
-                LOGGER.info("Shutdown the client scheduler successfully, client manager id={}");
+                LOGGER.info("Shutdown the client scheduler successfully");
             }
             rpcClientTableLock.writeLock().lock();
             try {

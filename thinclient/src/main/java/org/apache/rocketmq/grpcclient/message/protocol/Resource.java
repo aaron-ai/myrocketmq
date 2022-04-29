@@ -79,9 +79,11 @@ public class Resource {
 
     @Override
     public String toString() {
-        return MoreObjects.toStringHelper(this)
-            .add("namespace", namespace)
-            .add("name", name)
-            .toString();
+        final MoreObjects.ToStringHelper helper = MoreObjects.toStringHelper(this)
+            .add("name", this.name);
+        if (!StringUtils.isEmpty(namespace)) {
+            helper.add("namespace", namespace);
+        }
+        return helper.toString();
     }
 }

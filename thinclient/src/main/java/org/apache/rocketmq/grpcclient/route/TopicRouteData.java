@@ -108,7 +108,7 @@ public class TopicRouteData {
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(this)
-                .add("partitions", messageQueueImpls)
-                .toString();
+            .add("messageQueueImpls", messageQueueImpls)
+            .toString();
     }
 }

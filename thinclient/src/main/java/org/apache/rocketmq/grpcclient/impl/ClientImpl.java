@@ -161,7 +161,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         this.clientManager = ClientManagerRegistry.registerClient(this);
         final ScheduledExecutorService scheduler = clientManager.getScheduler();
         // Fetch topic route from remote.
-        LOGGER.info("Begin to fetch topic route data from remote during startup, clientId={}", clientId);
+        LOGGER.info("Begin to fetch topic(s) route data from remote during client startup, clientId={}, topics={}", clientId, topics);
         // Aggregate all topic route data futures into a composited future.
         final List<ListenableFuture<TopicRouteDataResult>> futures = topics.stream()
             .map(this::getRouteDataResult)
@@ -170,7 +170,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         try {
             results = Futures.allAsList(futures).get();
         } catch (Throwable t) {
-            LOGGER.error("Failed to get topic route data result from remote during startup, clientId={}, topics={}", clientId, topics, t);
+            LOGGER.error("Failed to get topic route data result from remote during client startup, clientId={}, topics={}", clientId, topics, t);
             throw new RuntimeException(t);
         }
         // Find any topic whose topic route data is failed to fetch from remote.
@@ -271,7 +271,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
             updateRouteCacheFuture.cancel(false);
         }
         ClientManagerRegistry.unregisterClient(this);
-        LOGGER.info("Shutdown the rocketmq client, clientId={}", clientId);
+        LOGGER.info("Shutdown the rocketmq client successfully, clientId={}", clientId);
     }
 
     private void updateRouteCache() {

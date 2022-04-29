@@ -205,13 +205,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
     @Override
     public CompletableFuture<SendReceipt> sendAsync(Message message) {
         final ListenableFuture<SendReceipt> future = Futures.transform(send0(Collections.singletonList(message), false),
-            // List size is 1 for single message.
             sendReceipts -> sendReceipts.iterator().next(), MoreExecutors.directExecutor());
-//        try {
-//            final SendReceipt receipt = future.get();
-//        } catch (Throwable t) {
-//            System.out.println(t);
-//        }
         return FutureConverter.toCompletableFuture(future);
     }
 
@@ -271,7 +265,8 @@ public class ProducerImpl extends ClientImpl implements Producer {
         List<PublishingMessageImpl> pubMessages = new ArrayList<>();
         for (Message message : messages) {
             try {
-                pubMessages.add(new PublishingMessageImpl(message, txEnabled));
+                final PublishingMessageImpl pubMessage = new PublishingMessageImpl(message, txEnabled);
+                pubMessages.add(pubMessage);
             } catch (Throwable t) {
                 // Failed to refine message, no need to proceed.
                 LOGGER.error("Failed to refine message, clientId={}, message={}", clientId, message, t);
@@ -304,7 +299,6 @@ public class ProducerImpl extends ClientImpl implements Producer {
         final String topic = topics.iterator().next();
         final MessageType messageType = messageTypes.iterator().next();
 
-        // TODO: notify server.
         this.topics.add(topic);
         // Get publishing topic route.
         final ListenableFuture<PublishingTopicRouteDataResult> routeFuture = getPublishingTopicRouteResult(topic);
