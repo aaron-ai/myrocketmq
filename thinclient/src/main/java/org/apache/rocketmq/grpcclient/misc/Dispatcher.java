@@ -63,13 +63,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
  */
 public abstract class Dispatcher extends AbstractIdleService {
     private static final Logger LOGGER = LoggerFactory.getLogger(Dispatcher.class);
+    private final String clientId;
     /**
      * Flag indicates that whether task is queued or not.
      */
     private final AtomicBoolean dispatched;
     private final ThreadPoolExecutor dispatcherExecutor;
 
-    public Dispatcher() {
+    public Dispatcher(String clientId) {
+        this.clientId = clientId;
         this.dispatched = new AtomicBoolean(false);
         this.dispatcherExecutor = new ThreadPoolExecutor(
             1,
@@ -88,7 +90,7 @@ public abstract class Dispatcher extends AbstractIdleService {
     public void shutDown() throws InterruptedException {
         dispatcherExecutor.shutdown();
         if (!ExecutorServices.awaitTerminated(dispatcherExecutor)) {
-            LOGGER.error("[Bug] Failed to shutdown the batch dispatcher.");
+            LOGGER.error("[Bug] Failed to shutdown the batch dispatcher, clientId={}", clientId);
         }
     }
 
@@ -108,12 +110,12 @@ public abstract class Dispatcher extends AbstractIdleService {
                     try {
                         dispatch();
                     } catch (Throwable t) {
-                        LOGGER.error("Exception raised while dispatching task", t);
+                        LOGGER.error("Exception raised while dispatching task, clientId={}", clientId, t);
                     }
                 });
             } catch (Throwable t) {
                 if (!dispatcherExecutor.isShutdown()) {
-                    LOGGER.error("[Bug] Failed to submit dispatch task.", t);
+                    LOGGER.error("[Bug] Failed to submit dispatch task, clientId={}", clientId, t);
                 }
             }
         }

@@ -157,9 +157,9 @@ public class ProducerImpl extends ClientImpl implements Producer {
         LOGGER.info("Begin to shutdown the rocketmq producer, clientId={}", clientId);
         super.shutDown();
         sendAsyncExecutor.shutdown();
-            if (!ExecutorServices.awaitTerminated(sendAsyncExecutor)) {
-                LOGGER.error("[Bug] Failed to shutdown default send async executor, clientId={}", clientId);
-            }
+        if (!ExecutorServices.awaitTerminated(sendAsyncExecutor)) {
+            LOGGER.error("[Bug] Failed to shutdown default send async executor, clientId={}", clientId);
+        }
         LOGGER.info("Shutdown the rocketmq producer successfully, clientId={}", clientId);
     }
 

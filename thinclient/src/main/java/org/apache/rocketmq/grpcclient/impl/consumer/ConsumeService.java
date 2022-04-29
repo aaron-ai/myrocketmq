@@ -49,6 +49,7 @@ public abstract class ConsumeService extends Dispatcher {
 
     public ConsumeService(String clientId, ConcurrentMap<MessageQueueImpl, ProcessQueue> processQueueTable,
         MessageListener messageListener, ThreadPoolExecutor consumptionExecutor, ScheduledExecutorService scheduler) {
+        super(clientId);
         this.clientId = clientId;
         this.processQueueTable = processQueueTable;
         this.messageListener = messageListener;
