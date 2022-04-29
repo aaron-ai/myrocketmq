@@ -80,7 +80,7 @@ public class MessageViewImpl implements MessageView {
         this.deliveryAttempt = deliveryAttempt;
         this.messageQueue = checkNotNull(messageQueue, "messageQueue should not be null");
         this.endpoints = messageQueue.getBroker().getEndpoints();
-        this.receiptHandle = receiptHandle;
+        this.receiptHandle = checkNotNull(receiptHandle, "receiptHandle should not be null");
         this.offset = offset;
         this.corrupted = corrupted;
     }

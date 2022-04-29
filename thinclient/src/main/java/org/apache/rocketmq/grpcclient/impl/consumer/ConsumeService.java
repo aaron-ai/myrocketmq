@@ -43,15 +43,17 @@ public abstract class ConsumeService extends Dispatcher {
     protected final ConcurrentMap<MessageQueueImpl, ProcessQueue> processQueueTable;
 
     protected final String clientId;
+    private final int maxDeliveryAttempts;
     private final MessageListener messageListener;
     private final ThreadPoolExecutor consumptionExecutor;
     private final ScheduledExecutorService scheduler;
 
-    public ConsumeService(String clientId, ConcurrentMap<MessageQueueImpl, ProcessQueue> processQueueTable,
+    public ConsumeService(String clientId, ConcurrentMap<MessageQueueImpl, ProcessQueue> processQueueTable, int maxDeliveryAttempts,
         MessageListener messageListener, ThreadPoolExecutor consumptionExecutor, ScheduledExecutorService scheduler) {
         super(clientId);
         this.clientId = clientId;
         this.processQueueTable = processQueueTable;
+        this.maxDeliveryAttempts = maxDeliveryAttempts;
         this.messageListener = messageListener;
         this.consumptionExecutor = consumptionExecutor;
         this.scheduler = scheduler;

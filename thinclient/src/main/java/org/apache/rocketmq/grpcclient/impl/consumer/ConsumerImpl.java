@@ -20,20 +20,21 @@ package org.apache.rocketmq.grpcclient.impl.consumer;
 import apache.rocketmq.v2.AckMessageEntry;
 import apache.rocketmq.v2.AckMessageRequest;
 import apache.rocketmq.v2.AckMessageResponse;
+import apache.rocketmq.v2.Code;
 import apache.rocketmq.v2.HeartbeatRequest;
 import apache.rocketmq.v2.Message;
+import apache.rocketmq.v2.NackMessageRequest;
+import apache.rocketmq.v2.NackMessageResponse;
 import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.ReceiveMessageRequest;
 import apache.rocketmq.v2.ReceiveMessageResponse;
 import apache.rocketmq.v2.Resource;
 import apache.rocketmq.v2.Status;
-import com.google.common.base.Stopwatch;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
-import com.google.rpc.Code;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import io.grpc.Metadata;
@@ -42,17 +43,15 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 import org.apache.rocketmq.apis.ClientConfiguration;
-import org.apache.rocketmq.apis.message.MessageView;
+import org.apache.rocketmq.apis.message.MessageId;
 import org.apache.rocketmq.grpcclient.consumer.ReceiveMessageResult;
 import org.apache.rocketmq.grpcclient.impl.ClientImpl;
 import org.apache.rocketmq.grpcclient.message.MessageViewImpl;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 
-@SuppressWarnings("UnstableApiUsage")
+@SuppressWarnings({"UnstableApiUsage", "NullableProblems"})
 public abstract class ConsumerImpl extends ClientImpl {
     private static final Logger LOGGER = LoggerFactory.getLogger(ConsumerImpl.class);
 
@@ -108,6 +107,13 @@ public abstract class ConsumerImpl extends ClientImpl {
             .setGroup(getProtobufGroup()).addEntries(entry).build();
     }
 
+    private NackMessageRequest wrapNackMessageRequest(MessageViewImpl messageView) {
+        final Resource topicResource = Resource.newBuilder().setName(messageView.getTopic()).build();
+        return NackMessageRequest.newBuilder().setGroup(getProtobufGroup()).setTopic(topicResource)
+            .setReceiptHandle(messageView.getReceiptHandle()).setMessageId(messageView.getMessageId().toString())
+            .setDeliveryAttempt(messageView.getDeliveryAttempt()).build();
+    }
+
     public ListenableFuture<AckMessageResponse> ackMessage(MessageViewImpl messageView) {
         final Endpoints endpoints = messageView.getEndpoints();
         ListenableFuture<AckMessageResponse> future;
@@ -120,6 +126,39 @@ public abstract class ConsumerImpl extends ClientImpl {
             future0.setException(t);
             future = future0;
         }
+        return future;
+    }
+
+    public ListenableFuture<NackMessageResponse> nackMessage(MessageViewImpl messageView) {
+        final Endpoints endpoints = messageView.getEndpoints();
+        ListenableFuture<NackMessageResponse> future;
+        try {
+            final NackMessageRequest request = wrapNackMessageRequest(messageView);
+            final Metadata metadata = sign();
+            future = clientManager.nackMessage(endpoints, metadata, request, clientConfiguration.getRequestTimeout());
+        } catch (Throwable t) {
+            final SettableFuture<NackMessageResponse> future0 = SettableFuture.create();
+            future0.setException(t);
+            future = future0;
+        }
+        final MessageId messageId = messageView.getMessageId();
+        Futures.addCallback(future, new FutureCallback<NackMessageResponse>() {
+            @Override
+            public void onSuccess(NackMessageResponse response) {
+                final Status status = response.getStatus();
+                final Code code = status.getCode();
+                if (Code.OK.equals(code)) {
+                    return;
+                }
+                LOGGER.error("Failed to nack message, messageId={}, endpoints={}, code={}, status message=[{}], clientId={}", messageId, endpoints, code, status.getMessage(), clientId);
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                LOGGER.error("Exception raised during message acknowledgement, messageId={}, endpoints={}, clientId={}", messageId, endpoints, clientId, t);
+
+            }
+        }, MoreExecutors.directExecutor());
         return future;
     }
 

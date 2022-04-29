@@ -40,9 +40,9 @@ import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 public class StandardConsumeService extends ConsumeService {
     private static final Logger LOGGER = LoggerFactory.getLogger(StandardConsumeService.class);
 
-    public StandardConsumeService(String clientId, ConcurrentMap<MessageQueueImpl, ProcessQueue> processQueueTable,
+    public StandardConsumeService(String clientId, ConcurrentMap<MessageQueueImpl, ProcessQueue> processQueueTable, int maxDeliveryAttempts,
         MessageListener messageListener, ThreadPoolExecutor consumptionExecutor, ScheduledExecutorService scheduler) {
-        super(clientId, processQueueTable, messageListener, consumptionExecutor, scheduler);
+        super(clientId, processQueueTable, maxDeliveryAttempts, messageListener, consumptionExecutor, scheduler);
     }
 
     @Override

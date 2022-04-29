@@ -69,6 +69,10 @@ public class PushConsumerSettings extends ClientSettings {
         return longPollingTimeout;
     }
 
+    public int getMaxDeliveryAttempts() {
+        return retryPolicy.getMaxAttempts();
+    }
+
     @Override
     public Settings toProtobuf() {
         List<SubscriptionEntry> subscriptionEntries = new ArrayList<>();

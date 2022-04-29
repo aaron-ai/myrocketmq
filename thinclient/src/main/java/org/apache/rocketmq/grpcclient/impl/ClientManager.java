@@ -27,6 +27,8 @@ import apache.rocketmq.v2.ForwardMessageToDeadLetterQueueRequest;
 import apache.rocketmq.v2.ForwardMessageToDeadLetterQueueResponse;
 import apache.rocketmq.v2.HeartbeatRequest;
 import apache.rocketmq.v2.HeartbeatResponse;
+import apache.rocketmq.v2.NackMessageRequest;
+import apache.rocketmq.v2.NackMessageResponse;
 import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.NotifyClientTerminationResponse;
 import apache.rocketmq.v2.QueryAssignmentRequest;
@@ -145,6 +147,9 @@ public interface ClientManager {
      * @return response future of ack message.
      */
     ListenableFuture<AckMessageResponse> ackMessage(Endpoints endpoints, Metadata metadata, AckMessageRequest request,
+        Duration duration);
+
+    ListenableFuture<NackMessageResponse> nackMessage(Endpoints endpoints, Metadata metadata, NackMessageRequest request,
         Duration duration);
 
     /**

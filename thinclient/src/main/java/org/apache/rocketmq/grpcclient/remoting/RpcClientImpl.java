@@ -28,6 +28,8 @@ import apache.rocketmq.v2.ForwardMessageToDeadLetterQueueResponse;
 import apache.rocketmq.v2.HeartbeatRequest;
 import apache.rocketmq.v2.HeartbeatResponse;
 import apache.rocketmq.v2.MessagingServiceGrpc;
+import apache.rocketmq.v2.NackMessageRequest;
+import apache.rocketmq.v2.NackMessageResponse;
 import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.NotifyClientTerminationResponse;
 import apache.rocketmq.v2.QueryAssignmentRequest;
@@ -163,6 +165,14 @@ public class RpcClientImpl implements RpcClient {
         this.activityNanoTime = System.nanoTime();
         return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
             .withDeadlineAfter(duration.toNanos(), TimeUnit.NANOSECONDS).ackMessage(request);
+    }
+
+    @Override
+    public ListenableFuture<NackMessageResponse> nackMessage(Metadata metadata, NackMessageRequest request,
+        Executor executor, Duration duration) {
+        this.activityNanoTime = System.nanoTime();
+        return futureStub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(metadata)).withExecutor(executor)
+            .withDeadlineAfter(duration.toNanos(), TimeUnit.NANOSECONDS).nackMessage(request);
     }
 
     @Override

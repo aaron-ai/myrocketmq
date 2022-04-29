@@ -339,8 +339,10 @@ public class ProcessQueueImpl implements ProcessQueue {
     public void eraseMessage(MessageViewImpl messageView, ConsumeResult consumeResult) {
         eraseMessages(messageView);
         if (ConsumeResult.OK.equals(consumeResult)) {
-
+            consumer.ackMessage(messageView);
+            return;
         }
+        consumer.nackMessage(messageView);
     }
 
     @Override

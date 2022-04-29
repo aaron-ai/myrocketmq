@@ -125,9 +125,11 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
     protected void startUp() throws Exception {
         super.startUp();
         final ScheduledExecutorService scheduler = clientManager.getScheduler();
-        this.consumeService = pushConsumerSettings.isFifo() ? new FifoConsumeService(clientId, processQueueTable, messageListener,
-            consumptionExecutor, scheduler) : new StandardConsumeService(clientId, processQueueTable, messageListener,
-            consumptionExecutor, scheduler);
+        if (pushConsumerSettings.isFifo()) {
+            this.consumeService = new FifoConsumeService(clientId, processQueueTable, this.getMaxDeliveryAttempts(), messageListener, consumptionExecutor, scheduler);
+        } else {
+            this.consumeService = new StandardConsumeService(clientId, processQueueTable, this.getMaxDeliveryAttempts(), messageListener, consumptionExecutor, scheduler);
+        }
         // Scan assignments periodically.
         scanAssignmentsFuture = scheduler.scheduleWithFixedDelay(() -> {
             try {
@@ -409,5 +411,9 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
     public void onRecoverOrphanedTransactionCommand(Endpoints endpoints,
         RecoverOrphanedTransactionCommand recoverOrphanedTransactionCommand) {
         LOGGER.warn("Ignore orphaned transaction recovery command from remote, which is not expected for push consumer, client id={}, command={}", clientId, recoverOrphanedTransactionCommand);
+    }
+
+    public int getMaxDeliveryAttempts() {
+        return pushConsumerSettings.getMaxDeliveryAttempts();
     }
 }

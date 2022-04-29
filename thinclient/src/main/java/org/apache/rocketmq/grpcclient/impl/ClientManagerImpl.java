@@ -27,6 +27,8 @@ import apache.rocketmq.v2.ForwardMessageToDeadLetterQueueRequest;
 import apache.rocketmq.v2.ForwardMessageToDeadLetterQueueResponse;
 import apache.rocketmq.v2.HeartbeatRequest;
 import apache.rocketmq.v2.HeartbeatResponse;
+import apache.rocketmq.v2.NackMessageRequest;
+import apache.rocketmq.v2.NackMessageResponse;
 import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.NotifyClientTerminationResponse;
 import apache.rocketmq.v2.QueryAssignmentRequest;
@@ -306,6 +308,19 @@ public class ClientManagerImpl extends AbstractIdleService implements ClientMana
             return rpcClient.ackMessage(metadata, request, asyncWorker, duration);
         } catch (Throwable t) {
             final SettableFuture<AckMessageResponse> future = SettableFuture.create();
+            future.setException(t);
+            return future;
+        }
+    }
+
+    @Override
+    public ListenableFuture<NackMessageResponse> nackMessage(Endpoints endpoints, Metadata metadata,
+        NackMessageRequest request, Duration duration) {
+        try {
+            final RpcClient rpcClient = getRpcClient(endpoints);
+            return rpcClient.nackMessage(metadata, request, asyncWorker, duration);
+        } catch (Throwable t) {
+            final SettableFuture<NackMessageResponse> future = SettableFuture.create();
             future.setException(t);
             return future;
         }

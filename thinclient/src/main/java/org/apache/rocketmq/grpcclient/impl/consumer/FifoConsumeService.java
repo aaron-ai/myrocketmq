@@ -40,8 +40,9 @@ public class FifoConsumeService extends ConsumeService {
     private static final Logger LOGGER = LoggerFactory.getLogger(FifoConsumeService.class);
 
     public FifoConsumeService(String clientId, ConcurrentMap<MessageQueueImpl, ProcessQueue> processQueueTable,
-        MessageListener messageListener, ThreadPoolExecutor consumptionExecutor, ScheduledExecutorService scheduler) {
-        super(clientId, processQueueTable, messageListener, consumptionExecutor, scheduler);
+        int maxDeliveryAttempts, MessageListener messageListener, ThreadPoolExecutor consumptionExecutor,
+        ScheduledExecutorService scheduler) {
+        super(clientId, processQueueTable, maxDeliveryAttempts, messageListener, consumptionExecutor, scheduler);
     }
 
     @Override
