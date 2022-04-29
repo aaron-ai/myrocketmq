@@ -25,6 +25,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.RateLimiter;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
 import com.sun.istack.internal.NotNull;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
@@ -33,6 +34,7 @@ import java.time.Duration;
 import java.util.Collection;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.rocketmq.apis.consumer.ConsumeResult;
 import org.apache.rocketmq.apis.consumer.FilterExpression;
 import org.apache.rocketmq.apis.consumer.FilterExpressionType;
@@ -86,6 +88,7 @@ public class ProcessQueueImpl implements ProcessQueue {
     private final ReadWriteLock inflightMessagesLock;
 
     private final AtomicLong cachedMessagesBytes;
+    private final AtomicBoolean fifoConsumptionOccupied;
 
     private volatile long activityNanoTime = System.nanoTime();
 
@@ -99,6 +102,7 @@ public class ProcessQueueImpl implements ProcessQueue {
         this.inflightMessages = new ArrayList<>();
         this.inflightMessagesLock = new ReentrantReadWriteLock();
         this.cachedMessagesBytes = new AtomicLong();
+        this.fifoConsumptionOccupied = new AtomicBoolean(false);
     }
 
     @Override
@@ -345,9 +349,37 @@ public class ProcessQueueImpl implements ProcessQueue {
         consumer.nackMessage(messageView);
     }
 
+    private boolean fifoConsumptionInbound() {
+        return fifoConsumptionOccupied.compareAndSet(false, true);
+    }
+
+    private void fifoConsumptionOutbound() {
+        fifoConsumptionOccupied.compareAndSet(true, false);
+    }
+
     @Override
     public Optional<MessageViewImpl> tryTakeFifoMessage() {
-        return Optional.empty();
+        pendingMessagesLock.writeLock().lock();
+        inflightMessagesLock.writeLock().lock();
+        try {
+            // no new message arrived.
+            final Optional<MessageViewImpl> first = pendingMessages.stream().findFirst();
+            if (!first.isPresent()) {
+                return first;
+            }
+            // failed to lock.
+            if (!fifoConsumptionInbound()) {
+                LOGGER.debug("Fifo consumption task are not finished, mq={}, clientId={}", mq, consumer.getClientId());
+                return Optional.empty();
+            }
+            final MessageViewImpl messageView = first.get();
+            pendingMessages.remove(messageView);
+            inflightMessages.add(messageView);
+            return first;
+        } finally {
+            inflightMessagesLock.writeLock().unlock();
+            pendingMessagesLock.writeLock().unlock();
+        }
     }
 
     @Override
