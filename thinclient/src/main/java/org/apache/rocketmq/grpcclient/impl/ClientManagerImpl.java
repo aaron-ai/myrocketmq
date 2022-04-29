@@ -77,6 +77,7 @@ public class ClientManagerImpl extends AbstractIdleService implements ClientMana
     public static final Duration RPC_CLIENT_IDLE_CHECK_PERIOD = Duration.ofMinutes(1);
     public static final Duration HEART_BEAT_PERIOD = Duration.ofSeconds(10);
     public static final Duration LOG_STATS_PERIOD = Duration.ofMinutes(1);
+    public static final Duration ANNOUNCE_SETTINGS_PERIOD = Duration.ofSeconds(15);
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientManagerImpl.class);
     /**
@@ -122,44 +123,6 @@ public class ClientManagerImpl extends AbstractIdleService implements ClientMana
             TimeUnit.SECONDS,
             new LinkedBlockingQueue<>(),
             new ThreadFactoryImpl("ClientAsyncWorker"));
-
-//        scheduler.scheduleWithFixedDelay(
-//            () -> {
-//                try {
-//                    clearIdleRpcClients();
-//                } catch (Throwable t) {
-//                    LOGGER.error("Exception raised while clear idle rpc clients.", t);
-//                }
-//            },
-//            5,
-//            RPC_CLIENT_IDLE_CHECK_PERIOD.getSeconds(),
-//            TimeUnit.SECONDS);
-//
-//        scheduler.scheduleWithFixedDelay(
-//            () -> {
-//                try {
-//                    doHeartbeat();
-//                } catch (Throwable t) {
-//                    LOGGER.error("Exception raised while heartbeat.", t);
-//                }
-//            },
-//            1,
-//            HEART_BEAT_PERIOD.getSeconds(),
-//            TimeUnit.SECONDS
-//        );
-//
-//        scheduler.scheduleWithFixedDelay(
-//            () -> {
-//                try {
-//                    doLogStats();
-//                } catch (Throwable t) {
-//                    LOGGER.error("Exception raised while log stats.", t);
-//                }
-//            },
-//            1,
-//            LOG_STATS_PERIOD.getSeconds(),
-//            TimeUnit.SECONDS
-//        );
     }
 
     static {
@@ -219,11 +182,21 @@ public class ClientManagerImpl extends AbstractIdleService implements ClientMana
         }
     }
 
-    private void doLogStats() {
+    private void doStats() {
         LOGGER.info("Start to log stats for a new round, clientVersion={}, clientWrapperVersion={}, clientManagerId={}",
             MetadataUtils.getVersion(), MetadataUtils.getWrapperVersion(), id);
         for (Client client : clientTable.values()) {
             client.doStats();
+        }
+    }
+
+    private void announceSettings() {
+        for (Client client : clientTable.values()) {
+            try {
+                client.announceSettings();
+            } catch (Exception ignore) {
+                // Exception should have been caught before.
+            }
         }
     }
 
@@ -439,13 +412,25 @@ public class ClientManagerImpl extends AbstractIdleService implements ClientMana
         scheduler.scheduleWithFixedDelay(
             () -> {
                 try {
-                    doLogStats();
+                    doStats();
                 } catch (Throwable t) {
                     LOGGER.error("Exception raised while log stats.", t);
                 }
             },
             1,
             LOG_STATS_PERIOD.getSeconds(),
+            TimeUnit.SECONDS
+        );
+
+        scheduler.scheduleWithFixedDelay(
+            () -> {
+                try {
+                    announceSettings();
+                } catch (Throwable t) {
+                    LOGGER.error("Exception raised during setting announcement.", t);
+                }
+            }, 1,
+            ANNOUNCE_SETTINGS_PERIOD.getSeconds(),
             TimeUnit.SECONDS
         );
         LOGGER.info("The client manager starts successfully, client manager id={}", id);

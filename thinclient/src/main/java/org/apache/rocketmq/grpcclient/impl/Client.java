@@ -39,7 +39,7 @@ public interface Client {
     /**
      * Voluntary announce settings to remote.
      */
-    void announceSettings() throws Throwable;
+    void announceSettings() throws Exception;
 
     /**
      * Apply setting from remote.

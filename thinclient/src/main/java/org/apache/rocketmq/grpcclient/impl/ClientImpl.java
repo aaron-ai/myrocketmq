@@ -211,6 +211,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
             try {
                 telemetryCommand(endpoints, command);
             } catch (Exception e) {
+                LOGGER.error("Failed to announce settings to remote, clientId={}, endpoints={}", clientId, endpoints, e);
                 exception = e;
             }
         }
