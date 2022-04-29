@@ -379,6 +379,7 @@ public class ProcessQueueImpl implements ProcessQueue {
 
     @Override
     public void eraseFifoMessage(MessageViewImpl messageView, ConsumeResult consumeResult) {
+
     }
 
     @Override

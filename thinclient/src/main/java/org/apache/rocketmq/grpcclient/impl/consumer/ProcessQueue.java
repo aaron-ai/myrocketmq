@@ -19,7 +19,6 @@ package org.apache.rocketmq.grpcclient.impl.consumer;
 
 import java.util.Collection;
 import org.apache.rocketmq.apis.consumer.ConsumeResult;
-import org.apache.rocketmq.apis.message.MessageView;
 
 import java.util.Optional;
 import org.apache.rocketmq.grpcclient.message.MessageViewImpl;
