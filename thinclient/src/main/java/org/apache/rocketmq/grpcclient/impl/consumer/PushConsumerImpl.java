@@ -139,18 +139,14 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
     }
 
     @Override
-    public void shutDown() throws IOException {
+    public void shutDown() throws InterruptedException {
         if (null != scanAssignmentsFuture) {
             scanAssignmentsFuture.cancel(false);
         }
         super.shutDown();
-        consumeService.close();
+        consumeService.stopAsync().awaitTerminated();
         consumptionExecutor.shutdown();
-        try {
-            ExecutorServices.awaitTerminated(consumptionExecutor);
-        } catch (Throwable t) {
-            throw new IOException("Failed to shutdown consumption executor, clientId=" + clientId, t);
-        }
+        ExecutorServices.awaitTerminated(consumptionExecutor);
     }
 
     /**

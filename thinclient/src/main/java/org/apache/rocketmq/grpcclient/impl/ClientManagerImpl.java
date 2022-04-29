@@ -427,12 +427,12 @@ public class ClientManagerImpl extends AbstractIdleService implements ClientMana
             ANNOUNCE_SETTINGS_PERIOD.getSeconds(),
             TimeUnit.SECONDS
         );
-        LOGGER.info("The client manager starts successfully.");
+        LOGGER.info("The client manager starts successfully");
     }
 
     @Override
     protected void shutDown() throws IOException {
-        LOGGER.info("Begin to shutdown the client manager.");
+        LOGGER.info("Begin to shutdown the client manager");
         scheduler.shutdown();
         try {
             if (!ExecutorServices.awaitTerminated(scheduler)) {
@@ -452,17 +452,17 @@ public class ClientManagerImpl extends AbstractIdleService implements ClientMana
             } finally {
                 rpcClientTableLock.writeLock().unlock();
             }
-            LOGGER.info("Shutdown all rpc client(s) successfully.");
+            LOGGER.info("Shutdown all rpc client(s) successfully");
             asyncWorker.shutdown();
             if (!ExecutorServices.awaitTerminated(asyncWorker)) {
-                LOGGER.error("[Bug] Timeout to shutdown the client async worker.");
+                LOGGER.error("[Bug] Timeout to shutdown the client async worker");
             } else {
-                LOGGER.info("Shutdown the client async worker successfully.");
+                LOGGER.info("Shutdown the client async worker successfully");
             }
         } catch (InterruptedException e) {
-            LOGGER.error("[Bug] Unexpected exception raised while shutdown client manager.", e);
+            LOGGER.error("[Bug] Unexpected exception raised while shutdown client manager", e);
             throw new IOException(e);
         }
-        LOGGER.info("Shutdown the client manager successfully.");
+        LOGGER.info("Shutdown the client manager successfully");
     }
 }

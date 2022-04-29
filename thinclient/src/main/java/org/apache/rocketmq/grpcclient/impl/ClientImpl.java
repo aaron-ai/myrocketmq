@@ -184,7 +184,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
             // TODO: polish code here.
             throw new ResourceNotFoundException(status.getCode().ordinal(), status.getMessage());
         }
-        LOGGER.info("Fetch topic route data from remote successfully during startup, clientId={}", clientId);
+        LOGGER.info("Fetch topic route data from remote successfully during startup, clientId={}, topics={}", clientId, topics);
         // Report active settings during startup.
         this.announceSettings();
         this.awaitFirstSettingApplied(AWAIT_SETTINGS_APPLIED_DURATION);
@@ -264,7 +264,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
     public abstract Settings localSettings();
 
     @Override
-    protected void shutDown() throws IOException {
+    protected void shutDown() throws InterruptedException {
         LOGGER.info("Begin to shutdown the rocketmq client, clientId={}", clientId);
         notifyClientTermination();
         if (null != this.updateRouteCacheFuture) {

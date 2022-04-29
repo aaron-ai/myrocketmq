@@ -17,6 +17,7 @@
 
 package org.apache.rocketmq.grpcclient.misc;
 
+import com.google.common.util.concurrent.AbstractIdleService;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import java.io.Closeable;
@@ -60,7 +61,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
  *    └────────┘    └────────┘    └────────┘
  * </pre>
  */
-public abstract class Dispatcher implements Closeable {
+public abstract class Dispatcher extends AbstractIdleService {
     private static final Logger LOGGER = LoggerFactory.getLogger(Dispatcher.class);
     /**
      * Flag indicates that whether task is queued or not.
@@ -80,14 +81,14 @@ public abstract class Dispatcher implements Closeable {
     }
 
     @Override
-    public void close() throws IOException {
+    public void startUp() {
+    }
+
+    @Override
+    public void shutDown() throws InterruptedException {
         dispatcherExecutor.shutdown();
-        try {
-            if (!ExecutorServices.awaitTerminated(dispatcherExecutor)) {
-                LOGGER.error("[Bug] Failed to shutdown the batch dispatcher.");
-            }
-        } catch (InterruptedException e) {
-            throw new IOException(e);
+        if (!ExecutorServices.awaitTerminated(dispatcherExecutor)) {
+            LOGGER.error("[Bug] Failed to shutdown the batch dispatcher.");
         }
     }
 

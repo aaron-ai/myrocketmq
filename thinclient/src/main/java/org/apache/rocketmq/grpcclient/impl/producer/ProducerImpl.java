@@ -153,17 +153,13 @@ public class ProducerImpl extends ClientImpl implements Producer {
     }
 
     @Override
-    public void shutDown() throws IOException {
-        LOGGER.info("Begin to close the rocketmq producer, clientId={}", clientId);
+    public void shutDown() throws InterruptedException {
+        LOGGER.info("Begin to shutdown the rocketmq producer, clientId={}", clientId);
         super.shutDown();
-        try {
+        sendAsyncExecutor.shutdown();
             if (!ExecutorServices.awaitTerminated(sendAsyncExecutor)) {
                 LOGGER.error("[Bug] Failed to shutdown default send async executor, clientId={}", clientId);
             }
-        } catch (InterruptedException e) {
-            LOGGER.error("Exception raised while closing the rocketmq producer, clientId={}", clientId);
-            throw new IOException("Exception raised while closing the rocketmq producer", e);
-        }
         LOGGER.info("Shutdown the rocketmq producer successfully, clientId={}", clientId);
     }
 
@@ -350,7 +346,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
             @Override
             public void onSuccess(List<SendReceipt> sendReceipts) {
                 if (sendReceipts.size() != messages.size()) {
-                    LOGGER.error("[Bug] Due to an unknown reason from server, received send receipts' quantity[{}]" +
+                    LOGGER.error("[Bug] Due to an unknown reason from remote, received send receipts' quantity[{}]" +
                         " is not equal to messages' quantity[{}]", sendReceipts.size(), messages.size());
                 }
                 // No need more attempts.
@@ -396,8 +392,9 @@ public class ProducerImpl extends ClientImpl implements Producer {
                 // Try to do more attempts.
                 int nextAttempt = 1 + attempt;
                 final Duration delay = retryPolicy.getNextAttemptDelay(nextAttempt);
-                LOGGER.warn("Failed to send message, would attempt to resend after {}, maxAttempts={}, "
-                    + "attempt={}, topic={}, messageId(s)={}, endpoints={}, clientId={}", delay, maxAttempts, attempt, topic, messageIds, endpoints, clientId, t);
+                LOGGER.warn("Failed to send message, would attempt to resend after {}, maxAttempts={}," +
+                        " attempt={}, topic={}, messageId(s)={}, endpoints={}, clientId={}", delay, maxAttempts, attempt,
+                    topic, messageIds, endpoints, clientId, t);
                 clientManager.getScheduler().schedule(() -> send0(future, topic, messageType, candidates, messages, nextAttempt),
                     delay.toNanos(), TimeUnit.NANOSECONDS);
             }

@@ -25,7 +25,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ScheduledExecutorService;
@@ -58,9 +57,9 @@ public abstract class ConsumeService extends Dispatcher {
     }
 
     @Override
-    public void close() throws IOException {
+    public void shutDown() throws InterruptedException {
         LOGGER.info("Begin to shutdown the consume service, clientId={}", clientId);
-        super.close();
+        super.shutDown();
         LOGGER.info("Shutdown the consume service successfully, clientId={}", clientId);
     }
 
