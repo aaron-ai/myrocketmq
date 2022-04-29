@@ -99,6 +99,8 @@ public class ProducerBuilderImpl implements ProducerBuilder {
     @Override
     public Producer build() {
         checkNotNull(clientConfiguration, "clientConfiguration has not been set yet");
-        return new ProducerImpl(clientConfiguration, topics, asyncThreadCount, retryPolicy, checker);
+        final ProducerImpl producer = new ProducerImpl(clientConfiguration, topics, asyncThreadCount, retryPolicy, checker);
+        producer.startAsync().awaitRunning();
+        return producer;
     }
 }

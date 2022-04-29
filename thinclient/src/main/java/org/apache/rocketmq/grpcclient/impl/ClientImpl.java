@@ -163,30 +163,30 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         this.clientManager = ClientManagerFactory.getInstance().registerClient(namespace, this);
         final ScheduledExecutorService scheduler = clientManager.getScheduler();
         // Fetch topic route from remote.
+        LOGGER.info("Begin to fetch topic route data from remote during startup, clientId={}", clientId);
+        // Aggregate all topic route data futures into a composited future.
+        final List<ListenableFuture<TopicRouteDataResult>> futures = topics.stream()
+            .map(this::getRouteDataResult)
+            .collect(Collectors.toList());
+        List<TopicRouteDataResult> results;
         try {
-            LOGGER.info("Begin to fetch topic route data from remote during startup, clientId={}", clientId);
-            // Aggregate all topic route data futures into a composited future.
-            final List<ListenableFuture<TopicRouteDataResult>> futures = topics.stream()
-                .map(this::getRouteDataResult)
-                .collect(Collectors.toList());
-            final List<TopicRouteDataResult> results = Futures.allAsList(futures).get();
-            // Find any topic whose topic route data is failed to fetch from remote.
-            final Stream<TopicRouteDataResult> stream = results.stream()
-                .filter(topicRouteDataResult -> Code.OK != topicRouteDataResult.getStatus().getCode());
-            final Optional<TopicRouteDataResult> any = stream.findAny();
-            // There is a topic whose topic route data is failed to fetch from remote.
-            if (any.isPresent()) {
-                final TopicRouteDataResult result = any.get();
-                final Status status = result.getStatus();
-                // TODO: polish code here.
-                throw new ResourceNotFoundException(status.getCode().ordinal(), status.getMessage());
-            }
-            LOGGER.info("Fetch topic route data from remote successfully during startup, clientId={}", clientId);
+            results = Futures.allAsList(futures).get();
         } catch (Throwable t) {
-            // Should never reach here.
-            LOGGER.error("[Bug] Unexpected exception thrown while fetching topic route data from remote during startup, clientId={}", clientId, t);
+            LOGGER.error("Failed to get topic route data result from remote during startup, clientId={}, topics={}", clientId, topics, t);
             throw new RuntimeException(t);
         }
+        // Find any topic whose topic route data is failed to fetch from remote.
+        final Stream<TopicRouteDataResult> stream = results.stream()
+            .filter(topicRouteDataResult -> Code.OK != topicRouteDataResult.getStatus().getCode());
+        final Optional<TopicRouteDataResult> any = stream.findAny();
+        // There is a topic whose topic route data is failed to fetch from remote.
+        if (any.isPresent()) {
+            final TopicRouteDataResult result = any.get();
+            final Status status = result.getStatus();
+            // TODO: polish code here.
+            throw new ResourceNotFoundException(status.getCode().ordinal(), status.getMessage());
+        }
+        LOGGER.info("Fetch topic route data from remote successfully during startup, clientId={}", clientId);
         // Report active settings during startup.
         this.announceSettings();
         this.awaitFirstSettingApplied(AWAIT_SETTINGS_APPLIED_DURATION);
@@ -353,7 +353,8 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         final SettableFuture<TopicRouteDataResult> future = SettableFuture.create();
         try {
             Resource topicResource = Resource.newBuilder().setResourceNamespace(namespace).setName(topic).build();
-            final QueryRouteRequest request = QueryRouteRequest.newBuilder().setTopic(topicResource).build();
+            final QueryRouteRequest request = QueryRouteRequest.newBuilder().setTopic(topicResource)
+                .setEndpoints(accessEndpoints.toProtobuf()).build();
             final Metadata metadata = sign();
             final ListenableFuture<QueryRouteResponse> responseFuture =
                 clientManager.queryRoute(accessEndpoints, metadata, request, clientConfiguration.getRequestTimeout());

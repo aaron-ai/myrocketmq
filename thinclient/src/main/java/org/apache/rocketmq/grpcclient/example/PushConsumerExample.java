@@ -8,6 +8,7 @@ import java.util.Collections;
 import org.apache.rocketmq.apis.ClientConfiguration;
 import org.apache.rocketmq.apis.ClientServiceProvider;
 import org.apache.rocketmq.apis.StaticSessionCredentialsProvider;
+import org.apache.rocketmq.apis.consumer.ConsumeResult;
 import org.apache.rocketmq.apis.consumer.FilterExpression;
 import org.apache.rocketmq.apis.consumer.FilterExpressionType;
 import org.apache.rocketmq.apis.consumer.PushConsumer;
@@ -36,12 +37,7 @@ public class PushConsumerExample {
             .setClientConfiguration(clientConfiguration)
             .setConsumerGroup(consumerGroup)
             .setSubscriptionExpressions(Collections.singletonMap(topic, filterExpression))
-            .setMessageListener((totalList, successList) -> {
-                for (MessageView messageView : totalList) {
-                    LOGGER.info("Receive message, message={}", messageView);
-                    successList.add(messageView);
-                }
-            })
+            .setMessageListener(messageView -> ConsumeResult.OK)
             .build()) {
             LOGGER.info("Start push consumer successfully.");
         } catch (IOException | ClientException e) {

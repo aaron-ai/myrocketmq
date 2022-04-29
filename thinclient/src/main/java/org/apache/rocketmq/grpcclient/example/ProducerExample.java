@@ -18,12 +18,10 @@ public class ProducerExample {
 
     public static void main(String[] args) {
         try {
-            String accessPoint = "http://MQ_INST_1080056302921134_BXxiFN4R.mq.cn-shenzhen.aliyuncs.com:80";
-            String topic = "lingchu-test-topic";
+            String accessPoint = "ipv4:11.166.42.94:8081";
+            String topic = "lingchu_normal_topic";
             String tag = "tagA";
             byte[] body = "Hello RocketMQ".getBytes(StandardCharsets.UTF_8);
-            String accessKey = "AccessKey";
-            String secretKey = "secretKey";
 
             final ClientServiceProvider provider = ClientServiceProvider.loadService();
             StaticSessionCredentialsProvider staticSessionCredentialsProvider = new StaticSessionCredentialsProvider(accessKey, secretKey);
