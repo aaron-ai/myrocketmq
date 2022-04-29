@@ -22,6 +22,8 @@ public class ProducerExample {
             String topic = "lingchu_normal_topic";
             String tag = "tagA";
             byte[] body = "Hello RocketMQ".getBytes(StandardCharsets.UTF_8);
+            String accessKey = "AccessKey";
+            String secretKey = "SecretKey";
 
             final ClientServiceProvider provider = ClientServiceProvider.loadService();
             StaticSessionCredentialsProvider staticSessionCredentialsProvider = new StaticSessionCredentialsProvider(accessKey, secretKey);

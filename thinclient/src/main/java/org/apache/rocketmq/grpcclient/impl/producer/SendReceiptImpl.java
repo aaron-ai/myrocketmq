@@ -20,6 +20,7 @@ package org.apache.rocketmq.grpcclient.impl.producer;
 import apache.rocketmq.v2.Code;
 import apache.rocketmq.v2.SendMessageResponse;
 import apache.rocketmq.v2.Status;
+import com.google.common.base.MoreObjects;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.rocketmq.apis.MessageQueue;
@@ -73,5 +74,14 @@ public class SendReceiptImpl implements SendReceipt {
             sendReceipts.add(impl);
         }
         return sendReceipts;
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+            .add("messageId", messageId)
+            .add("messageQueue", messageQueue)
+            .add("offset", offset)
+            .toString();
     }
 }

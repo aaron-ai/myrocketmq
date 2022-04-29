@@ -39,6 +39,7 @@ public class Signature {
 
     public static final String SESSION_TOKEN_KEY = "x-mq-session-token";
 
+    public static final String CLIENT_ID = "x-mq-client-id";
     public static final String REQUEST_ID_KEY = "x-mq-request-id";
     public static final String LANGUAGE_KEY = "x-mq-language";
     public static final String CLIENT_VERSION_KEY = "x-mq-client-version";
@@ -53,13 +54,13 @@ public class Signature {
     private Signature() {
     }
 
-    public static Metadata sign(ClientConfiguration config) throws UnsupportedEncodingException,
-            NoSuchAlgorithmException, InvalidKeyException {
+    public static Metadata sign(ClientConfiguration config, String clientId) throws UnsupportedEncodingException,
+        NoSuchAlgorithmException, InvalidKeyException {
         Metadata metadata = new Metadata();
 
         metadata.put(Metadata.Key.of(LANGUAGE_KEY, Metadata.ASCII_STRING_MARSHALLER), "JAVA");
         metadata.put(Metadata.Key.of(PROTOCOL_VERSION, Metadata.ASCII_STRING_MARSHALLER),
-                MixAll.getProtocolVersion());
+            MixAll.getProtocolVersion());
         metadata.put(Metadata.Key.of(CLIENT_VERSION_KEY, Metadata.ASCII_STRING_MARSHALLER), MetadataUtils.getVersion());
 
         String dateTime = new SimpleDateFormat(DATE_TIME_FORMAT).format(new Date());
@@ -68,8 +69,10 @@ public class Signature {
         final String requestId = RequestIdGenerator.getInstance().next();
         metadata.put(Metadata.Key.of(REQUEST_ID_KEY, Metadata.ASCII_STRING_MARSHALLER), requestId);
 
+        metadata.put(Metadata.Key.of(CLIENT_ID, Metadata.ASCII_STRING_MARSHALLER), clientId);
+
         final Optional<SessionCredentialsProvider> optionalSessionCredentialsProvider =
-                config.getCredentialsProvider();
+            config.getCredentialsProvider();
         if (!optionalSessionCredentialsProvider.isPresent()) {
             return metadata;
         }
@@ -81,7 +84,7 @@ public class Signature {
 
         final Optional<String> optionalSecurityToken = credentials.tryGetSecurityToken();
         optionalSecurityToken.ifPresent(s -> metadata.put(Metadata.Key.of(SESSION_TOKEN_KEY,
-                Metadata.ASCII_STRING_MARSHALLER), s));
+            Metadata.ASCII_STRING_MARSHALLER), s));
 
         final String accessKey = credentials.getAccessKey();
         final String accessSecret = credentials.getAccessSecret();
@@ -97,18 +100,18 @@ public class Signature {
         String sign = TLSHelper.sign(accessSecret, dateTime);
 
         final String authorization = ALGORITHM
-                + " "
-                + CREDENTIAL
-                + "="
-                + accessKey
-                + ", "
-                + SIGNED_HEADERS
-                + "="
-                + DATE_TIME_KEY
-                + ", "
-                + SIGNATURE
-                + "="
-                + sign;
+            + " "
+            + CREDENTIAL
+            + "="
+            + accessKey
+            + ", "
+            + SIGNED_HEADERS
+            + "="
+            + DATE_TIME_KEY
+            + ", "
+            + SIGNATURE
+            + "="
+            + sign;
 
         metadata.put(Metadata.Key.of(AUTHORIZATION_KEY, Metadata.ASCII_STRING_MARSHALLER), authorization);
         return metadata;

@@ -82,7 +82,7 @@ public class RpcClientImpl implements RpcClient {
 
         final NettyChannelBuilder channelBuilder =
             NettyChannelBuilder.forTarget(endpoints.getGrpcTarget())
-                .withOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, 3)
+//                .withOption(ChannelOption.CONNECT_TIMEOUT_MILLIS, 3000)
                 .keepAliveTime(KEEP_ALIVE_DURATION.toNanos(), TimeUnit.NANOSECONDS)
                 .maxInboundMessageSize(GRPC_MAX_MESSAGE_SIZE)
                 .intercept(LoggingInterceptor.getInstance())

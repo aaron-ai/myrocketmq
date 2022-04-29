@@ -312,7 +312,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
     }
 
     public Metadata sign() throws UnsupportedEncodingException, NoSuchAlgorithmException, InvalidKeyException {
-        return Signature.sign(clientConfiguration);
+        return Signature.sign(clientConfiguration, clientId);
     }
 
     protected void doHeartbeat(HeartbeatRequest request, final Endpoints endpoints) {
@@ -380,11 +380,6 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
             totalRouteEndpoints.addAll(result.getTopicRouteData().getTotalEndpoints());
         }
         return totalRouteEndpoints;
-    }
-
-    protected boolean endpointsIsUsed(Endpoints endpoints) {
-        final Set<Endpoints> totalRouteEndpoints = getTotalRouteEndpoints();
-        return totalRouteEndpoints.contains(endpoints);
     }
 
     private synchronized Set<Endpoints> updateTopicRouteResultCache(String topic, TopicRouteDataResult newResult) {

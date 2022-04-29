@@ -63,7 +63,16 @@ public class MessageImpl implements Message {
 
     MessageImpl(Message message) {
         this.topic = message.getTopic();
-        this.body = message.getBody().array();
+        if (message instanceof MessageImpl) {
+            MessageImpl impl = (MessageImpl) message;
+            this.body = impl.body;
+        } else {
+            // Should never reach here.
+            final ByteBuffer body = message.getBody();
+            byte[] bytes = new byte[body.remaining()];
+            body.get(bytes);
+            this.body = bytes;
+        }
         this.tag = message.getTag().orElse(null);
         this.messageGroup = message.getMessageGroup().orElse(null);
         this.deliveryTimestamp = message.getDeliveryTimestamp().orElse(null);
