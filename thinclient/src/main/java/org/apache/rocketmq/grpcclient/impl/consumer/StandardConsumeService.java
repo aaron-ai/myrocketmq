@@ -33,6 +33,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import org.apache.rocketmq.apis.consumer.ConsumeResult;
 import org.apache.rocketmq.apis.consumer.MessageListener;
 import org.apache.rocketmq.apis.message.MessageView;
+import org.apache.rocketmq.grpcclient.message.MessageViewImpl;
 import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 
 @SuppressWarnings("NullableProblems")
@@ -52,12 +53,12 @@ public class StandardConsumeService extends ConsumeService {
         boolean dispatched = false;
         // Iterate all process queues to submit consumption task.
         for (ProcessQueue pq : processQueues) {
-            final Optional<MessageView> optionalMessageView = pq.tryTakeFifoMessage();
+            final Optional<MessageViewImpl> optionalMessageView = pq.tryTakeFifoMessage();
             if (!optionalMessageView.isPresent()) {
                 continue;
             }
             dispatched = true;
-            MessageView messageView = optionalMessageView.get();
+            MessageViewImpl messageView = optionalMessageView.get();
             final ListenableFuture<ConsumeResult> future = consume(messageView);
             Futures.addCallback(future, new FutureCallback<ConsumeResult>() {
                 @Override

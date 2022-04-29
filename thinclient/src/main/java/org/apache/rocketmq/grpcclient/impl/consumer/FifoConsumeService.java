@@ -32,7 +32,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import org.apache.rocketmq.apis.consumer.ConsumeResult;
 import org.apache.rocketmq.apis.consumer.MessageListener;
-import org.apache.rocketmq.apis.message.MessageView;
+import org.apache.rocketmq.grpcclient.message.MessageViewImpl;
 import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 
 @SuppressWarnings("NullableProblems")
@@ -50,12 +50,12 @@ public class FifoConsumeService extends ConsumeService {
         Collections.shuffle(processQueues);
         boolean dispatched = false;
         for (final ProcessQueue pq : processQueues) {
-            final Optional<MessageView> optionalMessageView = pq.tryTakeFifoMessage();
+            final Optional<MessageViewImpl> optionalMessageView = pq.tryTakeFifoMessage();
             if (!optionalMessageView.isPresent()) {
                 continue;
             }
             dispatched = true;
-            final MessageView messageView = optionalMessageView.get();
+            final MessageViewImpl messageView = optionalMessageView.get();
             LOGGER.debug("Take fifo message already, messageId={}", messageView.getMessageId());
             final ListenableFuture<ConsumeResult> future = consume(messageView);
             Futures.addCallback(future, new FutureCallback<ConsumeResult>() {

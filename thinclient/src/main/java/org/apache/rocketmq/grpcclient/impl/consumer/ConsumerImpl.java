@@ -17,6 +17,9 @@
 
 package org.apache.rocketmq.grpcclient.impl.consumer;
 
+import apache.rocketmq.v2.AckMessageEntry;
+import apache.rocketmq.v2.AckMessageRequest;
+import apache.rocketmq.v2.AckMessageResponse;
 import apache.rocketmq.v2.HeartbeatRequest;
 import apache.rocketmq.v2.Message;
 import apache.rocketmq.v2.NotifyClientTerminationRequest;
@@ -24,10 +27,13 @@ import apache.rocketmq.v2.ReceiveMessageRequest;
 import apache.rocketmq.v2.ReceiveMessageResponse;
 import apache.rocketmq.v2.Resource;
 import apache.rocketmq.v2.Status;
+import com.google.common.base.Stopwatch;
+import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
+import com.google.rpc.Code;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import io.grpc.Metadata;
@@ -36,6 +42,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 import org.apache.rocketmq.apis.ClientConfiguration;
 import org.apache.rocketmq.apis.message.MessageView;
 import org.apache.rocketmq.grpcclient.consumer.ReceiveMessageResult;
@@ -58,7 +66,7 @@ public abstract class ConsumerImpl extends ClientImpl {
     @SuppressWarnings("SameParameterValue")
     protected ListenableFuture<ReceiveMessageResult> receiveMessage(ReceiveMessageRequest request, MessageQueueImpl mq,
         Duration timeout) {
-        List<MessageView> messages = new ArrayList<>();
+        List<MessageViewImpl> messages = new ArrayList<>();
         final SettableFuture<ReceiveMessageResult> future0 = SettableFuture.create();
         try {
             Metadata metadata = sign();
@@ -88,6 +96,31 @@ public abstract class ConsumerImpl extends ClientImpl {
             future0.setException(t);
             return future0;
         }
+    }
+
+    private AckMessageRequest wrapAckMessageRequest(MessageViewImpl messageView) {
+        final Resource topicResource = Resource.newBuilder().setName(messageView.getTopic()).build();
+        final AckMessageEntry entry = AckMessageEntry.newBuilder()
+            .setMessageId(messageView.getMessageId().toString())
+            .setReceiptHandle(messageView.getReceiptHandle())
+            .build();
+        return AckMessageRequest.newBuilder().setGroup(getProtobufGroup()).setTopic(topicResource)
+            .setGroup(getProtobufGroup()).addEntries(entry).build();
+    }
+
+    public ListenableFuture<AckMessageResponse> ackMessage(MessageViewImpl messageView) {
+        final Endpoints endpoints = messageView.getEndpoints();
+        ListenableFuture<AckMessageResponse> future;
+        try {
+            final AckMessageRequest request = wrapAckMessageRequest(messageView);
+            final Metadata metadata = sign();
+            future = clientManager.ackMessage(endpoints, metadata, request, clientConfiguration.getRequestTimeout());
+        } catch (Throwable t) {
+            final SettableFuture<AckMessageResponse> future0 = SettableFuture.create();
+            future0.setException(t);
+            future = future0;
+        }
+        return future;
     }
 
     @Override

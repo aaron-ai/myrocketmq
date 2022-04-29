@@ -26,6 +26,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.errorprone.annotations.concurrent.GuardedBy;
+import com.sun.istack.internal.NotNull;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import java.time.Duration;
@@ -44,8 +45,10 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.rocketmq.grpcclient.consumer.ReceiveMessageResult;
+import org.apache.rocketmq.grpcclient.message.MessageViewImpl;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
+import org.checkerframework.checker.nullness.qual.NonNull;
 
 /**
  * @see ProcessQueue
@@ -72,14 +75,14 @@ public class ProcessQueueImpl implements ProcessQueue {
      * Messages which is pending means have been cached, but are not taken by consumer dispatcher yet.
      */
     @GuardedBy("pendingMessagesLock")
-    private final List<MessageView> pendingMessages;
+    private final List<MessageViewImpl> pendingMessages;
     private final ReadWriteLock pendingMessagesLock;
 
     /**
      * Message which is in-flight means have been dispatched, but the consumption process is not accomplished.
      */
     @GuardedBy("inflightMessagesLock")
-    private final List<MessageView> inflightMessages;
+    private final List<MessageViewImpl> inflightMessages;
     private final ReadWriteLock inflightMessagesLock;
 
     private final AtomicLong cachedMessagesBytes;
@@ -120,10 +123,10 @@ public class ProcessQueueImpl implements ProcessQueue {
         return true;
     }
 
-    public void cacheMessages(List<MessageView> messageList) {
+    public void cacheMessages(List<MessageViewImpl> messageList) {
         pendingMessagesLock.writeLock().lock();
         try {
-            for (MessageView message : messageList) {
+            for (MessageViewImpl message : messageList) {
                 pendingMessages.add(message);
                 cachedMessagesBytes.addAndGet(message.getBody().remaining());
             }
@@ -271,7 +274,7 @@ public class ProcessQueueImpl implements ProcessQueue {
 
     private void onReceiveMessageResult(ReceiveMessageResult result) {
         Optional<Status> status = result.getStatus();
-        final List<MessageView> messages = result.getMessages();
+        final List<MessageViewImpl> messages = result.getMessages();
         final Endpoints endpoints = result.getEndpoints();
         if (!status.isPresent()) {
             // Should not reach here.
@@ -303,15 +306,15 @@ public class ProcessQueueImpl implements ProcessQueue {
     }
 
     @Override
-    public Optional<MessageView> tryTakeMessage() {
+    public Optional<MessageViewImpl> tryTakeMessage() {
         pendingMessagesLock.writeLock().lock();
         inflightMessagesLock.writeLock().lock();
         try {
-            final Optional<MessageView> first = pendingMessages.stream().findFirst();
+            final Optional<MessageViewImpl> first = pendingMessages.stream().findFirst();
             if (!first.isPresent()) {
                 return first;
             }
-            final MessageView messageView = first.get();
+            final MessageViewImpl messageView = first.get();
             inflightMessages.add(messageView);
             pendingMessages.remove(messageView);
             return first;
@@ -321,13 +324,11 @@ public class ProcessQueueImpl implements ProcessQueue {
         }
     }
 
-    private void eraseMessages(List<MessageView> messageViews) {
+    private void eraseMessages(MessageViewImpl messageView) {
         inflightMessagesLock.writeLock().lock();
         try {
-            for (MessageView messageView : messageViews) {
-                if (inflightMessages.remove(messageView)) {
-                    cachedMessagesBytes.addAndGet(-messageView.getBody().remaining());
-                }
+            if (inflightMessages.remove(messageView)) {
+                cachedMessagesBytes.addAndGet(-messageView.getBody().remaining());
             }
         } finally {
             inflightMessagesLock.writeLock().unlock();
@@ -335,16 +336,20 @@ public class ProcessQueueImpl implements ProcessQueue {
     }
 
     @Override
-    public void eraseMessage(MessageView messageView, ConsumeResult consumeResult) {
+    public void eraseMessage(MessageViewImpl messageView, ConsumeResult consumeResult) {
+        eraseMessages(messageView);
+        if (ConsumeResult.OK.equals(consumeResult)) {
+
+        }
     }
 
     @Override
-    public Optional<MessageView> tryTakeFifoMessage() {
+    public Optional<MessageViewImpl> tryTakeFifoMessage() {
         return Optional.empty();
     }
 
     @Override
-    public void eraseFifoMessage(MessageView message, ConsumeResult consumeResult) {
+    public void eraseFifoMessage(MessageViewImpl messageView, ConsumeResult consumeResult) {
     }
 
     @Override

@@ -18,12 +18,11 @@
 package org.apache.rocketmq.grpcclient.impl.consumer;
 
 import java.util.Collection;
-import org.apache.rocketmq.apis.MessageQueue;
 import org.apache.rocketmq.apis.consumer.ConsumeResult;
 import org.apache.rocketmq.apis.message.MessageView;
 
-import java.util.List;
 import java.util.Optional;
+import org.apache.rocketmq.grpcclient.message.MessageViewImpl;
 import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 
 /**
@@ -94,7 +93,7 @@ public interface ProcessQueue {
      * @param batchMaxSize max batch size to take messages.
      * @return messages which have been taken.
      */
-    Optional<MessageView> tryTakeMessage();
+    Optional<MessageViewImpl> tryTakeMessage();
 
     /**
      * Erase messages which haven been taken except FIFO messages.
@@ -102,14 +101,14 @@ public interface ProcessQueue {
      * @param messageList messages to erase.
      * @param status      consume status.
      */
-    void eraseMessage(MessageView messageView, ConsumeResult consumeResult);
+    void eraseMessage(MessageViewImpl messageView, ConsumeResult consumeResult);
 
     /**
      * Try to take a FIFO message from cache.
      *
      * @return message which has been taken, or {@link Optional#empty()} ()} if no message.
      */
-    Optional<MessageView> tryTakeFifoMessage();
+    Optional<MessageViewImpl> tryTakeFifoMessage();
 
     /**
      * Erase FIFO message which has been taken.
@@ -117,7 +116,7 @@ public interface ProcessQueue {
      * @param message message to erase.
      * @param status  consume status.
      */
-    void eraseFifoMessage(MessageView messageView, ConsumeResult consumeResult);
+    void eraseFifoMessage(MessageViewImpl messageView, ConsumeResult consumeResult);
 
     /**
      * Do some stats.

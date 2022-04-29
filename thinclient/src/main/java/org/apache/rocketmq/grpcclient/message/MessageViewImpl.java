@@ -37,6 +37,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
+import org.apache.rocketmq.grpcclient.route.Endpoints;
 import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 import org.apache.rocketmq.grpcclient.utility.UtilAll;
 
@@ -57,12 +58,14 @@ public class MessageViewImpl implements MessageView {
     private final long bornTimestamp;
     private final int deliveryAttempt;
     private final MessageQueueImpl messageQueue;
+    private final Endpoints endpoints;
+    private final String receiptHandle;
     private final long offset;
     private final boolean corrupted;
 
     public MessageViewImpl(MessageId messageId, String topic, byte[] body, String tag, String messageGroup,
         Long deliveryTimestamp, Collection<String> keys, Map<String, String> properties,
-        String bornHost, long bornTimestamp, int deliveryAttempt, MessageQueueImpl messageQueue,
+        String bornHost, long bornTimestamp, int deliveryAttempt, MessageQueueImpl messageQueue, String receiptHandle,
         long offset, boolean corrupted) {
         this.messageId = checkNotNull(messageId, "messageId should not be null");
         this.topic = checkNotNull(topic, "topic should not be null");
@@ -76,6 +79,8 @@ public class MessageViewImpl implements MessageView {
         this.bornTimestamp = bornTimestamp;
         this.deliveryAttempt = deliveryAttempt;
         this.messageQueue = checkNotNull(messageQueue, "messageQueue should not be null");
+        this.endpoints = messageQueue.getBroker().getEndpoints();
+        this.receiptHandle = receiptHandle;
         this.offset = offset;
         this.corrupted = corrupted;
     }
@@ -176,6 +181,14 @@ public class MessageViewImpl implements MessageView {
         return messageQueue;
     }
 
+    public Endpoints getEndpoints() {
+        return endpoints;
+    }
+
+    public String getReceiptHandle() {
+        return receiptHandle;
+    }
+
     /**
      * @see MessageView#getOffset()
      */
@@ -256,6 +269,7 @@ public class MessageViewImpl implements MessageView {
         final int deliveryAttempt = systemProperties.getDeliveryAttempt();
         final long offset = systemProperties.getQueueOffset();
         final Map<String, String> properties = message.getUserPropertiesMap();
-        return new MessageViewImpl(messageId, topic, body, tag, messageGroup, deliveryTimestamp, keys, properties, bornHost, bornTimestamp, deliveryAttempt, mq, offset, corrupted);
+        final String receiptHandle = systemProperties.getReceiptHandle();
+        return new MessageViewImpl(messageId, topic, body, tag, messageGroup, deliveryTimestamp, keys, properties, bornHost, bornTimestamp, deliveryAttempt, mq, receiptHandle, offset, corrupted);
     }
 }
