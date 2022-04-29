@@ -100,7 +100,7 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
         int maxCacheMessageCount, int maxCacheMessageSizeInBytes, int consumptionThreadCount) {
         super(clientConfiguration, consumerGroup, subscriptionExpressions.keySet());
         this.clientConfiguration = clientConfiguration;
-        Resource groupResource = new Resource(namespace, consumerGroup);
+        Resource groupResource = new Resource(consumerGroup);
         this.pushConsumerSettings = new PushConsumerSettings(clientId, accessEndpoints, groupResource, clientConfiguration.getRequestTimeout(), subscriptionExpressions);
         this.consumerGroup = consumerGroup;
         this.subscriptionExpressions = subscriptionExpressions;
@@ -198,7 +198,7 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
     }
 
     private QueryAssignmentRequest wrapQueryAssignmentRequest(String topic) {
-        apache.rocketmq.v2.Resource topicResource = apache.rocketmq.v2.Resource.newBuilder().setResourceNamespace(namespace).setName(topic).build();
+        apache.rocketmq.v2.Resource topicResource = apache.rocketmq.v2.Resource.newBuilder().setName(topic).build();
         return QueryAssignmentRequest.newBuilder().setTopic(topicResource)
             .setGroup(getProtobufGroup()).build();
     }
@@ -278,15 +278,13 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
             }
 
             if (!latest.contains(mq)) {
-                LOGGER.info("Drop message queue according to the latest assignmentList, namespace={}, mq={}, clientId={}",
-                    namespace, mq, clientId);
+                LOGGER.info("Drop message queue according to the latest assignmentList, mq={}, clientId={}", mq, clientId);
                 dropProcessQueue(mq);
                 continue;
             }
 
             if (pq.expired()) {
-                LOGGER.warn("Drop message queue because it is expired, namespace={}, mq={}, clientId={}", namespace, mq,
-                    clientId);
+                LOGGER.warn("Drop message queue because it is expired, mq={}, clientId={}", mq, clientId);
                 dropProcessQueue(mq);
                 continue;
             }
@@ -296,7 +294,7 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
         for (MessageQueueImpl mq : latest) {
             if (!activeMqs.contains(mq)) {
                 final ProcessQueue pq = getProcessQueue(mq, filterExpression);
-                LOGGER.info("Start to fetch message from remote, namespace={}, mq={}, clientId={}", namespace, mq, clientId);
+                LOGGER.info("Start to fetch message from remote, mq={}, clientId={}", mq, clientId);
                 pq.fetchMessageImmediately();
             }
         }
@@ -315,17 +313,15 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
                     public void onSuccess(Assignments latest) {
                         if (latest.getAssignmentList().isEmpty()) {
                             if (null == existed || existed.getAssignmentList().isEmpty()) {
-                                LOGGER.info("Acquired empty assignments from remote, would scan later, namespace={}, "
-                                    + "topic={}, clientId={}", namespace, topic, clientId);
+                                LOGGER.info("Acquired empty assignments from remote, would scan later, topic={}, clientId={}", topic, clientId);
                                 return;
                             }
                             LOGGER.info("Attention!!! acquired empty assignments from remote, but existed assignments is "
-                                + "not empty, namespace={}, topic={}, clientId={}", namespace, topic, clientId);
+                                + "not empty, topic={}, clientId={}", topic, clientId);
                         }
 
                         if (!latest.equals(existed)) {
-                            LOGGER.info("Assignments of topic={}[namespace={}] has changed, {} => {}, clientId={}", topic,
-                                namespace, existed, latest, clientId);
+                            LOGGER.info("Assignments of topic={} has changed, {} => {}, clientId={}", topic, existed, latest, clientId);
                             synchronizeProcessQueue(topic, latest, filterExpression);
                             cacheAssignments.put(topic, latest);
                             return;
@@ -337,8 +333,7 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
                     @SuppressWarnings("NullableProblems")
                     @Override
                     public void onFailure(Throwable t) {
-                        LOGGER.error("Exception raised while scanning the assignments, namespace={}, topic={}, "
-                            + "clientId={}", namespace, topic, clientId, t);
+                        LOGGER.error("Exception raised while scanning the assignments, topic={}, clientId={}", topic, clientId, t);
                     }
                 }, MoreExecutors.directExecutor());
             }

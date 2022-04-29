@@ -52,7 +52,7 @@ public class SimpleConsumerImpl extends ConsumerImpl implements SimpleConsumer {
         Map<String, FilterExpression> subscriptionExpressions) {
         super(clientConfiguration, consumerGroup, subscriptionExpressions.keySet());
         this.clientConfiguration = clientConfiguration;
-        Resource groupResource = new Resource(namespace, consumerGroup);
+        Resource groupResource = new Resource(consumerGroup);
         this.simpleConsumerSettings = new SimpleConsumerSettings(clientId, accessEndpoints, groupResource, clientConfiguration.getRequestTimeout(), awaitDuration, subscriptionExpressions);
         this.consumerGroup = consumerGroup;
         this.awaitDuration = awaitDuration;

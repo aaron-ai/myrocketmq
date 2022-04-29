@@ -56,7 +56,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.apis.ClientConfiguration;
 import org.apache.rocketmq.apis.exception.ResourceNotFoundException;
 import org.apache.rocketmq.apis.exception.TelemetryException;
@@ -85,7 +84,6 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
 
     private static final Duration AWAIT_SETTINGS_APPLIED_DURATION = Duration.ofSeconds(30);
 
-    protected final String namespace = StringUtils.EMPTY;
     protected volatile ClientManager clientManager;
     protected final ClientConfiguration clientConfiguration;
     protected final Endpoints accessEndpoints;
@@ -160,7 +158,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
     protected void startUp() throws Exception {
         LOGGER.info("Begin to start the rocketmq client, clientId={}", clientId);
         // Register client after client id generation.
-        this.clientManager = ClientManagerFactory.getInstance().registerClient(namespace, this);
+        this.clientManager = ClientManagerRegistry.registerClient(this);
         final ScheduledExecutorService scheduler = clientManager.getScheduler();
         // Fetch topic route from remote.
         LOGGER.info("Begin to fetch topic route data from remote during startup, clientId={}", clientId);
@@ -272,7 +270,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         if (null != this.updateRouteCacheFuture) {
             updateRouteCacheFuture.cancel(false);
         }
-        ClientManagerFactory.getInstance().unregisterClient(namespace, this);
+        ClientManagerRegistry.unregisterClient(this);
         LOGGER.info("Shutdown the rocketmq client, clientId={}", clientId);
     }
 
@@ -352,7 +350,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
     private ListenableFuture<TopicRouteDataResult> fetchTopicRoute(final String topic) {
         final SettableFuture<TopicRouteDataResult> future = SettableFuture.create();
         try {
-            Resource topicResource = Resource.newBuilder().setResourceNamespace(namespace).setName(topic).build();
+            Resource topicResource = Resource.newBuilder().setName(topic).build();
             final QueryRouteRequest request = QueryRouteRequest.newBuilder().setTopic(topicResource)
                 .setEndpoints(accessEndpoints.toProtobuf()).build();
             final Metadata metadata = sign();
@@ -362,8 +360,8 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
                 final Status status = response.getStatus();
                 final Code code = status.getCode();
                 if (Code.OK != code) {
-                    LOGGER.error("Exception raised while fetch topic route from remote, namespace={}, topic={}, " +
-                            "clientId={}, accessPoint={}, code={}, status message=[{}]", namespace, topic, clientId,
+                    LOGGER.error("Exception raised while fetch topic route from remote, topic={}, " +
+                            "clientId={}, accessPoint={}, code={}, status message=[{}]", topic, clientId,
                         accessEndpoints, code, status.getMessage());
                 }
                 return new TopicRouteDataResult(new TopicRouteData(response.getMessageQueuesList()), status);
@@ -386,11 +384,10 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         final Set<Endpoints> before = getTotalRouteEndpoints();
         final TopicRouteDataResult oldResult = topicRouteResultCache.put(topic, newResult);
         if (newResult.equals(oldResult)) {
-            LOGGER.info("Topic route result remains the same, namespace={}, topic={}, clientId={}", namespace, topic,
+            LOGGER.info("Topic route result remains the same, topic={}, clientId={}", topic,
                 clientId);
         } else {
-            LOGGER.info("Topic route is updated, namespace={}, topic={}, clientId={}, {} => {}", namespace, topic,
-                clientId, oldResult, newResult);
+            LOGGER.info("Topic route is updated, topic={}, clientId={}, {} => {}", topic, clientId, oldResult, newResult);
         }
         final Set<Endpoints> after = getTotalRouteEndpoints();
         return new HashSet<>(Sets.difference(after, before));
@@ -447,19 +444,17 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
                         inflightRouteFutureTable.remove(topic);
                     if (null == newFutureSet) {
                         // Should never reach here.
-                        LOGGER.error("[Bug] in-flight route futures was empty, namespace={}, topic={}, clientId={}",
-                            namespace, topic, clientId);
+                        LOGGER.error("[Bug] in-flight route futures was empty, topic={}, clientId={}", topic, clientId);
                         return;
                     }
-                    LOGGER.debug("Fetch topic route successfully, namespace={}, topic={}, in-flight route future "
-                        + "size={}, clientId={}", namespace, topic, newFutureSet.size(), clientId);
+                    LOGGER.debug("Fetch topic route successfully, topic={}, in-flight route future "
+                        + "size={}, clientId={}", topic, newFutureSet.size(), clientId);
                     for (SettableFuture<TopicRouteDataResult> newFuture : newFutureSet) {
                         newFuture.set(result);
                     }
                 } catch (Throwable t) {
                     // Should never reach here.
-                    LOGGER.error("[Bug] Exception raised while update route data, namespace={}, topic={}, " +
-                        "clientId={}", namespace, topic, clientId, t);
+                    LOGGER.error("[Bug] Exception raised while update route data, topic={}, clientId={}", topic, clientId, t);
                 } finally {
                     inflightRouteFutureLock.unlock();
                 }
@@ -473,12 +468,11 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
                         inflightRouteFutureTable.remove(topic);
                     if (null == newFutureSet) {
                         // Should never reach here.
-                        LOGGER.error("[Bug] in-flight route futures was empty, namespace={}, topic={}, clientId={}",
-                            namespace, topic, clientId);
+                        LOGGER.error("[Bug] in-flight route futures was empty, topic={}, clientId={}", topic, clientId);
                         return;
                     }
-                    LOGGER.error("Failed to fetch topic route, namespace={}, topic={}, in-flight route future " +
-                        "size={}, clientId={}", namespace, topic, newFutureSet.size(), clientId, t);
+                    LOGGER.error("Failed to fetch topic route, topic={}, in-flight route future " +
+                        "size={}, clientId={}", topic, newFutureSet.size(), clientId, t);
                     for (SettableFuture<TopicRouteDataResult> future : newFutureSet) {
                         future.setException(t);
                     }
@@ -488,10 +482,6 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
             }
         }, MoreExecutors.directExecutor());
         return future0;
-    }
-
-    public String getNamespace() {
-        return namespace;
     }
 
     public ScheduledExecutorService getScheduler() {

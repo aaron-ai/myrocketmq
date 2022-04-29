@@ -47,16 +47,14 @@ public class PublishingMessageImpl extends MessageImpl {
      */
     private static final int MESSAGE_GZIP_COMPRESSION_LEVEL = 5;
 
-    private final String namespace;
     private final Encoding encoding;
     private final ByteBuffer compressedBody;
     private final MessageId messageId;
     private final MessageType messageType;
     private volatile String traceContext;
 
-    public PublishingMessageImpl(String namespace, Message message, boolean txEnabled) throws IOException {
+    public PublishingMessageImpl(Message message, boolean txEnabled) throws IOException {
         super(message);
-        this.namespace = namespace;
         this.traceContext = null;
         final int length = message.getBody().remaining();
         // Message body length exceeds the compression threshold, try to compress it.
@@ -154,7 +152,7 @@ public class PublishingMessageImpl extends MessageImpl {
         // Trace context
         this.getTraceContext().ifPresent(systemPropertiesBuilder::setTraceContext);
         final SystemProperties systemProperties = systemPropertiesBuilder.build();
-        Resource topicResource = Resource.newBuilder().setResourceNamespace(namespace).setName(getTopic()).build();
+        Resource topicResource = Resource.newBuilder().setName(getTopic()).build();
         return apache.rocketmq.v2.Message.newBuilder()
             // Topic
             .setTopic(topicResource)

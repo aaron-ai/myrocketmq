@@ -96,7 +96,7 @@ public abstract class ConsumerImpl extends ClientImpl {
     }
 
     protected Resource getProtobufGroup() {
-        return Resource.newBuilder().setResourceNamespace(namespace).setName(consumerGroup).build();
+        return Resource.newBuilder().setName(consumerGroup).build();
     }
 
     @Override

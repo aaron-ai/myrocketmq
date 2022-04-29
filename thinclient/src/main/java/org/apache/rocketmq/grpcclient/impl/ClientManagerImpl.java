@@ -80,10 +80,6 @@ public class ClientManagerImpl extends AbstractIdleService implements ClientMana
     public static final Duration ANNOUNCE_SETTINGS_PERIOD = Duration.ofSeconds(15);
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientManagerImpl.class);
-    /**
-     * Client manager id.
-     */
-    private final String id;
 
     @GuardedBy("rpcClientTableLock")
     private final Map<Endpoints, RpcClient> rpcClientTable;
@@ -104,9 +100,7 @@ public class ClientManagerImpl extends AbstractIdleService implements ClientMana
      */
     private final ExecutorService asyncWorker;
 
-    public ClientManagerImpl(String id) {
-        this.id = id;
-
+    public ClientManagerImpl() {
         this.rpcClientTable = new HashMap<>();
         this.rpcClientTableLock = new ReentrantReadWriteLock();
 
@@ -183,8 +177,8 @@ public class ClientManagerImpl extends AbstractIdleService implements ClientMana
     }
 
     private void doStats() {
-        LOGGER.info("Start to log stats for a new round, clientVersion={}, clientWrapperVersion={}, clientManagerId={}",
-            MetadataUtils.getVersion(), MetadataUtils.getWrapperVersion(), id);
+        LOGGER.info("Start to log stats for a new round, clientVersion={}, clientWrapperVersion={}",
+            MetadataUtils.getVersion(), MetadataUtils.getWrapperVersion());
         for (Client client : clientTable.values()) {
             client.doStats();
         }
@@ -383,7 +377,7 @@ public class ClientManagerImpl extends AbstractIdleService implements ClientMana
 
     @Override
     protected void startUp() {
-        LOGGER.info("Begin to start the client manager, client manager id={}", id);
+        LOGGER.info("Begin to start the client manager.");
         scheduler.scheduleWithFixedDelay(
             () -> {
                 try {
@@ -433,18 +427,18 @@ public class ClientManagerImpl extends AbstractIdleService implements ClientMana
             ANNOUNCE_SETTINGS_PERIOD.getSeconds(),
             TimeUnit.SECONDS
         );
-        LOGGER.info("The client manager starts successfully, client manager id={}", id);
+        LOGGER.info("The client manager starts successfully.");
     }
 
     @Override
     protected void shutDown() throws IOException {
-        LOGGER.info("Begin to shutdown the client manager, client manger id={}", id);
+        LOGGER.info("Begin to shutdown the client manager.");
         scheduler.shutdown();
         try {
             if (!ExecutorServices.awaitTerminated(scheduler)) {
-                LOGGER.error("[Bug] Timeout to shutdown the client scheduler, client manager id={}", id);
+                LOGGER.error("[Bug] Timeout to shutdown the client scheduler");
             } else {
-                LOGGER.info("Shutdown the client scheduler successfully, client manager id={}", id);
+                LOGGER.info("Shutdown the client scheduler successfully, client manager id={}");
             }
             rpcClientTableLock.writeLock().lock();
             try {
@@ -458,17 +452,17 @@ public class ClientManagerImpl extends AbstractIdleService implements ClientMana
             } finally {
                 rpcClientTableLock.writeLock().unlock();
             }
-            LOGGER.info("Shutdown all rpc client(s) successfully, client manager id={}", id);
+            LOGGER.info("Shutdown all rpc client(s) successfully.");
             asyncWorker.shutdown();
             if (!ExecutorServices.awaitTerminated(asyncWorker)) {
-                LOGGER.error("[Bug] Timeout to shutdown the client async worker, client manager id={}", id);
+                LOGGER.error("[Bug] Timeout to shutdown the client async worker.");
             } else {
-                LOGGER.info("Shutdown the client async worker successfully, client manager id={}", id);
+                LOGGER.info("Shutdown the client async worker successfully.");
             }
         } catch (InterruptedException e) {
-            LOGGER.error("[Bug] Unexpected exception raised while shutdown client manager, client manager id={}", id, e);
+            LOGGER.error("[Bug] Unexpected exception raised while shutdown client manager.", e);
             throw new IOException(e);
         }
-        LOGGER.info("Shutdown the client manager successfully, client manager id={}", id);
+        LOGGER.info("Shutdown the client manager successfully.");
     }
 }

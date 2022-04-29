@@ -115,8 +115,8 @@ public class ProcessQueueImpl implements ProcessQueue {
             return false;
         }
 
-        LOGGER.warn("Process queue is idle, idle duration={}, max idle time={}ms, namespace={}, mq={}, "
-            + "clientId={}", idleDuration, MAX_IDLE_DURATION, consumer.getNamespace(), mq, consumer.getClientId());
+        LOGGER.warn("Process queue is idle, idle duration={}, max idle time={}ms, mq={}, "
+            + "clientId={}", idleDuration, MAX_IDLE_DURATION, mq, consumer.getClientId());
         return true;
     }
 
@@ -183,21 +183,18 @@ public class ProcessQueueImpl implements ProcessQueue {
                 return;
             }
             // Should never reach here.
-            LOGGER.error("[Bug] Failed to schedule receive message request, namespace={}, mq={}, clientId={}",
-                consumer.getNamespace(), mq, consumer.getClientId(), t);
+            LOGGER.error("[Bug] Failed to schedule receive message request, namespace={}, mq={}, clientId={}", mq, consumer.getClientId(), t);
             receiveMessageLater();
         }
     }
 
     public void receiveMessage() {
         if (dropped) {
-            LOGGER.info("Process queue has been dropped, no longer receive message, namespace={}, mq={}, clientId={}",
-                consumer.getNamespace(), mq, consumer.getClientId());
+            LOGGER.info("Process queue has been dropped, no longer receive message, namespace={}, mq={}, clientId={}", mq, consumer.getClientId());
             return;
         }
         if (this.isCacheFull()) {
-            LOGGER.warn("Process queue cache is full, would receive message later, namespace={}, mq={}, clientId={}",
-                consumer.getNamespace(), mq, consumer.getClientId());
+            LOGGER.warn("Process queue cache is full, would receive message later, namespace={}, mq={}, clientId={}", mq, consumer.getClientId());
             receiveMessageLater();
             return;
         }
@@ -219,8 +216,7 @@ public class ProcessQueueImpl implements ProcessQueue {
                     } catch (Throwable t) {
                         // Should never reach here.
                         LOGGER.error("[Bug] Exception raised while handling receive result, would receive later, "
-                                + "namespace={}, mq={}, endpoints={}, clientId={}", consumer.getNamespace(), mq,
-                            endpoints, consumer.getClientId(), t);
+                            + "namespace={}, mq={}, endpoints={}, clientId={}", mq, endpoints, consumer.getClientId(), t);
                         receiveMessageLater();
                     }
                 }
@@ -228,15 +224,13 @@ public class ProcessQueueImpl implements ProcessQueue {
                 @Override
                 public void onFailure(Throwable t) {
                     LOGGER.error("Exception raised while message reception, would receive later, namespace={}, mq={}, "
-                            + "endpoints={}, clientId={}", consumer.getNamespace(), mq, endpoints,
-                        consumer.getClientId(), t);
+                        + "endpoints={}, clientId={}", mq, endpoints, consumer.getClientId(), t);
                     receiveMessageLater();
                 }
             }, MoreExecutors.directExecutor());
             consumer.getReceptionTimes().getAndIncrement();
         } catch (Throwable t) {
-            LOGGER.error("Exception raised while message reception, would receive later, namespace={}, mq={}, clientId={}",
-                consumer.getNamespace(), mq, consumer.getClientId(), t);
+            LOGGER.error("Exception raised while message reception, would receive later, mq={}, clientId={}", mq, consumer.getClientId(), t);
             receiveMessageLater();
         }
     }
@@ -245,17 +239,16 @@ public class ProcessQueueImpl implements ProcessQueue {
         final int cacheMessageCountThresholdPerQueue = consumer.cacheMessageCountThresholdPerQueue();
         final long actualMessagesQuantity = this.cachedMessagesCount();
         if (cacheMessageCountThresholdPerQueue <= actualMessagesQuantity) {
-            LOGGER.warn("Process queue total cached messages quantity exceeds the threshold, threshold={}, actual={}, "
-                    + "namespace={}, mq={}, clientId={}", cacheMessageCountThresholdPerQueue,
-                actualMessagesQuantity, consumer.getNamespace(), mq, consumer.getClientId());
+            LOGGER.warn("Process queue total cached messages quantity exceeds the threshold, threshold={}, actual={}, mq={}, clientId={}", cacheMessageCountThresholdPerQueue,
+                actualMessagesQuantity, mq, consumer.getClientId());
             return true;
         }
         final int cacheMessageBytesThresholdPerQueue = consumer.cacheMessageBytesThresholdPerQueue();
         final long actualCachedMessagesBytes = this.cachedMessageBytes();
         if (cacheMessageBytesThresholdPerQueue <= actualCachedMessagesBytes) {
             LOGGER.warn("Process queue total cached messages memory exceeds the threshold, threshold={} bytes, actual={} "
-                    + "bytes, namespace={}, mq={}, clientId={}", cacheMessageBytesThresholdPerQueue,
-                actualCachedMessagesBytes, consumer.getNamespace(), mq, consumer.getClientId());
+                    + "bytes, mq={}, clientId={}", cacheMessageBytesThresholdPerQueue,
+                actualCachedMessagesBytes, mq, consumer.getClientId());
             return true;
         }
         return false;
@@ -282,12 +275,12 @@ public class ProcessQueueImpl implements ProcessQueue {
         final Endpoints endpoints = result.getEndpoints();
         if (!status.isPresent()) {
             // Should not reach here.
-            LOGGER.error("[Bug] Status in receive message result is not set, namespace={}, mq={}, endpoints={}", consumer.getNamespace(), mq, endpoints);
+            LOGGER.error("[Bug] Status in receive message result is not set, mq={}, endpoints={}", mq, endpoints);
             if (messages.isEmpty()) {
                 receiveMessage();
             }
             status = Optional.of(Status.newBuilder().setCode(Code.OK).build());
-            LOGGER.error("[Bug] Status not set but message(s) found in the receive result, fix the status to OK, namespace={}, mq={}, endpoints={}", consumer.getNamespace(), mq, endpoints);
+            LOGGER.error("[Bug] Status not set but message(s) found in the receive result, fix the status to OK, mq={}, endpoints={}", mq, endpoints);
         }
         final Code code = status.get().getCode();
         switch (code) {
@@ -297,7 +290,7 @@ public class ProcessQueueImpl implements ProcessQueue {
                     consumer.getReceivedMessagesQuantity().getAndAdd(messages.size());
                     consumer.getConsumeService().signal();
                 }
-                LOGGER.debug("Receive message with OK, namespace={}, mq={}, endpoints={}, messages found count={}, clientId={}", consumer.getNamespace(), mq, endpoints, messages.size(), consumer.getClientId());
+                LOGGER.debug("Receive message with OK, mq={}, endpoints={}, messages found count={}, clientId={}", mq, endpoints, messages.size(), consumer.getClientId());
                 receiveMessage();
                 break;
             // Fall through on purpose.

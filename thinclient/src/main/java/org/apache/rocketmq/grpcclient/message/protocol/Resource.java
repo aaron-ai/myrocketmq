@@ -19,6 +19,7 @@ package org.apache.rocketmq.grpcclient.message.protocol;
 
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
+import org.apache.commons.lang3.StringUtils;
 
 public class Resource {
     private String namespace;
@@ -26,6 +27,11 @@ public class Resource {
 
     public Resource(String namespace, String name) {
         this.namespace = namespace;
+        this.name = name;
+    }
+
+    public Resource(String name) {
+        this.namespace = StringUtils.EMPTY;
         this.name = name;
     }
 

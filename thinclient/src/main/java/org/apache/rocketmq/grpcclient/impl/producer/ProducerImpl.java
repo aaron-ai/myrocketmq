@@ -98,7 +98,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
     ProducerImpl(ClientConfiguration clientConfiguration, Set<String> topics, int sendAsyncThreadCount,
         ExponentialBackoffRetryPolicy retryPolicy, TransactionChecker checker) {
         super(clientConfiguration, topics);
-        this.producerSettings = new ProducerSettings(clientId, accessEndpoints, retryPolicy, clientConfiguration.getRequestTimeout(), topics.stream().map(topic -> new Resource(namespace, topic)).collect(Collectors.toSet()));
+        this.producerSettings = new ProducerSettings(clientId, accessEndpoints, retryPolicy, clientConfiguration.getRequestTimeout(), topics.stream().map(Resource::new).collect(Collectors.toSet()));
         this.sendAsyncThreadCount = sendAsyncThreadCount;
         this.retryPolicy = retryPolicy;
         this.checker = checker;
@@ -271,11 +271,10 @@ public class ProducerImpl extends ClientImpl implements Producer {
         List<PublishingMessageImpl> pubMessages = new ArrayList<>();
         for (Message message : messages) {
             try {
-                pubMessages.add(new PublishingMessageImpl(namespace, message, txEnabled));
+                pubMessages.add(new PublishingMessageImpl(message, txEnabled));
             } catch (Throwable t) {
                 // Failed to refine message, no need to proceed.
-                LOGGER.error("Failed to refine message, namespace={}, clientId={}, message={}", namespace, clientId,
-                    message, t);
+                LOGGER.error("Failed to refine message, clientId={}, message={}", clientId, message, t);
                 future.setException(t);
                 return future;
             }
@@ -369,8 +368,8 @@ public class ProducerImpl extends ClientImpl implements Producer {
                     for (SendReceipt receipt : sendReceipts) {
                         messageIds.add(receipt.getMessageId());
                     }
-                    LOGGER.info("Resend message successfully, namespace={}, topic={}, messageId(s)={}, maxAttempts={}, "
-                            + "attempt={}, endpoints={}, clientId={}", namespace, topic, messageIds, maxAttempts, attempt,
+                    LOGGER.info("Resend message successfully, topic={}, messageId(s)={}, maxAttempts={}, "
+                            + "attempt={}, endpoints={}, clientId={}", topic, messageIds, maxAttempts, attempt,
                         endpoints, clientId);
                 }
                 // Send message(s) successfully on first attempt, return directly.
@@ -389,25 +388,22 @@ public class ProducerImpl extends ClientImpl implements Producer {
                     // No need more attempts.
                     future.setException(t);
                     LOGGER.error("Failed to send message(s) finally, run out of attempt times, maxAttempts={}, " +
-                            "attempt={}, namespace={}, topic={}, messageId(s)={}, endpoints={}, clientId={}",
-                        maxAttempts, attempt, namespace, topic, messageIds, endpoints, clientId, t);
+                            "attempt={}, topic={}, messageId(s)={}, endpoints={}, clientId={}",
+                        maxAttempts, attempt, topic, messageIds, endpoints, clientId, t);
                     return;
                 }
                 // No need more attempts for transactional message.
                 if (MessageType.TRANSACTION.equals(messageType)) {
                     future.setException(t);
                     LOGGER.error("Failed to send transactional message finally, maxAttempts=1, attempt={}, " +
-                            "namespace={}, topic={}, messageId(s), endpoints={}, clientId={}", attempt, namespace,
-                        topic, messageIds,
-                        endpoints, clientId, t);
+                        "topic={}, messageId(s), endpoints={}, clientId={}", attempt, topic, messageIds, endpoints, clientId, t);
                     return;
                 }
                 // Try to do more attempts.
                 int nextAttempt = 1 + attempt;
                 final Duration delay = retryPolicy.getNextAttemptDelay(nextAttempt);
                 LOGGER.warn("Failed to send message, would attempt to resend after {}, maxAttempts={}, "
-                        + "attempt={}, namespace={}, topic={}, messageId(s)={}, endpoints={}, clientId={}", delay,
-                    maxAttempts, attempt, namespace, topic, messageIds, endpoints, clientId, t);
+                    + "attempt={}, topic={}, messageId(s)={}, endpoints={}, clientId={}", delay, maxAttempts, attempt, topic, messageIds, endpoints, clientId, t);
                 clientManager.getScheduler().schedule(() -> send0(future, topic, messageType, candidates, messages, nextAttempt),
                     delay.toNanos(), TimeUnit.NANOSECONDS);
             }
