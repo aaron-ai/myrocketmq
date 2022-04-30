@@ -195,13 +195,11 @@ public class ProcessQueueImpl implements ProcessQueue {
 
     public void receiveMessage() {
         if (dropped) {
-            LOGGER.info("Process queue has been dropped, no longer receive message, mq={}, clientId={}"
-                , mq, consumer.getClientId());
+            LOGGER.info("Process queue has been dropped, no longer receive message, mq={}, clientId={}", mq, consumer.getClientId());
             return;
         }
         if (this.isCacheFull()) {
-            LOGGER.warn("Process queue cache is full, would receive message later, mq={}, clientId={}",
-                mq, consumer.getClientId());
+            LOGGER.warn("Process queue cache is full, would receive message later, mq={}, clientId={}", mq, consumer.getClientId());
             receiveMessageLater();
             return;
         }
@@ -533,8 +531,7 @@ public class ProcessQueueImpl implements ProcessQueue {
             @Override
             public void onFailure(Throwable t) {
                 LOGGER.error("Exception raised while ack fifo message, clientId={}, would attempt to re-ack later, "
-                        + "attempt={}, messageId={}, mq={}, endpoints={}", clientId, attempt,
-                    messageView.getMessageId(), mq, endpoints, t);
+                    + "attempt={}, messageId={}, mq={}, endpoints={}", clientId, attempt, messageView.getMessageId(), mq, endpoints, t);
                 ackFifoMessageLater(messageView, 1 + attempt, future0);
             }
         }, MoreExecutors.directExecutor());
@@ -557,7 +554,7 @@ public class ProcessQueueImpl implements ProcessQueue {
                 return;
             }
             // Should never reach here.
-            LOGGER.error("[Bug] Failed to schedule ack fifo message request, mq={}, msgId={}, clientId={}", mq,
+            LOGGER.error("[Bug] Failed to schedule ack fifo message request, mq={}, messageId={}, clientId={}", mq,
                 messageId, clientId);
             ackFifoMessageLater(messageView, 1 + attempt, future0);
         }
