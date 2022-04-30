@@ -122,8 +122,8 @@ public class ProcessQueueImpl implements ProcessQueue {
             return false;
         }
 
-        LOGGER.warn("Process queue is idle, idle duration={}, max idle time={}ms, mq={}, " + "clientId={}",
-                    idleDuration, MAX_IDLE_DURATION, mq, consumer.getClientId());
+        LOGGER.warn("Process queue is idle, idle duration={}, max idle time={}, mq={}, clientId={}", idleDuration,
+                    MAX_IDLE_DURATION, mq, consumer.getClientId());
         return true;
     }
 
