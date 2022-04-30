@@ -43,6 +43,8 @@ public class TelemetryResponseObserver implements StreamObserver<TelemetryComman
         switch (command.getCommandCase()) {
             case SETTINGS: {
                 final Settings settings = command.getSettings();
+                LOGGER.info("Receive settings from remote, endpoints={}, settings={}, clientId={}", endpoints,
+                            settings, client.getClientId());
                 client.applySettings(endpoints, settings);
                 break;
             }

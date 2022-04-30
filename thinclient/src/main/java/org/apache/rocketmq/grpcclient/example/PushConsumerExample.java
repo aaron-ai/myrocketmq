@@ -19,8 +19,8 @@ public class PushConsumerExample {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProducerExample.class);
 
     public static void main(String[] args) {
-        String accessPoint = "http://MQ_INST_1080056302921134_BXxiFN4R.mq.cn-shenzhen.aliyuncs.com:80";
-        String topic = "lingchu-test-topic";
+        String accessPoint = "ipv4:11.166.42.94:8081";
+        String topic = "lingchu_normal_topic";
         String tag = "tagA";
         String consumerGroup = "lingchu-test-group";
         String accessKey = "AccessKey";
