@@ -41,8 +41,10 @@ public class ProducerExample {
                 .setTopics(topic)
                 .build()) {
                 LOGGER.info("Start producer successfully.");
-                final SendReceipt sendReceipt = producer.send(message);
-                LOGGER.info("Send message successfully, sendReceipt={}", sendReceipt);
+                for (int i = 0; i < 50; i++) {
+                    final SendReceipt sendReceipt = producer.send(message);
+                    LOGGER.info("Send message successfully, sendReceipt={}", sendReceipt);
+                }
             } catch (Throwable e) {
                 e.printStackTrace();
             }

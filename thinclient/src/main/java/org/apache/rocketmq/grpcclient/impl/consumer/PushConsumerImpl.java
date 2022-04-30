@@ -17,6 +17,7 @@
 
 package org.apache.rocketmq.grpcclient.impl.consumer;
 
+import apache.rocketmq.v2.Code;
 import apache.rocketmq.v2.ForwardMessageToDeadLetterQueueRequest;
 import apache.rocketmq.v2.ForwardMessageToDeadLetterQueueResponse;
 import apache.rocketmq.v2.HeartbeatRequest;
@@ -24,6 +25,7 @@ import apache.rocketmq.v2.QueryAssignmentRequest;
 import apache.rocketmq.v2.QueryAssignmentResponse;
 import apache.rocketmq.v2.RecoverOrphanedTransactionCommand;
 import apache.rocketmq.v2.Settings;
+import apache.rocketmq.v2.Status;
 import apache.rocketmq.v2.VerifyMessageCommand;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -211,7 +213,7 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
     private QueryAssignmentRequest wrapQueryAssignmentRequest(String topic) {
         apache.rocketmq.v2.Resource topicResource = apache.rocketmq.v2.Resource.newBuilder().setName(topic).build();
         return QueryAssignmentRequest.newBuilder().setTopic(topicResource)
-                                     .setGroup(getProtobufGroup()).build();
+                                     .setEndpoints(accessEndpoints.toProtobuf()).setGroup(getProtobufGroup()).build();
     }
 
     private ListenableFuture<Assignments> queryAssignment(final String topic) {
@@ -226,8 +228,12 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
                                                      clientConfiguration.getRequestTimeout());
             }, MoreExecutors.directExecutor());
         return Futures.transformAsync(responseFuture, response -> {
+            final Status status = response.getStatus();
+            // TODO: polish code.
+            if (!Code.OK.equals(status.getCode())) {
+                throw new RuntimeException();
+            }
             SettableFuture<Assignments> future0 = SettableFuture.create();
-            // TODO: check status
             final List<Assignment> assignmentList = response.getAssignmentsList().stream().map(assignment ->
                                                                                                    new Assignment(new MessageQueueImpl(assignment.getMessageQueue()))).collect(Collectors.toList());
             final Assignments assignments = new Assignments(assignmentList);
@@ -330,8 +336,7 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
                                 return;
                             }
                             LOGGER.info("Attention!!! acquired empty assignments from remote, but existed assignments"
-                                        + " is "
-                                        + "not empty, topic={}, clientId={}", topic, clientId);
+                                        + " is not empty, topic={}, clientId={}", topic, clientId);
                         }
 
                         if (!latest.equals(existed)) {

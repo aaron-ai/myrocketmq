@@ -41,7 +41,7 @@ public class Resource {
     }
 
     public apache.rocketmq.v2.Resource toProtobuf() {
-        return apache.rocketmq.v2.Resource.newBuilder().setResourceNamespace(namespace).setName(namespace).build();
+        return apache.rocketmq.v2.Resource.newBuilder().setResourceNamespace(namespace).setName(name).build();
     }
 
     public String getNamespace() {

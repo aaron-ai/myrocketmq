@@ -118,7 +118,7 @@ public class ProcessQueueImpl implements ProcessQueue {
     @Override
     public boolean expired() {
         final Duration idleDuration = Duration.ofNanos(System.nanoTime() - activityNanoTime);
-        if (idleDuration.compareTo(MAX_IDLE_DURATION) > 0) {
+        if (idleDuration.compareTo(MAX_IDLE_DURATION) < 0) {
             return false;
         }
 

@@ -86,8 +86,11 @@ public abstract class ConsumerImpl extends ClientImpl {
                             messages.add(messageView);
                             break;
                         default:
-                            LOGGER.warn("[Bug] Not recognized content for receive message response, mq={}, resp={}", mq, response);
+                            LOGGER.warn("[Bug] Not recognized content for receive message response, mq={}, clientId={}, resp={}", mq, clientId, response);
                     }
+                }
+                if (null == status || !Code.OK.equals(status.getCode())) {
+                    LOGGER.error("Failed to receive message from remote, mq={}, endpoints={}, clientId={}, status={}", mq, endpoints, clientId, status);
                 }
                 return new ReceiveMessageResult(endpoints, status, messages);
             }, MoreExecutors.directExecutor());

@@ -43,13 +43,13 @@ public class TelemetryResponseObserver implements StreamObserver<TelemetryComman
         switch (command.getCommandCase()) {
             case SETTINGS: {
                 final Settings settings = command.getSettings();
-                LOGGER.info("Receive settings from remote, endpoints={}, settings={}, clientId={}", endpoints,
-                            settings, client.getClientId());
+                LOGGER.info("Receive settings from remote, endpoints={}, clientId={}", endpoints, client.getClientId());
                 client.applySettings(endpoints, settings);
                 break;
             }
             case RECOVER_ORPHANED_TRANSACTION_COMMAND: {
-                final RecoverOrphanedTransactionCommand recoverOrphanedTransactionCommand = command.getRecoverOrphanedTransactionCommand();
+                final RecoverOrphanedTransactionCommand recoverOrphanedTransactionCommand =
+                    command.getRecoverOrphanedTransactionCommand();
                 client.onRecoverOrphanedTransactionCommand(endpoints, recoverOrphanedTransactionCommand);
                 break;
             }
@@ -59,7 +59,8 @@ public class TelemetryResponseObserver implements StreamObserver<TelemetryComman
                 break;
             }
             case PRINT_THREAD_STACK_TRACE_COMMAND: {
-                final PrintThreadStackTraceCommand printThreadStackTraceCommand = command.getPrintThreadStackTraceCommand();
+                final PrintThreadStackTraceCommand printThreadStackTraceCommand =
+                    command.getPrintThreadStackTraceCommand();
                 client.onPrintThreadStackCommand(endpoints, printThreadStackTraceCommand);
                 break;
             }
@@ -69,7 +70,8 @@ public class TelemetryResponseObserver implements StreamObserver<TelemetryComman
 
     @Override
     public void onError(Throwable throwable) {
-        LOGGER.error("Exception raised from stream response observer, clientId={}, endpoints={}", client.getClientId(), endpoints, throwable);
+        LOGGER.error("Exception raised from stream response observer, clientId={}, endpoints={}",
+                     client.getClientId(), endpoints, throwable);
 
     }
 

@@ -18,11 +18,11 @@ import org.apache.rocketmq.apis.message.MessageView;
 public class PushConsumerExample {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProducerExample.class);
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws InterruptedException {
         String accessPoint = "ipv4:11.166.42.94:8081";
         String topic = "lingchu_normal_topic";
         String tag = "tagA";
-        String consumerGroup = "lingchu-test-group";
+        String consumerGroup = "lingchu_normal_group";
         String accessKey = "AccessKey";
         String secretKey = "secretKey";
         FilterExpression filterExpression = new FilterExpression(tag, FilterExpressionType.TAG);
@@ -37,9 +37,13 @@ public class PushConsumerExample {
             .setClientConfiguration(clientConfiguration)
             .setConsumerGroup(consumerGroup)
             .setSubscriptionExpressions(Collections.singletonMap(topic, filterExpression))
-            .setMessageListener(messageView -> ConsumeResult.OK)
+            .setMessageListener(messageView -> {
+                LOGGER.info("Received message, message={}", messageView);
+                return ConsumeResult.OK;
+            })
             .build()) {
             LOGGER.info("Start push consumer successfully.");
+            Thread.sleep(1000000);
         } catch (IOException | ClientException e) {
             e.printStackTrace();
         }

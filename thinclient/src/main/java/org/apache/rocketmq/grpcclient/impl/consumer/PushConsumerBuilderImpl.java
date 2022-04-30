@@ -56,8 +56,9 @@ public class PushConsumerBuilderImpl implements PushConsumerBuilder {
     @Override
     public PushConsumerBuilder setConsumerGroup(String consumerGroup) {
         checkNotNull(consumerGroup, "consumerGroup should not be null");
-        checkArgument(CONSUMER_GROUP_PATTERN.matcher(consumerGroup).matches(), "consumerGroup does not match the regex [regex=%s]",
-            CONSUMER_GROUP_PATTERN.pattern());
+        checkArgument(CONSUMER_GROUP_PATTERN.matcher(consumerGroup).matches(), "consumerGroup does not match the "
+                                                                               + "regex [regex=%s]",
+                      CONSUMER_GROUP_PATTERN.pattern());
         this.consumerGroup = consumerGroup;
         return this;
     }
@@ -68,7 +69,7 @@ public class PushConsumerBuilderImpl implements PushConsumerBuilder {
     @Override
     public PushConsumerBuilder setSubscriptionExpressions(Map<String, FilterExpression> subscriptionExpressions) {
         checkNotNull(subscriptionExpressions, "subscriptionExpressions should not be null");
-        checkArgument(subscriptionExpressions.isEmpty(), "subscriptionExpressions should not be empty");
+        checkArgument(!subscriptionExpressions.isEmpty(), "subscriptionExpressions should not be empty");
         this.subscriptionExpressions = subscriptionExpressions;
         return this;
     }
@@ -121,6 +122,11 @@ public class PushConsumerBuilderImpl implements PushConsumerBuilder {
         checkNotNull(consumerGroup, "consumerGroup has not been set yet");
         checkNotNull(messageListener, "messageListener has not been set yet");
         checkArgument(!subscriptionExpressions.isEmpty(), "subscriptionExpressions have not been set yet");
-        return new PushConsumerImpl(clientConfiguration, consumerGroup, subscriptionExpressions, messageListener, maxCacheMessageCount, maxCacheMessageSizeInBytes, consumptionThreadCount);
+        final PushConsumerImpl pushConsumer = new PushConsumerImpl(clientConfiguration, consumerGroup,
+                                                                   subscriptionExpressions, messageListener,
+                                                                   maxCacheMessageCount, maxCacheMessageSizeInBytes,
+                                                                   consumptionThreadCount);
+        pushConsumer.startAsync().awaitRunning();
+        return pushConsumer;
     }
 }

@@ -22,6 +22,7 @@ import apache.rocketmq.v2.DigestType;
 import apache.rocketmq.v2.Encoding;
 import apache.rocketmq.v2.Message;
 import apache.rocketmq.v2.SystemProperties;
+import com.google.common.base.MoreObjects;
 import com.google.protobuf.ProtocolStringList;
 import com.google.protobuf.util.Timestamps;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
@@ -275,5 +276,24 @@ public class MessageViewImpl implements MessageView {
         final Map<String, String> properties = message.getUserPropertiesMap();
         final String receiptHandle = systemProperties.getReceiptHandle();
         return new MessageViewImpl(messageId, topic, body, tag, messageGroup, deliveryTimestamp, keys, properties, bornHost, bornTimestamp, deliveryAttempt, mq, receiptHandle, offset, corrupted);
+    }
+
+    @Override public String toString() {
+        return MoreObjects.toStringHelper(this)
+            .add("messageId", messageId)
+            .add("topic", topic)
+            .add("tag", tag)
+            .add("messageGroup", messageGroup)
+            .add("deliveryTimestamp", deliveryTimestamp)
+            .add("keys", keys)
+            .add("properties", properties)
+            .add("bornHost", bornHost)
+            .add("bornTimestamp", bornTimestamp)
+            .add("deliveryAttempt", deliveryAttempt)
+            .add("messageQueue", messageQueue)
+            .add("endpoints", endpoints)
+            .add("offset", offset)
+            .add("corrupted", corrupted)
+            .toString();
     }
 }
