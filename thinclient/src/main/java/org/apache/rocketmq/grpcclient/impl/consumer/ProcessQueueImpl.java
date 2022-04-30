@@ -209,7 +209,10 @@ public class ProcessQueueImpl implements ProcessQueue {
     }
 
     private void receiveMessageImmediately() {
-        // TODO: check client status.
+        if (!consumer.isRunning()) {
+            LOGGER.info("Stop to receive message because consumer is not running, mq={}, clientId={}", mq, consumer.getClientId());
+            return;
+        }
         try {
             final Endpoints endpoints = mq.getBroker().getEndpoints();
             final ReceiveMessageRequest request = wrapReceiveMessageRequest();
@@ -257,7 +260,7 @@ public class ProcessQueueImpl implements ProcessQueue {
         final long actualCachedMessagesBytes = this.cachedMessageBytes();
         if (cacheMessageBytesThresholdPerQueue <= actualCachedMessagesBytes) {
             LOGGER.warn("Process queue total cached messages memory exceeds the threshold, threshold={} bytes, " +
-                    "actual={} " + "bytes, mq={}, clientId={}", cacheMessageBytesThresholdPerQueue,
+                    "actual={} bytes, mq={}, clientId={}", cacheMessageBytesThresholdPerQueue,
                 actualCachedMessagesBytes, mq, consumer.getClientId());
             return true;
         }
