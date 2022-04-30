@@ -61,8 +61,8 @@ public class ExponentialBackoffRetryPolicy implements RetryPolicy {
     @Override
     public Duration getNextAttemptDelay(int attempt) {
         checkArgument(attempt > 0, "attempt must be positive");
-        int randomNumberBound = (int) Math.min(initialBackoff.getNano() * Math.pow(backoffMultiplier, 1.0 * (attempt - 1)),
-            maxBackoff.getNano());
+        int randomNumberBound = (int) Math.min(initialBackoff.toNanos() * Math.pow(backoffMultiplier, 1.0 * (attempt - 1)),
+            maxBackoff.toNanos());
         return Duration.ofNanos(random.nextInt(randomNumberBound));
     }
 

@@ -77,6 +77,7 @@ public class Resource {
         return Objects.hashCode(namespace, name);
     }
 
+    // TODO: polish code.
     @Override
     public String toString() {
         final MoreObjects.ToStringHelper helper = MoreObjects.toStringHelper(this)

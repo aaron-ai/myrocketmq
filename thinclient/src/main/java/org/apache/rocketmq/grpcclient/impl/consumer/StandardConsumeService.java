@@ -53,7 +53,7 @@ public class StandardConsumeService extends ConsumeService {
         boolean dispatched = false;
         // Iterate all process queues to submit consumption task.
         for (ProcessQueue pq : processQueues) {
-            final Optional<MessageViewImpl> optionalMessageView = pq.tryTakeFifoMessage();
+            final Optional<MessageViewImpl> optionalMessageView = pq.tryTakeMessage();
             if (!optionalMessageView.isPresent()) {
                 continue;
             }
