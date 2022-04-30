@@ -214,6 +214,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
         try {
             final List<SendReceipt> sendReceipts = future.get();
         } catch (Throwable t) {
+            // TODO: polish code
             System.out.println(t);
         }
         // TODO
