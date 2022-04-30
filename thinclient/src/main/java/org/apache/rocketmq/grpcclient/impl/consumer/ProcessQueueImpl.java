@@ -399,7 +399,9 @@ public class ProcessQueueImpl implements ProcessQueue {
         if (ConsumeResult.ERROR.equals(consumeResult) && attempt < maxAttempts) {
             final Duration nextAttemptDelay = retryPolicy.getNextAttemptDelay(attempt);
             attempt = messageView.incrementAndGetDeliveryAttempt();
-            LOGGER.debug("Prepare to redeliver the fifo message because of the consumption failure, maxAttempt={}, " + "attempt={}, mq={}, messageId={}, nextAttemptDelay={}, clientId={}", maxAttempts, attempt, mq, messageId, nextAttemptDelay, consumer.getClientId());
+            LOGGER.debug("Prepare to redeliver the fifo message because of the consumption failure, maxAttempt={}, " +
+                    "attempt={}, mq={}, messageId={}, nextAttemptDelay={}, clientId={}", maxAttempts, attempt, mq,
+                messageId, nextAttemptDelay, consumer.getClientId());
             final ListenableFuture<ConsumeResult> future = service.consume(messageView, nextAttemptDelay);
             Futures.addCallback(future, new FutureCallback<ConsumeResult>() {
                 @Override
@@ -562,6 +564,5 @@ public class ProcessQueueImpl implements ProcessQueue {
 
     @Override
     public void doStats() {
-
     }
 }
