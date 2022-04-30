@@ -123,7 +123,7 @@ public class ProcessQueueImpl implements ProcessQueue {
         }
 
         LOGGER.warn("Process queue is idle, idle duration={}, max idle time={}, mq={}, clientId={}", idleDuration,
-                    MAX_IDLE_DURATION, mq, consumer.getClientId());
+            MAX_IDLE_DURATION, mq, consumer.getClientId());
         return true;
     }
 
@@ -148,8 +148,8 @@ public class ProcessQueueImpl implements ProcessQueue {
     private ReceiveMessageRequest wrapReceiveMessageRequest() {
         final int receptionBatchSize = getReceptionBatchSize();
         return ReceiveMessageRequest.newBuilder().setGroup(consumer.getProtobufGroup()).setMessageQueue(mq.toProtobuf())
-                                    .setFilterExpression(getProtoBufFilterExpression()).setBatchSize(receptionBatchSize)
-                                    .build();
+            .setFilterExpression(getProtoBufFilterExpression()).setBatchSize(receptionBatchSize)
+            .build();
     }
 
     private apache.rocketmq.v2.FilterExpression getProtoBufFilterExpression() {
@@ -188,21 +188,20 @@ public class ProcessQueueImpl implements ProcessQueue {
                 return;
             }
             // Should never reach here.
-            LOGGER.error("[Bug] Failed to schedule receive message request, namespace={}, mq={}, clientId={}", mq,
-                         consumer.getClientId(), t);
+            LOGGER.error("[Bug] Failed to schedule receive message request, mq={}, clientId={}", mq, consumer.getClientId(), t);
             receiveMessageLater();
         }
     }
 
     public void receiveMessage() {
         if (dropped) {
-            LOGGER.info("Process queue has been dropped, no longer receive message, namespace={}, mq={}, clientId={}"
+            LOGGER.info("Process queue has been dropped, no longer receive message, mq={}, clientId={}"
                 , mq, consumer.getClientId());
             return;
         }
         if (this.isCacheFull()) {
-            LOGGER.warn("Process queue cache is full, would receive message later, namespace={}, mq={}, clientId={}",
-                        mq, consumer.getClientId());
+            LOGGER.warn("Process queue cache is full, would receive message later, mq={}, clientId={}",
+                mq, consumer.getClientId());
             receiveMessageLater();
             return;
         }
@@ -216,7 +215,7 @@ public class ProcessQueueImpl implements ProcessQueue {
             final ReceiveMessageRequest request = wrapReceiveMessageRequest();
             activityNanoTime = System.nanoTime();
             final ListenableFuture<ReceiveMessageResult> future = consumer.receiveMessage(request, mq,
-                                                                                          RECEIVE_LONG_POLLING_DURATION);
+                RECEIVE_LONG_POLLING_DURATION);
             Futures.addCallback(future, new FutureCallback<ReceiveMessageResult>() {
                 @Override
                 public void onSuccess(ReceiveMessageResult result) {
@@ -225,23 +224,22 @@ public class ProcessQueueImpl implements ProcessQueue {
                     } catch (Throwable t) {
                         // Should never reach here.
                         LOGGER.error("[Bug] Exception raised while handling receive result, would receive later, " +
-                                     "namespace={}, mq={}, endpoints={}, clientId={}", mq, endpoints,
-                                     consumer.getClientId(), t);
+                                "mq={}, endpoints={}, clientId={}", mq, endpoints,
+                            consumer.getClientId(), t);
                         receiveMessageLater();
                     }
                 }
 
                 @Override
                 public void onFailure(Throwable t) {
-                    LOGGER.error("Exception raised while message reception, would receive later, namespace={}, mq={},"
-                                 + " " + "endpoints={}, clientId={}", mq, endpoints, consumer.getClientId(), t);
+                    LOGGER.error("Exception raised while message reception, would receive later, mq={}, endpoints={}, clientId={}", mq, endpoints, consumer.getClientId(), t);
                     receiveMessageLater();
                 }
             }, MoreExecutors.directExecutor());
             consumer.getReceptionTimes().getAndIncrement();
         } catch (Throwable t) {
             LOGGER.error("Exception raised while message reception, would receive later, mq={}, clientId={}", mq,
-                         consumer.getClientId(), t);
+                consumer.getClientId(), t);
             receiveMessageLater();
         }
     }
@@ -251,16 +249,16 @@ public class ProcessQueueImpl implements ProcessQueue {
         final long actualMessagesQuantity = this.cachedMessagesCount();
         if (cacheMessageCountThresholdPerQueue <= actualMessagesQuantity) {
             LOGGER.warn("Process queue total cached messages quantity exceeds the threshold, threshold={}, actual={},"
-                        + " mq={}, clientId={}", cacheMessageCountThresholdPerQueue, actualMessagesQuantity, mq,
-                        consumer.getClientId());
+                    + " mq={}, clientId={}", cacheMessageCountThresholdPerQueue, actualMessagesQuantity, mq,
+                consumer.getClientId());
             return true;
         }
         final int cacheMessageBytesThresholdPerQueue = consumer.cacheMessageBytesThresholdPerQueue();
         final long actualCachedMessagesBytes = this.cachedMessageBytes();
         if (cacheMessageBytesThresholdPerQueue <= actualCachedMessagesBytes) {
             LOGGER.warn("Process queue total cached messages memory exceeds the threshold, threshold={} bytes, " +
-                        "actual={} " + "bytes, mq={}, clientId={}", cacheMessageBytesThresholdPerQueue,
-                        actualCachedMessagesBytes, mq, consumer.getClientId());
+                    "actual={} " + "bytes, mq={}, clientId={}", cacheMessageBytesThresholdPerQueue,
+                actualCachedMessagesBytes, mq, consumer.getClientId());
             return true;
         }
         return false;
@@ -293,7 +291,7 @@ public class ProcessQueueImpl implements ProcessQueue {
             }
             status = Optional.of(Status.newBuilder().setCode(Code.OK).build());
             LOGGER.error("[Bug] Status not set but message(s) found in the receive result, fix the status to OK, " +
-                         "mq={}, endpoints={}", mq, endpoints);
+                "mq={}, endpoints={}", mq, endpoints);
         }
         final Code code = status.get().getCode();
         switch (code) {
@@ -377,7 +375,7 @@ public class ProcessQueueImpl implements ProcessQueue {
             // Failed to lock.
             if (!fifoConsumptionInbound()) {
                 LOGGER.debug("Fifo consumption task are not finished, consumerGroup={}, mq={}, clientId={}",
-                             consumer.getConsumerGroup(), mq, consumer.getClientId());
+                    consumer.getConsumerGroup(), mq, consumer.getClientId());
                 return Optional.empty();
             }
             final MessageViewImpl messageView = first.get();
@@ -412,8 +410,8 @@ public class ProcessQueueImpl implements ProcessQueue {
                 public void onFailure(Throwable t) {
                     // Should never reach here.
                     LOGGER.error("[Bug] Exception raised while fifo message redelivery, mq={}, messageId={}, " +
-                                 "attempt={}, maxAttempts={}, clientId={}", mq, messageId,
-                                 messageView.getDeliveryAttempt(), maxAttempts, consumer.getClientId(), t);
+                            "attempt={}, maxAttempts={}, clientId={}", mq, messageId,
+                        messageView.getDeliveryAttempt(), maxAttempts, consumer.getClientId(), t);
 
                 }
             }, MoreExecutors.directExecutor());
@@ -421,8 +419,8 @@ public class ProcessQueueImpl implements ProcessQueue {
         boolean ok = ConsumeResult.OK.equals(consumeResult);
         if (!ok) {
             LOGGER.info("Failed to consume fifo message finally, run out of attempt times, maxAttempts={}, " +
-                        "attempt={}, mq={}, messageId={}, clientId={}", maxAttempts, attempt, mq, messageId,
-                        consumer.getClientId());
+                    "attempt={}, mq={}, messageId={}, clientId={}", maxAttempts, attempt, mq, messageId,
+                consumer.getClientId());
         }
         // Ack message or forward it to DLQ depends on consumption status.
         SimpleFuture future = ok ? ackFifoMessage(messageView) : forwardToDeadLetterQueue(messageView);
@@ -441,7 +439,7 @@ public class ProcessQueueImpl implements ProcessQueue {
     }
 
     private void forwardToDeadLetterQueue(final MessageViewImpl messageView, final int attempt,
-                                          final SimpleFuture future0) {
+        final SimpleFuture future0) {
         final ListenableFuture<ForwardMessageToDeadLetterQueueResponse> future =
             consumer.forwardMessageToDeadLetterQueue(messageView);
         final String clientId = consumer.getClientId();
@@ -452,14 +450,14 @@ public class ProcessQueueImpl implements ProcessQueue {
                 final Code code = status.getCode();
                 if (!Code.OK.equals(code)) {
                     LOGGER.error("Failed to forward message to dead letter queue, would attempt to re-forward later, "
-                                 + "clientId={}, messageId={}, attempt={}, mq={}, code={}, status message={}",
-                                 clientId, messageView.getMessageId(), attempt, mq, code, status.getMessage());
+                            + "clientId={}, messageId={}, attempt={}, mq={}, code={}, status message={}",
+                        clientId, messageView.getMessageId(), attempt, mq, code, status.getMessage());
                     forwardToDeadLetterQueue(messageView, 1 + attempt, future0);
                     return;
                 }
                 if (1 < attempt) {
                     LOGGER.info("Re-forward message to dead letter queue successfully, clientId={}, attempt={}, " +
-                                "messageId={}, mq={}", clientId, attempt, messageView.getMessageId(), mq);
+                        "messageId={}, mq={}", clientId, attempt, messageView.getMessageId(), mq);
                 }
                 future0.markAsDone();
             }
@@ -467,33 +465,33 @@ public class ProcessQueueImpl implements ProcessQueue {
             @Override
             public void onFailure(Throwable t) {
                 LOGGER.error("Exception raised while forward message to DLQ, would attempt to re-forward later, " +
-                             "clientId={}, attempt={}, messageId={}, mq={}", clientId, attempt,
-                             messageView.getMessageId(), mq, t);
+                        "clientId={}, attempt={}, messageId={}, mq={}", clientId, attempt,
+                    messageView.getMessageId(), mq, t);
                 forwardToDeadLetterQueueLater(messageView, 1 + attempt, future0);
             }
         }, MoreExecutors.directExecutor());
     }
 
     private void forwardToDeadLetterQueueLater(final MessageViewImpl messageView, final int attempt,
-                                               final SimpleFuture future0) {
+        final SimpleFuture future0) {
         final MessageId messageId = messageView.getMessageId();
         final String clientId = consumer.getClientId();
         if (dropped) {
             LOGGER.info("Process queue was dropped, give up to forward message to dead letter queue, mq={}, "
-                        + "messageId={}, clientId={}", mq, messageId, clientId);
+                + "messageId={}, clientId={}", mq, messageId, clientId);
             return;
         }
         final ScheduledExecutorService scheduler = consumer.getScheduler();
         try {
             scheduler.schedule(() -> forwardToDeadLetterQueue(messageView, attempt, future0),
-                               FORWARD_FIFO_MESSAGE_TO_DLQ_DELAY.toNanos(), TimeUnit.NANOSECONDS);
+                FORWARD_FIFO_MESSAGE_TO_DLQ_DELAY.toNanos(), TimeUnit.NANOSECONDS);
         } catch (Throwable t) {
             if (scheduler.isShutdown()) {
                 return;
             }
             // Should never reach here.
             LOGGER.error("[Bug] Failed to schedule DLQ message request, mq={}, messageId={}, clientId={}", mq,
-                         messageView.getMessageId(), clientId);
+                messageView.getMessageId(), clientId);
             forwardToDeadLetterQueueLater(messageView, 1 + attempt, future0);
         }
     }
@@ -515,16 +513,16 @@ public class ProcessQueueImpl implements ProcessQueue {
                 final Code code = status.getCode();
                 if (!Code.OK.equals(code)) {
                     LOGGER.error("Failed to ack fifo message, would attempt to re-ack later, clientId={}, attempt={}, "
-                                 + "messageId={}, mq={}, code={}, endpoints={}, status message=[{}]", clientId,
-                                 attempt, messageView.getMessageId(), mq, code, endpoints, status.getMessage());
+                            + "messageId={}, mq={}, code={}, endpoints={}, status message=[{}]", clientId,
+                        attempt, messageView.getMessageId(), mq, code, endpoints, status.getMessage());
 
                     ackFifoMessageLater(messageView, 1 + attempt, future0);
                     return;
                 }
                 if (1 < attempt) {
                     LOGGER.info("Re-ack fifo message successfully, clientId={}, attempt={}, messageId={}, "
-                                + "mq={}, endpoints={}", clientId, attempt, messageView.getMessageId(), mq,
-                                endpoints);
+                            + "mq={}, endpoints={}", clientId, attempt, messageView.getMessageId(), mq,
+                        endpoints);
                 }
                 future0.markAsDone();
             }
@@ -532,8 +530,8 @@ public class ProcessQueueImpl implements ProcessQueue {
             @Override
             public void onFailure(Throwable t) {
                 LOGGER.error("Exception raised while ack fifo message, clientId={}, would attempt to re-ack later, "
-                             + "attempt={}, messageId={}, mq={}, endpoints={}", clientId, attempt,
-                             messageView.getMessageId(), mq, endpoints, t);
+                        + "attempt={}, messageId={}, mq={}, endpoints={}", clientId, attempt,
+                    messageView.getMessageId(), mq, endpoints, t);
                 ackFifoMessageLater(messageView, 1 + attempt, future0);
             }
         }, MoreExecutors.directExecutor());
@@ -544,20 +542,20 @@ public class ProcessQueueImpl implements ProcessQueue {
         final String clientId = consumer.getClientId();
         if (dropped) {
             LOGGER.info("Process queue was dropped, give up to ack message, mq={}, messageId={}, clientId={}", mq,
-                        messageId, clientId);
+                messageId, clientId);
             return;
         }
         final ScheduledExecutorService scheduler = consumer.getScheduler();
         try {
             scheduler.schedule(() -> ackFifoMessage(messageView, attempt, future0), ACK_FIFO_MESSAGE_DELAY.toNanos(),
-                               TimeUnit.NANOSECONDS);
+                TimeUnit.NANOSECONDS);
         } catch (Throwable t) {
             if (scheduler.isShutdown()) {
                 return;
             }
             // Should never reach here.
             LOGGER.error("[Bug] Failed to schedule ack fifo message request, mq={}, msgId={}, clientId={}", mq,
-                         messageId, clientId);
+                messageId, clientId);
             ackFifoMessageLater(messageView, 1 + attempt, future0);
         }
     }
