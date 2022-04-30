@@ -49,6 +49,10 @@ public abstract class ClientSettings {
 
     public abstract void applySettings(Settings settings);
 
+    public RetryPolicy getRetryPolicy() {
+        return retryPolicy;
+    }
+
     public SettableFuture<Void> getFirstApplyCompletedFuture() {
         return firstApplyCompletedFuture;
     }

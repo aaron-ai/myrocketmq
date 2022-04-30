@@ -56,7 +56,7 @@ public class MessageViewImpl implements MessageView {
     private final Map<String, String> properties;
     private final String bornHost;
     private final long bornTimestamp;
-    private final int deliveryAttempt;
+    private int deliveryAttempt;
     private final MessageQueueImpl messageQueue;
     private final Endpoints endpoints;
     private final String receiptHandle;
@@ -171,6 +171,10 @@ public class MessageViewImpl implements MessageView {
     @Override
     public int getDeliveryAttempt() {
         return deliveryAttempt;
+    }
+
+    public int incrementAndGetDeliveryAttempt() {
+        return ++deliveryAttempt;
     }
 
     /**

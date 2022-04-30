@@ -17,6 +17,8 @@
 
 package org.apache.rocketmq.grpcclient.impl.consumer;
 
+import apache.rocketmq.v2.ForwardMessageToDeadLetterQueueRequest;
+import apache.rocketmq.v2.ForwardMessageToDeadLetterQueueResponse;
 import apache.rocketmq.v2.HeartbeatRequest;
 import apache.rocketmq.v2.QueryAssignmentRequest;
 import apache.rocketmq.v2.QueryAssignmentResponse;
@@ -55,6 +57,8 @@ import org.apache.rocketmq.apis.consumer.FilterExpression;
 import org.apache.rocketmq.apis.consumer.MessageListener;
 import org.apache.rocketmq.apis.consumer.PushConsumer;
 import org.apache.rocketmq.apis.exception.ClientException;
+import org.apache.rocketmq.apis.retry.RetryPolicy;
+import org.apache.rocketmq.grpcclient.message.MessageViewImpl;
 import org.apache.rocketmq.grpcclient.message.protocol.Resource;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
@@ -96,12 +100,14 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
      * logging warnings already, so we avoid repeating args check here.
      */
     public PushConsumerImpl(ClientConfiguration clientConfiguration, String consumerGroup,
-        Map<String, FilterExpression> subscriptionExpressions, MessageListener messageListener,
-        int maxCacheMessageCount, int maxCacheMessageSizeInBytes, int consumptionThreadCount) {
+                            Map<String, FilterExpression> subscriptionExpressions, MessageListener messageListener,
+                            int maxCacheMessageCount, int maxCacheMessageSizeInBytes, int consumptionThreadCount) {
         super(clientConfiguration, consumerGroup, subscriptionExpressions.keySet());
         this.clientConfiguration = clientConfiguration;
         Resource groupResource = new Resource(consumerGroup);
-        this.pushConsumerSettings = new PushConsumerSettings(clientId, accessEndpoints, groupResource, clientConfiguration.getRequestTimeout(), subscriptionExpressions);
+        this.pushConsumerSettings = new PushConsumerSettings(clientId, accessEndpoints, groupResource,
+                                                             clientConfiguration.getRequestTimeout(),
+                                                             subscriptionExpressions);
         this.consumerGroup = consumerGroup;
         this.subscriptionExpressions = subscriptionExpressions;
         this.cacheAssignments = new ConcurrentHashMap<>();
@@ -125,11 +131,7 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
     protected void startUp() throws Exception {
         super.startUp();
         final ScheduledExecutorService scheduler = clientManager.getScheduler();
-        if (pushConsumerSettings.isFifo()) {
-            this.consumeService = new FifoConsumeService(clientId, processQueueTable, this.getMaxDeliveryAttempts(), messageListener, consumptionExecutor, scheduler);
-        } else {
-            this.consumeService = new StandardConsumeService(clientId, processQueueTable, this.getMaxDeliveryAttempts(), messageListener, consumptionExecutor, scheduler);
-        }
+        this.consumeService = createConsumeService();
         // Scan assignments periodically.
         scanAssignmentsFuture = scheduler.scheduleWithFixedDelay(() -> {
             try {
@@ -138,6 +140,17 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
                 LOGGER.error("Exception raised while scanning the load assignments, clientId={}", clientId, t);
             }
         }, 1, 5, TimeUnit.SECONDS);
+    }
+
+    private ConsumeService createConsumeService() {
+        final ScheduledExecutorService scheduler = clientManager.getScheduler();
+        final int maxDeliveryAttempts = this.getRetryPolicy().getMaxAttempts();
+        if (pushConsumerSettings.isFifo()) {
+            return new FifoConsumeService(clientId, processQueueTable, maxDeliveryAttempts, messageListener,
+                                          consumptionExecutor, scheduler);
+        }
+        return new StandardConsumeService(clientId, processQueueTable, maxDeliveryAttempts, messageListener,
+                                          consumptionExecutor, scheduler);
     }
 
     @Override
@@ -198,7 +211,7 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
     private QueryAssignmentRequest wrapQueryAssignmentRequest(String topic) {
         apache.rocketmq.v2.Resource topicResource = apache.rocketmq.v2.Resource.newBuilder().setName(topic).build();
         return QueryAssignmentRequest.newBuilder().setTopic(topicResource)
-            .setGroup(getProtobufGroup()).build();
+                                     .setGroup(getProtobufGroup()).build();
     }
 
     private ListenableFuture<Assignments> queryAssignment(final String topic) {
@@ -210,13 +223,13 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
                 assert endpoints != null;
                 final QueryAssignmentRequest request = wrapQueryAssignmentRequest(topic);
                 return clientManager.queryAssignment(endpoints, metadata, request,
-                    clientConfiguration.getRequestTimeout());
+                                                     clientConfiguration.getRequestTimeout());
             }, MoreExecutors.directExecutor());
         return Futures.transformAsync(responseFuture, response -> {
             SettableFuture<Assignments> future0 = SettableFuture.create();
             // TODO: check status
             final List<Assignment> assignmentList = response.getAssignmentsList().stream().map(assignment ->
-                new Assignment(new MessageQueueImpl(assignment.getMessageQueue()))).collect(Collectors.toList());
+                                                                                                   new Assignment(new MessageQueueImpl(assignment.getMessageQueue()))).collect(Collectors.toList());
             final Assignments assignments = new Assignments(assignmentList);
             future0.set(assignments);
             return future0;
@@ -276,7 +289,8 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
             }
 
             if (!latest.contains(mq)) {
-                LOGGER.info("Drop message queue according to the latest assignmentList, mq={}, clientId={}", mq, clientId);
+                LOGGER.info("Drop message queue according to the latest assignmentList, mq={}, clientId={}", mq,
+                            clientId);
                 dropProcessQueue(mq);
                 continue;
             }
@@ -311,15 +325,18 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
                     public void onSuccess(Assignments latest) {
                         if (latest.getAssignmentList().isEmpty()) {
                             if (null == existed || existed.getAssignmentList().isEmpty()) {
-                                LOGGER.info("Acquired empty assignments from remote, would scan later, topic={}, clientId={}", topic, clientId);
+                                LOGGER.info("Acquired empty assignments from remote, would scan later, topic={}, "
+                                            + "clientId={}", topic, clientId);
                                 return;
                             }
-                            LOGGER.info("Attention!!! acquired empty assignments from remote, but existed assignments is "
-                                + "not empty, topic={}, clientId={}", topic, clientId);
+                            LOGGER.info("Attention!!! acquired empty assignments from remote, but existed assignments"
+                                        + " is "
+                                        + "not empty, topic={}, clientId={}", topic, clientId);
                         }
 
                         if (!latest.equals(existed)) {
-                            LOGGER.info("Assignments of topic={} has changed, {} => {}, clientId={}", topic, existed, latest, clientId);
+                            LOGGER.info("Assignments of topic={} has changed, {} => {}, clientId={}", topic, existed,
+                                        latest, clientId);
                             synchronizeProcessQueue(topic, latest, filterExpression);
                             cacheAssignments.put(topic, latest);
                             return;
@@ -331,7 +348,8 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
                     @SuppressWarnings("NullableProblems")
                     @Override
                     public void onFailure(Throwable t) {
-                        LOGGER.error("Exception raised while scanning the assignments, topic={}, clientId={}", topic, clientId, t);
+                        LOGGER.error("Exception raised while scanning the assignments, topic={}, clientId={}", topic,
+                                     clientId, t);
                     }
                 }, MoreExecutors.directExecutor());
             }
@@ -407,13 +425,46 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
         // TODO
     }
 
-    @Override
-    public void onRecoverOrphanedTransactionCommand(Endpoints endpoints,
-        RecoverOrphanedTransactionCommand recoverOrphanedTransactionCommand) {
-        LOGGER.warn("Ignore orphaned transaction recovery command from remote, which is not expected for push consumer, client id={}, command={}", clientId, recoverOrphanedTransactionCommand);
+    private ForwardMessageToDeadLetterQueueRequest wrapForwardMessageToDeadLetterQueueRequest(MessageViewImpl messageView) {
+        final apache.rocketmq.v2.Resource topicResource =
+            apache.rocketmq.v2.Resource.newBuilder().setName(messageView.getTopic()).build();
+        return ForwardMessageToDeadLetterQueueRequest.newBuilder().setGroup(getProtobufGroup()).setTopic(topicResource)
+                                                     .setReceiptHandle(messageView.getReceiptHandle())
+                                                     .setMessageId(messageView.getMessageId().toString())
+                                                     .setDeliveryAttempt(messageView.getDeliveryAttempt())
+                                                     .setMaxDeliveryAttempts(getRetryPolicy().getMaxAttempts()).build();
     }
 
-    public int getMaxDeliveryAttempts() {
-        return pushConsumerSettings.getMaxDeliveryAttempts();
+    public ListenableFuture<ForwardMessageToDeadLetterQueueResponse> forwardMessageToDeadLetterQueue(
+        final MessageViewImpl messageView) {
+        final Endpoints endpoints = messageView.getEndpoints();
+        ListenableFuture<ForwardMessageToDeadLetterQueueResponse> future;
+        try {
+            final ForwardMessageToDeadLetterQueueRequest request =
+                wrapForwardMessageToDeadLetterQueueRequest(messageView);
+            final Metadata metadata = sign();
+            future = clientManager.forwardMessageToDeadLetterQueue(endpoints, metadata, request,
+                                                                   clientConfiguration.getRequestTimeout());
+        } catch (Throwable t) {
+            final SettableFuture<ForwardMessageToDeadLetterQueueResponse> future0 = SettableFuture.create();
+            future0.setException(t);
+            future = future0;
+        }
+        return future;
+    }
+
+    @Override
+    public void onRecoverOrphanedTransactionCommand(Endpoints endpoints,
+                                                    RecoverOrphanedTransactionCommand recoverOrphanedTransactionCommand) {
+        LOGGER.warn("Ignore orphaned transaction recovery command from remote, which is not expected for push "
+                    + "consumer, client id={}, command={}", clientId, recoverOrphanedTransactionCommand);
+    }
+
+    public RetryPolicy getRetryPolicy() {
+        return pushConsumerSettings.getRetryPolicy();
+    }
+
+    public ThreadPoolExecutor getConsumptionExecutor() {
+        return consumptionExecutor;
     }
 }
