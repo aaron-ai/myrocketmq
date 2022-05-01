@@ -419,7 +419,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
     }
 
     @Override
-    public void onTopicRouteDataUpdate(String topic, TopicRouteDataResult topicRouteDataResult) {
+    public void onTopicRouteDataResultUpdate0(String topic, TopicRouteDataResult topicRouteDataResult) {
         final PublishingTopicRouteDataResult publishingTopicRouteDataResult = new PublishingTopicRouteDataResult(topicRouteDataResult);
         publishingRouteDataResultCache.put(topic, publishingTopicRouteDataResult);
     }

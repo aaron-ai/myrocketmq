@@ -29,7 +29,6 @@ import apache.rocketmq.v2.Settings;
 import apache.rocketmq.v2.Status;
 import apache.rocketmq.v2.TelemetryCommand;
 import apache.rocketmq.v2.ThreadStackTrace;
-import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -67,7 +66,6 @@ import org.apache.rocketmq.grpcclient.route.TopicRouteDataResult;
 import org.apache.rocketmq.grpcclient.utility.MixAll;
 import org.apache.rocketmq.grpcclient.utility.UtilAll;
 
-import java.io.IOException;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
@@ -131,8 +129,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
     }
 
     @SuppressWarnings("SameParameterValue")
-    abstract protected void awaitFirstSettingApplied(
-        Duration duration) throws ExecutionException, InterruptedException, TimeoutException;
+    abstract protected void awaitFirstSettingApplied(Duration duration) throws ExecutionException, InterruptedException, TimeoutException;
 
     @Override
     public void onPrintThreadStackCommand(Endpoints endpoints,
@@ -274,7 +271,18 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         LOGGER.info("Shutdown the rocketmq client successfully, clientId={}", clientId);
     }
 
-    public void onTopicRouteDataUpdate(String topic, TopicRouteDataResult topicRouteDataResult) {
+    public final void onTopicRouteDataResultUpdate(String topic, TopicRouteDataResult topicRouteDataResult) {
+        final TopicRouteDataResult old = topicRouteResultCache.put(topic, topicRouteDataResult);
+        // TODO: still update topic route if the result is not OK.
+        if (topicRouteDataResult.equals(old)) {
+            LOGGER.info("Topic route remains the same, topic={}, clientId={}", topic, clientId);
+        } else {
+            LOGGER.info("Topic route is updated, topic={}, clientId={}, {} => {}", old, topicRouteDataResult);
+        }
+        onTopicRouteDataResultUpdate0(topic, topicRouteDataResult);
+    }
+
+    public void onTopicRouteDataResultUpdate0(String topic, TopicRouteDataResult topicRouteDataResult) {
     }
 
     private void updateRouteCache() {
@@ -291,7 +299,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
                     } else {
                         LOGGER.info("Topic route is updated, topic={}, clientId={}, {} => {}", old, topicRouteDataResult);
                     }
-                    onTopicRouteDataUpdate(topic, topicRouteDataResult);
+                    onTopicRouteDataResultUpdate(topic, topicRouteDataResult);
                 }
 
                 @Override
@@ -402,31 +410,6 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
             totalRouteEndpoints.addAll(result.getTopicRouteData().getTotalEndpoints());
         }
         return totalRouteEndpoints;
-    }
-
-    private synchronized Set<Endpoints> updateTopicRouteResultCache(String topic, TopicRouteDataResult newResult) {
-        final Set<Endpoints> before = getTotalRouteEndpoints();
-        final TopicRouteDataResult oldResult = topicRouteResultCache.put(topic, newResult);
-        if (newResult.equals(oldResult)) {
-            LOGGER.info("Topic route result remains the same, topic={}, clientId={}", topic,
-                clientId);
-        } else {
-            LOGGER.info("Topic route is updated, topic={}, clientId={}, {} => {}", topic, clientId, oldResult, newResult);
-        }
-        final Set<Endpoints> after = getTotalRouteEndpoints();
-        return new HashSet<>(Sets.difference(after, before));
-    }
-
-    private void onTopicRouteDataResultUpdate(String topic, TopicRouteDataResult topicRouteDataResult) {
-        final Set<Endpoints> newEndpoints = updateTopicRouteResultCache(topic, topicRouteDataResult);
-        for (Endpoints endpoints : newEndpoints) {
-            doTelemetry(endpoints);
-        }
-    }
-
-    // TODO: not implement yet.
-    private void doTelemetry(Endpoints endpoints) {
-
     }
 
     protected ListenableFuture<TopicRouteDataResult> getRouteDataResult(final String topic) {
