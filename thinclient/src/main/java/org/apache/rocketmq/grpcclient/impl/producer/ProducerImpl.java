@@ -57,6 +57,7 @@ import java.util.stream.Collectors;
 import net.javacrumbs.futureconverter.java8guava.FutureConverter;
 import org.apache.rocketmq.apis.ClientConfiguration;
 import org.apache.rocketmq.apis.exception.ClientException;
+import org.apache.rocketmq.apis.exception.InternalException;
 import org.apache.rocketmq.apis.message.Message;
 import org.apache.rocketmq.apis.message.MessageId;
 import org.apache.rocketmq.apis.producer.Producer;
@@ -174,17 +175,17 @@ public class ProducerImpl extends ClientImpl implements Producer {
     @Override
     public SendReceipt send(Message message) throws ClientException {
         final CompletableFuture<SendReceipt> future = sendAsync(message);
-        // TODO: polish code.
         try {
             return future.get();
-        } catch (Exception t) {
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Throwable t) {
             final Throwable cause = t.getCause();
             if (cause instanceof ClientException) {
                 throw (ClientException) cause;
             }
-
+            throw new InternalException(t);
         }
-        return null;
     }
 
     /**
@@ -212,13 +213,16 @@ public class ProducerImpl extends ClientImpl implements Producer {
     public List<SendReceipt> send(List<Message> messages) throws ClientException {
         final ListenableFuture<List<SendReceipt>> future = send0(messages, false);
         try {
-            final List<SendReceipt> sendReceipts = future.get();
+            return future.get();
+        } catch (RuntimeException e) {
+            throw e;
         } catch (Throwable t) {
-            // TODO: polish code
-            System.out.println(t);
+            final Throwable cause = t.getCause();
+            if (cause instanceof ClientException) {
+                throw (ClientException) cause;
+            }
+            throw new InternalException(t);
         }
-        // TODO
-        return null;
     }
 
     /**
@@ -400,6 +404,12 @@ public class ProducerImpl extends ClientImpl implements Producer {
                     delay.toNanos(), TimeUnit.NANOSECONDS);
             }
         }, MoreExecutors.directExecutor());
+    }
+
+    @Override
+    public void onTopicRouteDataUpdate(String topic, TopicRouteDataResult topicRouteDataResult) {
+        final PublishingTopicRouteDataResult publishingTopicRouteDataResult = new PublishingTopicRouteDataResult(topicRouteDataResult);
+        publishingRouteDataResultCache.put(topic, publishingTopicRouteDataResult);
     }
 
     private ListenableFuture<PublishingTopicRouteDataResult> getPublishingTopicRouteResult(final String topic) {

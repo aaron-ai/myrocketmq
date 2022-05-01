@@ -274,8 +274,26 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         LOGGER.info("Shutdown the rocketmq client successfully, clientId={}", clientId);
     }
 
-    private void updateRouteCache() {
+    public void onTopicRouteDataUpdate(String topic, TopicRouteDataResult topicRouteDataResult) {
+    }
 
+    private void updateRouteCache() {
+        LOGGER.info("Start to update route cache for a new round, clientId={}", clientId);
+        for (final String topic : topicRouteResultCache.keySet()) {
+            final ListenableFuture<TopicRouteDataResult> future = fetchTopicRoute(topic);
+            Futures.addCallback(future, new FutureCallback<TopicRouteDataResult>() {
+                @Override
+                public void onSuccess(TopicRouteDataResult topicRouteDataResult) {
+                    topicRouteResultCache.put(topic, topicRouteDataResult);
+                    onTopicRouteDataUpdate(topic, topicRouteDataResult);
+                }
+
+                @Override
+                public void onFailure(Throwable t) {
+                    LOGGER.error("Failed to fetch topic route for update cache, topic={}, clientId={}", topic, clientId, t);
+                }
+            }, MoreExecutors.directExecutor());
+        }
     }
 
     public abstract NotifyClientTerminationRequest wrapNotifyClientTerminationRequest();

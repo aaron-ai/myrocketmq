@@ -47,6 +47,11 @@ public abstract class ClientException extends Exception {
         this.context = new HashMap<>();
     }
 
+    ClientException(Throwable t) {
+        super(t);
+        this.context = new HashMap<>();
+    }
+
     @SuppressWarnings("SameParameterValue")
     protected void putMetadata(String key, String value) {
         context.put(key, value);
