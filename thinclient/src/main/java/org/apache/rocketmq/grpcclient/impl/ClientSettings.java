@@ -18,6 +18,7 @@
 package org.apache.rocketmq.grpcclient.impl;
 
 import apache.rocketmq.v2.Settings;
+import com.google.common.base.MoreObjects;
 import com.google.common.util.concurrent.SettableFuture;
 import java.time.Duration;
 import org.apache.rocketmq.apis.retry.RetryPolicy;
@@ -29,7 +30,7 @@ public abstract class ClientSettings {
     protected final Endpoints accessPoint;
     protected RetryPolicy retryPolicy;
     protected final Duration requestTimeout;
-    protected final SettableFuture<Void> firstApplyCompletedFuture;
+    protected final SettableFuture<ClientSettings> firstApplyCompletedFuture;
 
     public ClientSettings(String clientId, ClientType clientType, Endpoints accessPoint,
         RetryPolicy retryPolicy, Duration requestTimeout) {
@@ -53,7 +54,18 @@ public abstract class ClientSettings {
         return retryPolicy;
     }
 
-    public SettableFuture<Void> getFirstApplyCompletedFuture() {
+    public SettableFuture<ClientSettings> getFirstApplyCompletedFuture() {
         return firstApplyCompletedFuture;
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+            .add("clientId", clientId)
+            .add("clientType", clientType)
+            .add("accessPoint", accessPoint)
+            .add("retryPolicy", retryPolicy)
+            .add("requestTimeout", requestTimeout)
+            .toString();
     }
 }

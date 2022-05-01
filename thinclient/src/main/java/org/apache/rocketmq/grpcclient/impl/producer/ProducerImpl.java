@@ -66,6 +66,7 @@ import org.apache.rocketmq.apis.producer.Transaction;
 import org.apache.rocketmq.apis.producer.TransactionChecker;
 import org.apache.rocketmq.apis.retry.ExponentialBackoffRetryPolicy;
 import org.apache.rocketmq.grpcclient.impl.ClientImpl;
+import org.apache.rocketmq.grpcclient.impl.ClientSettings;
 import org.apache.rocketmq.grpcclient.message.MessageType;
 import org.apache.rocketmq.grpcclient.message.PublishingMessageImpl;
 import org.apache.rocketmq.grpcclient.message.protocol.Resource;
@@ -150,7 +151,18 @@ public class ProducerImpl extends ClientImpl implements Producer {
     @Override
     protected void awaitFirstSettingApplied(
         Duration duration) throws ExecutionException, InterruptedException, TimeoutException {
-        producerSettings.getFirstApplyCompletedFuture().get(duration.toNanos(), TimeUnit.NANOSECONDS);
+        final SettableFuture<ClientSettings> future = producerSettings.getFirstApplyCompletedFuture();
+        Futures.addCallback(future, new FutureCallback<ClientSettings>() {
+            @Override
+            public void onSuccess(ClientSettings clientSettings) {
+                LOGGER.info("First producer settings arrived, settings={}, clientId={}", clientSettings, clientId);
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+            }
+        }, MoreExecutors.directExecutor());
+        future.get(duration.toNanos(), TimeUnit.NANOSECONDS);
     }
 
     @Override

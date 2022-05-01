@@ -22,6 +22,7 @@ import apache.rocketmq.v2.ExponentialBackoff;
 import apache.rocketmq.v2.Publishing;
 import apache.rocketmq.v2.RetryPolicy;
 import apache.rocketmq.v2.Settings;
+import com.google.common.base.MoreObjects;
 import com.google.protobuf.util.Durations;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
@@ -100,6 +101,20 @@ public class ProducerSettings extends ClientSettings {
         final Publishing publishing = settings.getPublishing();
         this.compressBodyThresholdBytes = publishing.getCompressBodyThreshold();
         this.maxBodySizeBytes = publishing.getMaxBodySize();
-        this.firstApplyCompletedFuture.set(null);
+        this.firstApplyCompletedFuture.set(this);
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+            .add("clientId", clientId)
+            .add("clientType", clientType)
+            .add("accessPoint", accessPoint)
+            .add("retryPolicy", retryPolicy)
+            .add("requestTimeout", requestTimeout)
+            .add("topics", topics)
+            .add("compressBodyThresholdBytes", compressBodyThresholdBytes)
+            .add("maxBodySizeBytes", maxBodySizeBytes)
+            .toString();
     }
 }

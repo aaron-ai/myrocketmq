@@ -24,6 +24,7 @@ import apache.rocketmq.v2.RetryPolicy;
 import apache.rocketmq.v2.Settings;
 import apache.rocketmq.v2.Subscription;
 import apache.rocketmq.v2.SubscriptionEntry;
+import com.google.common.base.MoreObjects;
 import com.google.protobuf.util.Durations;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
@@ -119,6 +120,22 @@ public class PushConsumerSettings extends ClientSettings {
             default:
                 // TODO: set exception here.
         }
-        this.firstApplyCompletedFuture.set(null);
+        this.firstApplyCompletedFuture.set(this);
+    }
+
+    @Override
+    public String toString() {
+        return MoreObjects.toStringHelper(this)
+            .add("clientId", clientId)
+            .add("clientType", clientType)
+            .add("accessPoint", accessPoint)
+            .add("retryPolicy", retryPolicy)
+            .add("requestTimeout", requestTimeout)
+            .add("group", group)
+            .add("subscriptionExpressions", subscriptionExpressions)
+            .add("fifo", fifo)
+            .add("receiveBatchSize", receiveBatchSize)
+            .add("longPollingTimeout", longPollingTimeout)
+            .toString();
     }
 }
