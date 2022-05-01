@@ -427,7 +427,7 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
 
     @Override
     public void onVerifyMessageCommand(Endpoints endpoints, VerifyMessageCommand verifyMessageCommand) {
-        // TODO
+
     }
 
     private ForwardMessageToDeadLetterQueueRequest wrapForwardMessageToDeadLetterQueueRequest(MessageViewImpl messageView) {

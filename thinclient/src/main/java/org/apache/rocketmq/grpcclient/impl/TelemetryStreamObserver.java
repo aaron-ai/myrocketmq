@@ -27,13 +27,13 @@ import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import io.grpc.stub.StreamObserver;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 
-public class TelemetryResponseObserver implements StreamObserver<TelemetryCommand> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(TelemetryResponseObserver.class);
+public class TelemetryStreamObserver implements StreamObserver<TelemetryCommand> {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TelemetryStreamObserver.class);
 
     private final Client client;
     private final Endpoints endpoints;
 
-    public TelemetryResponseObserver(Client client, Endpoints endpoints) {
+    public TelemetryStreamObserver(Client client, Endpoints endpoints) {
         this.client = client;
         this.endpoints = endpoints;
     }
@@ -50,28 +50,32 @@ public class TelemetryResponseObserver implements StreamObserver<TelemetryComman
             case RECOVER_ORPHANED_TRANSACTION_COMMAND: {
                 final RecoverOrphanedTransactionCommand recoverOrphanedTransactionCommand =
                     command.getRecoverOrphanedTransactionCommand();
+                LOGGER.info("Receive orphaned transaction recovery command from remote, endpoints={}, clientId={}", endpoints, client.getClientId());
                 client.onRecoverOrphanedTransactionCommand(endpoints, recoverOrphanedTransactionCommand);
                 break;
             }
             case VERIFY_MESSAGE_COMMAND: {
                 final VerifyMessageCommand verifyMessageCommand = command.getVerifyMessageCommand();
+                LOGGER.info("Receive message verification command from remote, endpoints={}, clientId={}", client.getClientId());
                 client.onVerifyMessageCommand(endpoints, verifyMessageCommand);
                 break;
             }
             case PRINT_THREAD_STACK_TRACE_COMMAND: {
                 final PrintThreadStackTraceCommand printThreadStackTraceCommand =
                     command.getPrintThreadStackTraceCommand();
+                LOGGER.info("Receive thread stack print command from remote, endpoints={}, clientId={}", endpoints, client.getClientId());
                 client.onPrintThreadStackCommand(endpoints, printThreadStackTraceCommand);
                 break;
             }
             default:
+                LOGGER.warn("Receive unrecognized command from remote, endpoints={}, command={}, clientId={}", endpoints, command, client.getClientId());
         }
     }
 
     @Override
     public void onError(Throwable throwable) {
         LOGGER.error("Exception raised from stream response observer, clientId={}, endpoints={}",
-                     client.getClientId(), endpoints, throwable);
+            client.getClientId(), endpoints, throwable);
 
     }
 

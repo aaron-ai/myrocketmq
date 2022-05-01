@@ -96,7 +96,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
     private final Lock inflightRouteFutureLock;
 
     @GuardedBy("telemetryReqObserverTableLock")
-    private final ConcurrentMap<Endpoints, TelemetryResponseObserver> telemetryResponseObserverTable;
+    private final ConcurrentMap<Endpoints, TelemetryStreamObserver> telemetryResponseObserverTable;
     private final ReadWriteLock telemetryResponseObserverTableLock;
 
     protected final String clientId;
@@ -128,29 +128,9 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         this.telemetryResponseObserverTableLock = new ReentrantReadWriteLock();
     }
 
-    @SuppressWarnings("SameParameterValue")
-    abstract protected void awaitFirstSettingApplied(Duration duration) throws ExecutionException, InterruptedException, TimeoutException;
-
-    @Override
-    public void onPrintThreadStackCommand(Endpoints endpoints,
-        PrintThreadStackTraceCommand printThreadStackTraceCommand) {
-        LOGGER.info("Receive print thread stack command from remote, client id={}, endpoints={}", clientId, endpoints);
-        final String stackTrace = UtilAll.stackTrace();
-        final String nonce = printThreadStackTraceCommand.getNonce();
-        Status status = Status.newBuilder().setCode(Code.OK).build();
-        ThreadStackTrace threadStackTrace = ThreadStackTrace.newBuilder()
-            .setThreadStackTrace(stackTrace)
-            .setNonce(nonce)
-            .setStatus(status)
-            .build();
-        TelemetryCommand telemetryCommand = TelemetryCommand.newBuilder().setThreadStackTrace(threadStackTrace).build();
-        try {
-            telemetryCommand(endpoints, telemetryCommand);
-        } catch (Throwable t) {
-            LOGGER.error("Failed to send thread stack command to remote, endpoints={}, client id={}", endpoints, clientId, t);
-        }
-    }
-
+    /**
+     * Start the rocketmq client and do some preparatory work.
+     */
     @Override
     protected void startUp() throws Exception {
         LOGGER.info("Begin to start the rocketmq client, clientId={}", clientId);
@@ -196,6 +176,52 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         LOGGER.info("The rocketmq client starts successfully, clientId={}", clientId);
     }
 
+    /**
+     * Shutdown the rocketmq client and release related resources.
+     */
+    @Override
+    protected void shutDown() throws InterruptedException {
+        LOGGER.info("Begin to shutdown the rocketmq client, clientId={}", clientId);
+        notifyClientTermination();
+        if (null != this.updateRouteCacheFuture) {
+            updateRouteCacheFuture.cancel(false);
+        }
+        ClientManagerRegistry.unregisterClient(this);
+        LOGGER.info("Shutdown the rocketmq client successfully, clientId={}", clientId);
+    }
+
+    @SuppressWarnings("SameParameterValue")
+    abstract protected void awaitFirstSettingApplied(
+        Duration duration) throws ExecutionException, InterruptedException, TimeoutException;
+
+    /**
+     * @see Client#onPrintThreadStackCommand(Endpoints, PrintThreadStackTraceCommand)
+     */
+    @Override
+    public void onPrintThreadStackCommand(Endpoints endpoints,
+        PrintThreadStackTraceCommand printThreadStackTraceCommand) {
+        LOGGER.info("Receive print thread stack command from remote, client id={}, endpoints={}", clientId, endpoints);
+        final String stackTrace = UtilAll.stackTrace();
+        final String nonce = printThreadStackTraceCommand.getNonce();
+        Status status = Status.newBuilder().setCode(Code.OK).build();
+        ThreadStackTrace threadStackTrace = ThreadStackTrace.newBuilder()
+            .setThreadStackTrace(stackTrace)
+            .setNonce(nonce)
+            .setStatus(status)
+            .build();
+        TelemetryCommand telemetryCommand = TelemetryCommand.newBuilder().setThreadStackTrace(threadStackTrace).build();
+        try {
+            telemetryCommand(endpoints, telemetryCommand);
+        } catch (Throwable t) {
+            LOGGER.error("Failed to send thread stack command to remote, endpoints={}, client id={}", endpoints, clientId, t);
+        }
+    }
+
+    public abstract Settings localSettings();
+
+    /**
+     * @see Client#announceSettings()
+     */
     @Override
     public void announceSettings() throws Exception {
         final Settings settings = localSettings();
@@ -218,7 +244,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
     public void telemetryCommand(Endpoints endpoints, TelemetryCommand command) throws TelemetryException {
         StreamObserver<TelemetryCommand> requestObserver;
         try {
-            final TelemetryResponseObserver responseObserver = this.getTelemetryResponseObserver(endpoints);
+            final TelemetryStreamObserver responseObserver = this.getTelemetryResponseObserver(endpoints);
             Metadata metadata = sign();
             requestObserver = clientManager.telemetry(endpoints, metadata, Duration.ofNanos(Long.MAX_VALUE), responseObserver);
         } catch (Throwable t) {
@@ -233,9 +259,9 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         requestObserver.onCompleted();
     }
 
-    public TelemetryResponseObserver getTelemetryResponseObserver(Endpoints endpoints) {
+    public TelemetryStreamObserver getTelemetryResponseObserver(Endpoints endpoints) {
         telemetryResponseObserverTableLock.readLock().lock();
-        TelemetryResponseObserver responseObserver;
+        TelemetryStreamObserver responseObserver;
         try {
             responseObserver = telemetryResponseObserverTable.get(endpoints);
             if (null != responseObserver) {
@@ -250,25 +276,12 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
             if (null != responseObserver) {
                 return responseObserver;
             }
-            responseObserver = new TelemetryResponseObserver(this, endpoints);
+            responseObserver = new TelemetryStreamObserver(this, endpoints);
             telemetryResponseObserverTable.put(endpoints, responseObserver);
             return responseObserver;
         } finally {
             telemetryResponseObserverTableLock.writeLock().unlock();
         }
-    }
-
-    public abstract Settings localSettings();
-
-    @Override
-    protected void shutDown() throws InterruptedException {
-        LOGGER.info("Begin to shutdown the rocketmq client, clientId={}", clientId);
-        notifyClientTermination();
-        if (null != this.updateRouteCacheFuture) {
-            updateRouteCacheFuture.cancel(false);
-        }
-        ClientManagerRegistry.unregisterClient(this);
-        LOGGER.info("Shutdown the rocketmq client successfully, clientId={}", clientId);
     }
 
     public final void onTopicRouteDataResultUpdate(String topic, TopicRouteDataResult topicRouteDataResult) {
@@ -310,8 +323,14 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         }
     }
 
+    /**
+     * Wrap notify client termination request.
+     */
     public abstract NotifyClientTerminationRequest wrapNotifyClientTerminationRequest();
 
+    /**
+     * Notify remote that current client is prepared to be terminated.
+     */
     private void notifyClientTermination() {
         LOGGER.info("Notify that client is terminated, clientId={}", clientId);
         final Set<Endpoints> routeEndpointsSet = getTotalRouteEndpoints();
@@ -327,11 +346,17 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         }
     }
 
+    /**
+     * @see Client#getClientId()
+     */
     @Override
     public String getClientId() {
         return clientId;
     }
 
+    /**
+     * @see Client#doHeartbeat()
+     */
     @Override
     public void doHeartbeat() {
         final Set<Endpoints> totalEndpoints = getTotalRouteEndpoints();
@@ -341,11 +366,20 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         }
     }
 
+    /**
+     * Real-time signature generation
+     */
     public Metadata sign() throws UnsupportedEncodingException, NoSuchAlgorithmException, InvalidKeyException {
         return Signature.sign(clientConfiguration, clientId);
     }
 
-    protected void doHeartbeat(HeartbeatRequest request, final Endpoints endpoints) {
+    /**
+     * Send heartbeat data to appointed endpoint
+     *
+     * @param request   heartbeat data request
+     * @param endpoints endpoint to send heartbeat data
+     */
+    private void doHeartbeat(HeartbeatRequest request, final Endpoints endpoints) {
         try {
             Metadata metadata = sign();
             final ListenableFuture<HeartbeatResponse> future = clientManager
@@ -373,8 +407,14 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         }
     }
 
+    /**
+     * Wrap heartbeat request
+     */
     public abstract HeartbeatRequest wrapHeartbeatRequest();
 
+    /**
+     * @see Client#doStats()
+     */
     @Override
     public void doStats() {
     }
