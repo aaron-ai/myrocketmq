@@ -96,7 +96,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
     private final Lock inflightRouteFutureLock;
 
     @GuardedBy("telemetryReqObserverTableLock")
-    private final ConcurrentMap<Endpoints, TelemetryStreamObserver> telemetryResponseObserverTable;
+    private final ConcurrentMap<Endpoints, TelemetryRespObserver> telemetryResponseObserverTable;
     private final ReadWriteLock telemetryResponseObserverTableLock;
 
     protected final String clientId;
@@ -244,7 +244,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
     public void telemetryCommand(Endpoints endpoints, TelemetryCommand command) throws TelemetryException {
         StreamObserver<TelemetryCommand> requestObserver;
         try {
-            final TelemetryStreamObserver responseObserver = this.getTelemetryResponseObserver(endpoints);
+            final TelemetryRespObserver responseObserver = this.getTelemetryRespObserver(endpoints);
             Metadata metadata = sign();
             requestObserver = clientManager.telemetry(endpoints, metadata, Duration.ofNanos(Long.MAX_VALUE), responseObserver);
         } catch (Throwable t) {
@@ -259,9 +259,12 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         requestObserver.onCompleted();
     }
 
-    public TelemetryStreamObserver getTelemetryResponseObserver(Endpoints endpoints) {
+    /**
+     * Get gRPC response observer by endpoint.
+     */
+    public TelemetryRespObserver getTelemetryRespObserver(Endpoints endpoints) {
         telemetryResponseObserverTableLock.readLock().lock();
-        TelemetryStreamObserver responseObserver;
+        TelemetryRespObserver responseObserver;
         try {
             responseObserver = telemetryResponseObserverTable.get(endpoints);
             if (null != responseObserver) {
@@ -276,7 +279,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
             if (null != responseObserver) {
                 return responseObserver;
             }
-            responseObserver = new TelemetryStreamObserver(this, endpoints);
+            responseObserver = new TelemetryRespObserver(this, endpoints);
             telemetryResponseObserverTable.put(endpoints, responseObserver);
             return responseObserver;
         } finally {
@@ -284,6 +287,9 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         }
     }
 
+    /**
+     * Triggered when {@link TopicRouteDataResult} is fetched from remote.
+     */
     public final void onTopicRouteDataResultUpdate(String topic, TopicRouteDataResult topicRouteDataResult) {
         final TopicRouteDataResult old = topicRouteResultCache.put(topic, topicRouteDataResult);
         // TODO: still update topic route if the result is not OK.
@@ -300,7 +306,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
 
     private void updateRouteCache() {
         LOGGER.info("Start to update route cache for a new round, clientId={}", clientId);
-        for (final String topic : topicRouteResultCache.keySet()) {
+        topicRouteResultCache.keySet().forEach(topic -> {
             final ListenableFuture<TopicRouteDataResult> future = fetchTopicRoute(topic);
             Futures.addCallback(future, new FutureCallback<TopicRouteDataResult>() {
                 @Override
@@ -320,7 +326,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
                     LOGGER.error("Failed to fetch topic route for update cache, topic={}, clientId={}", topic, clientId, t);
                 }
             }, MoreExecutors.directExecutor());
-        }
+        });
     }
 
     /**

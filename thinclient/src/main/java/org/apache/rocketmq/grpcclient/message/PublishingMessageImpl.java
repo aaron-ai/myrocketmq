@@ -28,6 +28,7 @@ import java.nio.ByteBuffer;
 import java.util.Optional;
 import org.apache.rocketmq.apis.message.Message;
 import org.apache.rocketmq.apis.message.MessageId;
+import org.apache.rocketmq.grpcclient.impl.producer.ProducerSettings;
 import org.apache.rocketmq.grpcclient.utility.UtilAll;
 
 /**
@@ -37,28 +38,22 @@ import org.apache.rocketmq.grpcclient.utility.UtilAll;
 public class PublishingMessageImpl extends MessageImpl {
     private static final Logger LOGGER = LoggerFactory.getLogger(PublishingMessageImpl.class);
 
-    /**
-     * If message body size exceeds the threshold, it would be compressed for convenience of transport.
-     */
-    private static final int MESSAGE_COMPRESSION_THRESHOLD_BYTES = 1024 * 4;
-
-    /**
-     * The default GZIP compression level for message body.
-     */
-    private static final int MESSAGE_GZIP_COMPRESSION_LEVEL = 5;
-
     private final Encoding encoding;
     private final ByteBuffer compressedBody;
     private final MessageId messageId;
     private final MessageType messageType;
     private volatile String traceContext;
 
-    public PublishingMessageImpl(Message message, boolean txEnabled) throws IOException {
+    public PublishingMessageImpl(Message message, ProducerSettings producerSettings, boolean txEnabled) throws IOException {
         super(message);
         this.traceContext = null;
         final int length = message.getBody().remaining();
+        final int maxBodySizeBytes = producerSettings.getMaxBodySizeBytes();
+        if (length > maxBodySizeBytes) {
+            throw new IOException("Message body size exceeds the threshold, max size=" + maxBodySizeBytes + " bytes");
+        }
         // Message body length exceeds the compression threshold, try to compress it.
-        if (length > MESSAGE_COMPRESSION_THRESHOLD_BYTES) {
+        if (length > producerSettings.getCompressBodyThresholdBytes()) {
             byte[] body;
             // Try downcasting to avoid redundant copy because ByteBuffer could not be compressed directly.
             if (message instanceof MessageImpl) {
@@ -70,7 +65,7 @@ public class PublishingMessageImpl extends MessageImpl {
                 body = new byte[length];
                 message.getBody().get(body);
             }
-            final byte[] compressed = UtilAll.compressBytesGzip(body, MESSAGE_GZIP_COMPRESSION_LEVEL);
+            final byte[] compressed = UtilAll.compressBytesGzip(body, producerSettings.getMessageGzipCompressionLevel());
             this.compressedBody = ByteBuffer.wrap(compressed).asReadOnlyBuffer();
             this.encoding = Encoding.GZIP;
         } else {

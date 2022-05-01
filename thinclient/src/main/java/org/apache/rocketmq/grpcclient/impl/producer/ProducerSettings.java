@@ -40,8 +40,16 @@ public class ProducerSettings extends ClientSettings {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProducerSettings.class);
 
     private final Set<Resource> topics;
+    /**
+     * If message body size exceeds the threshold, it would be compressed for convenience of transport.
+     */
     private volatile int compressBodyThresholdBytes = 4 * 1024;
     private volatile int maxBodySizeBytes = 4 * 1024 * 1024;
+    /**
+     * The default GZIP compression level for message body.
+     */
+    @SuppressWarnings("FieldCanBeLocal")
+    private final int messageGzipCompressionLevel = 5;
 
     public ProducerSettings(String clientId, Endpoints accessPoint,
         ExponentialBackoffRetryPolicy exponentialBackoffRetryPolicy,
@@ -56,6 +64,10 @@ public class ProducerSettings extends ClientSettings {
 
     public int getMaxBodySizeBytes() {
         return maxBodySizeBytes;
+    }
+
+    public int getMessageGzipCompressionLevel() {
+        return messageGzipCompressionLevel;
     }
 
     @Override

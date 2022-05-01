@@ -27,13 +27,13 @@ import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import io.grpc.stub.StreamObserver;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 
-public class TelemetryStreamObserver implements StreamObserver<TelemetryCommand> {
-    private static final Logger LOGGER = LoggerFactory.getLogger(TelemetryStreamObserver.class);
+public class TelemetryRespObserver implements StreamObserver<TelemetryCommand> {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TelemetryRespObserver.class);
 
     private final Client client;
     private final Endpoints endpoints;
 
-    public TelemetryStreamObserver(Client client, Endpoints endpoints) {
+    public TelemetryRespObserver(Client client, Endpoints endpoints) {
         this.client = client;
         this.endpoints = endpoints;
     }

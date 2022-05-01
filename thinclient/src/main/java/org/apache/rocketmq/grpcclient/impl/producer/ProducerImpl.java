@@ -17,13 +17,18 @@
 
 package org.apache.rocketmq.grpcclient.impl.producer;
 
+import apache.rocketmq.v2.Code;
 import apache.rocketmq.v2.HeartbeatRequest;
 import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.RecoverOrphanedTransactionCommand;
 import apache.rocketmq.v2.SendMessageRequest;
 import apache.rocketmq.v2.SendMessageResponse;
 import apache.rocketmq.v2.Settings;
+import apache.rocketmq.v2.Status;
+import apache.rocketmq.v2.TelemetryCommand;
+import apache.rocketmq.v2.ThreadStackTrace;
 import apache.rocketmq.v2.VerifyMessageCommand;
+import apache.rocketmq.v2.VerifyMessageResult;
 import com.google.common.math.IntMath;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -130,6 +135,15 @@ public class ProducerImpl extends ClientImpl implements Producer {
     @Override
     public void onVerifyMessageCommand(Endpoints endpoints, VerifyMessageCommand verifyMessageCommand) {
         LOGGER.warn("Ignore verify message command from remote, which is not expected for producer, client id={}, command={}", clientId, verifyMessageCommand);
+        final String nonce = verifyMessageCommand.getNonce();
+        final Status status = Status.newBuilder().setCode(Code.NOT_IMPLEMENTED).build();
+        VerifyMessageResult verifyMessageResult = VerifyMessageResult.newBuilder().setNonce(nonce).setStatus(status).build();
+        TelemetryCommand telemetryCommand = TelemetryCommand.newBuilder().setVerifyMessageResult(verifyMessageResult).build();
+        try {
+            telemetryCommand(endpoints, telemetryCommand);
+        } catch (Throwable t) {
+            LOGGER.warn("Failed to send message verification result for producer, clientId={}", clientId, t);
+        }
     }
 
     @Override
@@ -278,7 +292,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
         List<PublishingMessageImpl> pubMessages = new ArrayList<>();
         for (Message message : messages) {
             try {
-                final PublishingMessageImpl pubMessage = new PublishingMessageImpl(message, txEnabled);
+                final PublishingMessageImpl pubMessage = new PublishingMessageImpl(message, producerSettings, txEnabled);
                 pubMessages.add(pubMessage);
             } catch (Throwable t) {
                 // Failed to refine message, no need to proceed.
