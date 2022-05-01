@@ -45,6 +45,7 @@ public class ProducerExample {
                     final SendReceipt sendReceipt = producer.send(message);
                     LOGGER.info("Send message successfully, sendReceipt={}", sendReceipt);
                 }
+                Thread.sleep(9999999);
             } catch (Throwable e) {
                 e.printStackTrace();
             }

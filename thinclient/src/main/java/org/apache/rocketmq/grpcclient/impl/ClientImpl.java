@@ -284,7 +284,13 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
             Futures.addCallback(future, new FutureCallback<TopicRouteDataResult>() {
                 @Override
                 public void onSuccess(TopicRouteDataResult topicRouteDataResult) {
-                    topicRouteResultCache.put(topic, topicRouteDataResult);
+                    final TopicRouteDataResult old = topicRouteResultCache.put(topic, topicRouteDataResult);
+                    // TODO: still update topic route if the result is not OK.
+                    if (topicRouteDataResult.equals(old)) {
+                        LOGGER.info("Topic route remains the same, topic={}, clientId={}", topic, clientId);
+                    } else {
+                        LOGGER.info("Topic route is updated, topic={}, clientId={}, {} => {}", old, topicRouteDataResult);
+                    }
                     onTopicRouteDataUpdate(topic, topicRouteDataResult);
                 }
 
