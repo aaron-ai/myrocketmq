@@ -38,4 +38,8 @@ public class AuthorisationException extends ClientException {
         super(message);
         putMetadata(RESPONSE_CODE_KEY, String.valueOf(responseCode));
     }
+
+    public AuthorisationException(String message) {
+        super(message);
+    }
 }

@@ -35,19 +35,10 @@ public class MetadataUtils {
     }
 
     private static void load(String path, Properties properties) {
-        InputStream stream = MetadataUtils.class.getClassLoader().getResourceAsStream(path);
-        try {
+        try (InputStream stream = MetadataUtils.class.getClassLoader().getResourceAsStream(path)) {
             properties.load(stream);
         } catch (Throwable ignore) {
             // ignore on purpose.
-        } finally {
-            try {
-                if (null != stream) {
-                    stream.close();
-                }
-            } catch (IOException ignore) {
-                // ignore on purpose.
-            }
         }
     }
 

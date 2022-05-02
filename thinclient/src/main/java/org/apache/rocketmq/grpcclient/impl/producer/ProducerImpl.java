@@ -92,10 +92,6 @@ public class ProducerImpl extends ClientImpl implements Producer {
     private final TransactionChecker checker;
     private final ConcurrentMap<String/* topic */, PublishingTopicRouteDataResult> publishingRouteDataResultCache;
 
-    @GuardedBy("isolatedLock")
-    private final Set<Endpoints> isolated;
-    private final ReadWriteLock isolatedLock;
-
     private final ExecutorService sendAsyncExecutor;
 
     /**
@@ -109,9 +105,6 @@ public class ProducerImpl extends ClientImpl implements Producer {
         this.sendAsyncThreadCount = sendAsyncThreadCount;
         this.retryPolicy = retryPolicy;
         this.checker = checker;
-
-        this.isolated = new HashSet<>();
-        this.isolatedLock = new ReentrantReadWriteLock();
 
         this.publishingRouteDataResultCache = new ConcurrentHashMap<>();
         this.sendAsyncExecutor = new ThreadPoolExecutor(
@@ -134,7 +127,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
 
     @Override
     public void onVerifyMessageCommand(Endpoints endpoints, VerifyMessageCommand verifyMessageCommand) {
-        LOGGER.warn("Ignore verify message command from remote, which is not expected for producer, client id={}, command={}", clientId, verifyMessageCommand);
+        LOGGER.warn("Ignore verify message command from remote, which is not expected for producer, clientId={}, command={}", clientId, verifyMessageCommand);
         final String nonce = verifyMessageCommand.getNonce();
         final Status status = Status.newBuilder().setCode(Code.NOT_IMPLEMENTED).build();
         VerifyMessageResult verifyMessageResult = VerifyMessageResult.newBuilder().setNonce(nonce).setStatus(status).build();
@@ -152,6 +145,9 @@ public class ProducerImpl extends ClientImpl implements Producer {
         // TODO
     }
 
+    /**
+     * @see ClientImpl#localSettings()
+     */
     @Override
     public Settings localSettings() {
         return producerSettings.toProtobuf();
@@ -219,6 +215,10 @@ public class ProducerImpl extends ClientImpl implements Producer {
      */
     @Override
     public SendReceipt send(Message message, Transaction transaction) throws ClientException {
+        synchronized (transaction) {
+            final ListenableFuture<List<SendReceipt>> future = send0(Collections.singletonList(message), true);
+
+        }
         return null;
     }
 
@@ -260,7 +260,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close() {
         this.stopAsync().awaitTerminated();
     }
 

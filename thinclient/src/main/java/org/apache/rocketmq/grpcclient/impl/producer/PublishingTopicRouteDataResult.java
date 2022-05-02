@@ -25,6 +25,10 @@ import com.google.common.math.IntMath;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import org.apache.commons.lang3.RandomUtils;
+import org.apache.rocketmq.apis.exception.AuthenticationException;
+import org.apache.rocketmq.apis.exception.AuthorisationException;
+import org.apache.rocketmq.apis.exception.ClientException;
+import org.apache.rocketmq.apis.exception.ResourceNotFoundException;
 import org.apache.rocketmq.grpcclient.route.Broker;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
@@ -40,8 +44,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 @Immutable
 public class PublishingTopicRouteDataResult {
-    private static final Logger LOGGER = LoggerFactory.getLogger(PublishingTopicRouteDataResult.class);
-
     private final AtomicInteger index;
 
     private final Status status;
@@ -68,26 +70,26 @@ public class PublishingTopicRouteDataResult {
         this.messageQueues = builder.build();
     }
 
-    public List<MessageQueueImpl> getMessageQueues() {
-        return new ArrayList<>(this.messageQueues);
-    }
-
-    public boolean isEmpty() {
-        return messageQueues.isEmpty();
-    }
-
-    // TODO:
-    public List<MessageQueueImpl> takeMessageQueues(Set<Endpoints> excluded, int count) {
-//        if (Code.OK != status.getCode()) {
-//
-//        }
+    public List<MessageQueueImpl> takeMessageQueues(Set<Endpoints> excluded, int count) throws ClientException {
+        final Code code = status.getCode();
+        switch (code) {
+            case OK:
+                break;
+            case FORBIDDEN:
+                throw new AuthorisationException(code.ordinal(), status.getMessage());
+            case UNAUTHORIZED:
+                throw new AuthenticationException(code.ordinal(), status.getMessage());
+            case TOPIC_NOT_FOUND:
+                throw new ResourceNotFoundException(code.ordinal(), status.getMessage());
+            case ILLEGAL_ACCESS_POINT:
+                throw new IllegalArgumentException("Access point is illegal");
+        }
         int next = index.getAndIncrement();
         List<MessageQueueImpl> candidates = new ArrayList<>();
         Set<String> candidateBrokerNames = new HashSet<>();
-        // TODO: polish code
-//        if (partitions.isEmpty()) {
-//            throw new ClientException(ErrorCode.NO_PERMISSION);
-//        }
+        if (messageQueues.isEmpty()) {
+            throw new AuthorisationException("Writable message queues is empty");
+        }
         for (int i = 0; i < messageQueues.size(); i++) {
             final MessageQueueImpl messageQueueImpl = messageQueues.get(IntMath.mod(next++, messageQueues.size()));
             final Broker broker = messageQueueImpl.getBroker();
@@ -100,7 +102,7 @@ public class PublishingTopicRouteDataResult {
                 return candidates;
             }
         }
-        // if all endpoints are isolated.
+        // If all endpoints are isolated.
         if (candidates.isEmpty()) {
             for (int i = 0; i < messageQueues.size(); i++) {
                 final MessageQueueImpl messageQueueImpl = messageQueues.get(IntMath.mod(next++, messageQueues.size()));

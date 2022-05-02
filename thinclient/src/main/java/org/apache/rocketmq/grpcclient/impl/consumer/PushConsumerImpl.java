@@ -178,6 +178,10 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
         return consumerGroup;
     }
 
+    public PushConsumerSettings getPushConsumerSettings() {
+        return pushConsumerSettings;
+    }
+
     /**
      * @see PushConsumer#getSubscriptionExpressions()
      */

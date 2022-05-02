@@ -118,7 +118,7 @@ public class PushConsumerSettings extends ClientSettings {
                 retryPolicy = new CustomizedBackoffRetryPolicy(customizedBackoff.getNextList().stream().map(duration -> Duration.ofNanos(Durations.toNanos(duration))).collect(Collectors.toList()), backoffPolicy.getMaxAttempts());
                 break;
             default:
-                // TODO: set exception here.
+                throw new IllegalArgumentException("Unrecognized backoff policy strategy.");
         }
         this.firstApplyCompletedFuture.set(this);
     }

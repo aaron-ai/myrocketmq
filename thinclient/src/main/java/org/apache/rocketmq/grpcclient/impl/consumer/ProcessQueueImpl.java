@@ -61,10 +61,7 @@ public class ProcessQueueImpl implements ProcessQueue {
 
     public static final Duration FORWARD_FIFO_MESSAGE_TO_DLQ_DELAY = Duration.ofMillis(100);
     public static final Duration ACK_FIFO_MESSAGE_DELAY = Duration.ofMillis(100);
-    public static final Duration RECEIVE_LONG_POLLING_DURATION = Duration.ofSeconds(30);
     public static final Duration RECEIVE_LATER_DELAY = Duration.ofSeconds(3);
-    public static final Duration MAX_IDLE_DURATION = Duration.ofNanos(2 * RECEIVE_LONG_POLLING_DURATION.toNanos());
-    public static final int RECEPTION_BATCH_SIZE = 32;
 
     private final PushConsumerImpl consumer;
 
@@ -78,13 +75,15 @@ public class ProcessQueueImpl implements ProcessQueue {
     /**
      * Messages which is pending means have been cached, but are not taken by consumer dispatcher yet.
      */
-    @GuardedBy("pendingMessagesLock") private final List<MessageViewImpl> pendingMessages;
+    @GuardedBy("pendingMessagesLock")
+    private final List<MessageViewImpl> pendingMessages;
     private final ReadWriteLock pendingMessagesLock;
 
     /**
      * Message which is in-flight means have been dispatched, but the consumption process is not accomplished.
      */
-    @GuardedBy("inflightMessagesLock") private final List<MessageViewImpl> inflightMessages;
+    @GuardedBy("inflightMessagesLock")
+    private final List<MessageViewImpl> inflightMessages;
     private final ReadWriteLock inflightMessagesLock;
 
     private final AtomicLong cachedMessagesBytes;
@@ -117,13 +116,14 @@ public class ProcessQueueImpl implements ProcessQueue {
 
     @Override
     public boolean expired() {
+        Duration maxIdleDuration = Duration.ofNanos(2 * consumer.getPushConsumerSettings().getLongPollingTimeout().toNanos());
         final Duration idleDuration = Duration.ofNanos(System.nanoTime() - activityNanoTime);
-        if (idleDuration.compareTo(MAX_IDLE_DURATION) < 0) {
+        if (idleDuration.compareTo(maxIdleDuration) < 0) {
             return false;
         }
 
         LOGGER.warn("Process queue is idle, idle duration={}, max idle time={}, mq={}, clientId={}", idleDuration,
-            MAX_IDLE_DURATION, mq, consumer.getClientId());
+            maxIdleDuration, mq, consumer.getClientId());
         return true;
     }
 
@@ -142,7 +142,7 @@ public class ProcessQueueImpl implements ProcessQueue {
     private int getReceptionBatchSize() {
         int bufferSize = consumer.cacheMessageCountThresholdPerQueue() - this.cachedMessagesCount();
         bufferSize = Math.max(bufferSize, 1);
-        return Math.min(bufferSize, RECEPTION_BATCH_SIZE);
+        return Math.min(bufferSize, consumer.getPushConsumerSettings().getReceiveBatchSize());
     }
 
     private ReceiveMessageRequest wrapReceiveMessageRequest() {
@@ -216,7 +216,7 @@ public class ProcessQueueImpl implements ProcessQueue {
             final ReceiveMessageRequest request = wrapReceiveMessageRequest();
             activityNanoTime = System.nanoTime();
             final ListenableFuture<ReceiveMessageResult> future = consumer.receiveMessage(request, mq,
-                RECEIVE_LONG_POLLING_DURATION);
+                consumer.getPushConsumerSettings().getLongPollingTimeout());
             Futures.addCallback(future, new FutureCallback<ReceiveMessageResult>() {
                 @Override
                 public void onSuccess(ReceiveMessageResult result) {

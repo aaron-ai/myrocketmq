@@ -99,6 +99,10 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
     private final ConcurrentMap<Endpoints, TelemetryRespObserver> telemetryResponseObserverTable;
     private final ReadWriteLock telemetryResponseObserverTableLock;
 
+    @GuardedBy("isolatedLock")
+    protected final Set<Endpoints> isolated;
+    protected final ReadWriteLock isolatedLock;
+
     protected final String clientId;
 
     public ClientImpl(ClientConfiguration clientConfiguration, Set<String> topics) {
@@ -126,6 +130,9 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
 
         this.telemetryResponseObserverTable = new ConcurrentHashMap<>();
         this.telemetryResponseObserverTableLock = new ReentrantReadWriteLock();
+
+        this.isolated = new HashSet<>();
+        this.isolatedLock = new ReentrantReadWriteLock();
     }
 
     /**
@@ -217,6 +224,9 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         }
     }
 
+    /**
+     * Get client local settings and convert it to protobuf message.
+     */
     public abstract Settings localSettings();
 
     /**
@@ -401,6 +411,15 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
                         return;
                     }
                     LOGGER.info("Send heartbeat successfully, endpoints={}, clientId={}", endpoints, clientId);
+                    isolatedLock.writeLock().lock();
+                    try {
+                        final boolean removed = isolated.remove(endpoints);
+                        if (removed) {
+                            LOGGER.info("Rejoin endpoints which is isolated before, clientId={}, endpoints={}", clientId, endpoints);
+                        }
+                    } finally {
+                        isolatedLock.writeLock().unlock();
+                    }
                 }
 
                 @Override

@@ -30,8 +30,6 @@ import java.util.concurrent.locks.ReentrantLock;
 
 @ThreadSafe
 public class ClientManagerRegistry {
-    private static final Logger LOGGER = LoggerFactory.getLogger(ClientManagerRegistry.class);
-
     @GuardedBy("clientIdsLock")
     private static final Set<String> clientIds = new HashSet<>();
     private static final Lock clientIdsLock = new ReentrantLock();
