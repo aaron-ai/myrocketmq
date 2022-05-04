@@ -26,7 +26,6 @@ import apache.rocketmq.v2.SendMessageResponse;
 import apache.rocketmq.v2.Settings;
 import apache.rocketmq.v2.Status;
 import apache.rocketmq.v2.TelemetryCommand;
-import apache.rocketmq.v2.ThreadStackTrace;
 import apache.rocketmq.v2.VerifyMessageCommand;
 import apache.rocketmq.v2.VerifyMessageResult;
 import com.google.common.math.IntMath;
@@ -34,14 +33,13 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
-import com.google.errorprone.annotations.concurrent.GuardedBy;
 import io.grpc.Metadata;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -56,8 +54,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.locks.ReadWriteLock;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import net.javacrumbs.futureconverter.java8guava.FutureConverter;
 import org.apache.rocketmq.apis.ClientConfiguration;
@@ -206,6 +203,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
             if (cause instanceof ClientException) {
                 throw (ClientException) cause;
             }
+            // TODO
             throw new InternalException(t);
         }
     }
@@ -215,11 +213,32 @@ public class ProducerImpl extends ClientImpl implements Producer {
      */
     @Override
     public SendReceipt send(Message message, Transaction transaction) throws ClientException {
-        synchronized (transaction) {
-            final ListenableFuture<List<SendReceipt>> future = send0(Collections.singletonList(message), true);
-
+        if (!(transaction instanceof TransactionImpl)) {
+            throw new IllegalArgumentException("Transaction type is illegal");
         }
-        return null;
+        TransactionImpl transactionImpl = (TransactionImpl) transaction;
+        final Optional<PublishingMessageImpl> optionalPublishingMessage = transactionImpl.tryAddMessage(message);
+        if (!optionalPublishingMessage.isPresent()) {
+            // TODO
+            throw new RuntimeException();
+        }
+        final PublishingMessageImpl publishingMessage = optionalPublishingMessage.get();
+        final ListenableFuture<List<SendReceiptImpl>> future = send0(Collections.singletonList(publishingMessage), true);
+        try {
+            return future.get().iterator().next();
+        }
+        catch (RuntimeException e) {
+            throw e;
+        }
+        catch (Throwable t) {
+            final Throwable cause = t.getCause();
+            if (cause instanceof ClientException) {
+                throw (ClientException) cause;
+            }
+            // TODO
+            throw new InternalException(t);
+        }
+
     }
 
     /**
@@ -237,9 +256,9 @@ public class ProducerImpl extends ClientImpl implements Producer {
      */
     @Override
     public List<SendReceipt> send(List<Message> messages) throws ClientException {
-        final ListenableFuture<List<SendReceipt>> future = send0(messages, false);
+        final ListenableFuture<List<SendReceiptImpl>> future = send0(messages, false);
         try {
-            return future.get();
+            return new ArrayList<>(future.get());
         } catch (RuntimeException e) {
             throw e;
         } catch (Throwable t) {
@@ -276,6 +295,9 @@ public class ProducerImpl extends ClientImpl implements Producer {
         }
     }
 
+    /**
+     * Take message queue(s) from route for message publishing.
+     */
     private List<MessageQueueImpl> takeMessageQueues(PublishingTopicRouteDataResult result) throws ClientException {
         Set<Endpoints> isolated = new HashSet<>();
         isolatedLock.readLock().lock();
@@ -287,8 +309,8 @@ public class ProducerImpl extends ClientImpl implements Producer {
         return result.takeMessageQueues(isolated, retryPolicy.getMaxAttempts());
     }
 
-    private ListenableFuture<List<SendReceipt>> send0(List<Message> messages, boolean txEnabled) {
-        SettableFuture<List<SendReceipt>> future = SettableFuture.create();
+    private ListenableFuture<List<SendReceiptImpl>> send0(List<Message> messages, boolean txEnabled) {
+        SettableFuture<List<SendReceiptImpl>> future = SettableFuture.create();
         List<PublishingMessageImpl> pubMessages = new ArrayList<>();
         for (Message message : messages) {
             try {
@@ -332,7 +354,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
         return Futures.transformAsync(routeFuture, result -> {
             // Prepare the candidate partitions for retry-sending in advance.
             final List<MessageQueueImpl> candidates = takeMessageQueues(result);
-            final SettableFuture<List<SendReceipt>> future0 = SettableFuture.create();
+            final SettableFuture<List<SendReceiptImpl>> future0 = SettableFuture.create();
             send0(future0, topic, messageType, candidates, pubMessages, 1);
             return future0;
         }, sendAsyncExecutor);
@@ -347,7 +369,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
             .build();
     }
 
-    private void send0(SettableFuture<List<SendReceipt>> future, String topic, MessageType messageType,
+    private void send0(SettableFuture<List<SendReceiptImpl>> future, String topic, MessageType messageType,
         final List<MessageQueueImpl> candidates, final List<PublishingMessageImpl> messages, final int attempt) {
         Metadata metadata;
         try {
@@ -365,17 +387,17 @@ public class ProducerImpl extends ClientImpl implements Producer {
         final ListenableFuture<SendMessageResponse> responseFuture = clientManager.sendMessage(endpoints, metadata,
             request, clientConfiguration.getRequestTimeout());
 
-        final ListenableFuture<List<SendReceipt>> attemptFuture = Futures.transformAsync(responseFuture, response -> {
-            final SettableFuture<List<SendReceipt>> future0 = SettableFuture.create();
+        final ListenableFuture<List<SendReceiptImpl>> attemptFuture = Futures.transformAsync(responseFuture, response -> {
+            final SettableFuture<List<SendReceiptImpl>> future0 = SettableFuture.create();
             // TODO: may throw exception.
             future0.set(SendReceiptImpl.processSendResponse(messageQueue, response));
             return future0;
         }, MoreExecutors.directExecutor());
 
         final int maxAttempts = retryPolicy.getMaxAttempts();
-        Futures.addCallback(attemptFuture, new FutureCallback<List<SendReceipt>>() {
+        Futures.addCallback(attemptFuture, new FutureCallback<List<SendReceiptImpl>>() {
             @Override
-            public void onSuccess(List<SendReceipt> sendReceipts) {
+            public void onSuccess(List<SendReceiptImpl> sendReceipts) {
                 if (sendReceipts.size() != messages.size()) {
                     LOGGER.error("[Bug] Due to an unknown reason from remote, received send receipts' quantity[{}]" +
                         " is not equal to messages' quantity[{}]", sendReceipts.size(), messages.size());

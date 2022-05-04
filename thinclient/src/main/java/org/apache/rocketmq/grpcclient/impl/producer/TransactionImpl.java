@@ -17,21 +17,58 @@
 
 package org.apache.rocketmq.grpcclient.impl.producer;
 
+import com.google.errorprone.annotations.concurrent.GuardedBy;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.rocketmq.apis.exception.ClientException;
+import org.apache.rocketmq.apis.message.Message;
 import org.apache.rocketmq.apis.producer.Transaction;
 import org.apache.rocketmq.grpcclient.message.PublishingMessageImpl;
+import org.apache.rocketmq.grpcclient.route.Endpoints;
 
 public class TransactionImpl implements Transaction {
-    private final List<PublishingMessageImpl> messageList;
 
-    public TransactionImpl() {
-        this.messageList = new ArrayList<>();
+    private final ProducerSettings producerSettings;
+
+    @GuardedBy("messagesLock")
+    private final List<PublishingMessageImpl> messages;
+    private final ReadWriteLock messagesLock;
+
+    private final ConcurrentMap<PublishingMessageImpl, Endpoints> messageEndpointsMap;
+
+    public TransactionImpl(ProducerSettings producerSettings) {
+        this.producerSettings = producerSettings;
+        this.messages = new ArrayList<>();
+        this.messagesLock = new ReentrantReadWriteLock();
+        this.messageEndpointsMap = new ConcurrentHashMap<>();
     }
 
-    public void addMessage(PublishingMessageImpl messageImpl) {
-        this.messageList.add(messageImpl);
+    public Optional<PublishingMessageImpl> tryAddMessage(Message message) throws IOException {
+        messagesLock.readLock().lock();
+        try {
+            if (!messages.isEmpty()) {
+                return Optional.empty();
+            }
+        } finally {
+            messagesLock.readLock().unlock();
+        }
+        messagesLock.writeLock().lock();
+        try {
+            if (!messages.isEmpty()) {
+                return Optional.empty();
+            }
+            final PublishingMessageImpl publishingMessage = new PublishingMessageImpl(message, producerSettings, true);
+            messages.add(publishingMessage);
+            return Optional.of(publishingMessage);
+        } finally {
+            messagesLock.writeLock().unlock();
+        }
     }
 
     @Override
