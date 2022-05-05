@@ -74,6 +74,7 @@ import org.apache.rocketmq.apis.retry.ExponentialBackoffRetryPolicy;
 import org.apache.rocketmq.grpcclient.impl.ClientImpl;
 import org.apache.rocketmq.grpcclient.impl.ClientSettings;
 import org.apache.rocketmq.grpcclient.message.MessageType;
+import org.apache.rocketmq.grpcclient.message.MessageViewImpl;
 import org.apache.rocketmq.grpcclient.message.PublishingMessageImpl;
 import org.apache.rocketmq.grpcclient.message.protocol.Resource;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
@@ -143,7 +144,8 @@ public class ProducerImpl extends ClientImpl implements Producer {
     @Override
     public void onRecoverOrphanedTransactionCommand(Endpoints endpoints,
         RecoverOrphanedTransactionCommand recoverOrphanedTransactionCommand) {
-        // TODO
+        MessageViewImpl.fromProtobuf()
+        recoverOrphanedTransactionCommand.getOrphanedTransactionalMessage()
     }
 
     /**
@@ -239,7 +241,9 @@ public class ProducerImpl extends ClientImpl implements Producer {
         final PublishingMessageImpl publishingMessage = optionalPublishingMessage.get();
         final ListenableFuture<List<SendReceiptImpl>> future = send0(Collections.singletonList(publishingMessage), true);
         try {
-            return future.get().iterator().next();
+            final SendReceiptImpl sendReceipt = future.get().iterator().next();
+            ((TransactionImpl) transaction).tryAddReceipt(publishingMessage, sendReceipt);
+            return sendReceipt;
         } catch (RuntimeException e) {
             throw e;
         } catch (Throwable t) {
@@ -296,7 +300,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
         this.stopAsync().awaitTerminated();
     }
 
-    private void endTransaction(Endpoints endpoints, String topic, SendReceiptImpl sendReceipt,
+    public void endTransaction(Endpoints endpoints, String topic, SendReceiptImpl sendReceipt,
         final TransactionResolution resolution) throws ClientException {
         Metadata metadata;
         try {

@@ -25,6 +25,7 @@ import java.security.acl.LastOwnerException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -92,12 +93,28 @@ public class TransactionImpl implements Transaction {
         }
     }
 
+    // TODO: Add more comments.
     @Override
     public void commit() throws ClientException {
+        if (messageSendReceiptMap.isEmpty()) {
+            // TODO
+        }
+        for (Map.Entry<PublishingMessageImpl, SendReceiptImpl> entry : messageSendReceiptMap.entrySet()) {
+            final PublishingMessageImpl publishingMessage = entry.getKey();
+            final SendReceiptImpl sendReceipt = entry.getValue();
+            producerImpl.endTransaction(sendReceipt.getEndpoints(), publishingMessage.getTopic(), sendReceipt, TransactionResolution.COMMIT);
+        }
     }
 
     @Override
     public void rollback() throws ClientException {
-
+        if (messageSendReceiptMap.isEmpty()) {
+            // TODO
+        }
+        for (Map.Entry<PublishingMessageImpl, SendReceiptImpl> entry : messageSendReceiptMap.entrySet()) {
+            final PublishingMessageImpl publishingMessage = entry.getKey();
+            final SendReceiptImpl sendReceipt = entry.getValue();
+            producerImpl.endTransaction(sendReceipt.getEndpoints(), publishingMessage.getTopic(), sendReceipt, TransactionResolution.ROLLBACK);
+        }
     }
 }
