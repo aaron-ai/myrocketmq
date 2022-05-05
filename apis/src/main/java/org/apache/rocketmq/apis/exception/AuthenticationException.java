@@ -28,4 +28,8 @@ public class AuthenticationException extends ClientException {
         super(message);
         putMetadata(RESPONSE_CODE_KEY, String.valueOf(responseCode));
     }
+
+    public AuthenticationException(Throwable throwable) {
+        super(throwable);
+    }
 }

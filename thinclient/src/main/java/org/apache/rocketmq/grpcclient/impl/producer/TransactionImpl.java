@@ -18,10 +18,15 @@
 package org.apache.rocketmq.grpcclient.impl.producer;
 
 import com.google.errorprone.annotations.concurrent.GuardedBy;
+import io.github.aliyunmq.shaded.org.slf4j.Logger;
+import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import java.io.IOException;
+import java.security.acl.LastOwnerException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -33,26 +38,29 @@ import org.apache.rocketmq.grpcclient.message.PublishingMessageImpl;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 
 public class TransactionImpl implements Transaction {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ProducerImpl.class);
 
-    private final ProducerSettings producerSettings;
+    private final ProducerImpl producerImpl;
+
+    private static final int MAX_MESSAGE_NUM = 1;
 
     @GuardedBy("messagesLock")
-    private final List<PublishingMessageImpl> messages;
+    private final Set<PublishingMessageImpl> messages;
     private final ReadWriteLock messagesLock;
 
-    private final ConcurrentMap<PublishingMessageImpl, Endpoints> messageEndpointsMap;
+    private final ConcurrentMap<PublishingMessageImpl, SendReceiptImpl> messageSendReceiptMap;
 
-    public TransactionImpl(ProducerSettings producerSettings) {
-        this.producerSettings = producerSettings;
-        this.messages = new ArrayList<>();
+    public TransactionImpl(ProducerImpl producerImpl) {
+        this.producerImpl = producerImpl;
+        this.messages = new HashSet<>();
         this.messagesLock = new ReentrantReadWriteLock();
-        this.messageEndpointsMap = new ConcurrentHashMap<>();
+        this.messageSendReceiptMap = new ConcurrentHashMap<>();
     }
 
     public Optional<PublishingMessageImpl> tryAddMessage(Message message) throws IOException {
         messagesLock.readLock().lock();
         try {
-            if (!messages.isEmpty()) {
+            if (messages.size() > MAX_MESSAGE_NUM) {
                 return Optional.empty();
             }
         } finally {
@@ -60,10 +68,10 @@ public class TransactionImpl implements Transaction {
         }
         messagesLock.writeLock().lock();
         try {
-            if (!messages.isEmpty()) {
+            if (messages.size() > MAX_MESSAGE_NUM) {
                 return Optional.empty();
             }
-            final PublishingMessageImpl publishingMessage = new PublishingMessageImpl(message, producerSettings, true);
+            final PublishingMessageImpl publishingMessage = new PublishingMessageImpl(message, producerImpl.getProducerSettings(), true);
             messages.add(publishingMessage);
             return Optional.of(publishingMessage);
         } finally {
@@ -71,9 +79,21 @@ public class TransactionImpl implements Transaction {
         }
     }
 
+    public void tryAddReceipt(PublishingMessageImpl publishingMessage, SendReceiptImpl sendReceipt) {
+        messagesLock.readLock().lock();
+        try {
+            if (!messages.contains(publishingMessage)) {
+                LOGGER.warn("message(s) is not contained in current transaction");
+                return;
+            }
+            messageSendReceiptMap.put(publishingMessage, sendReceipt);
+        } finally {
+            messagesLock.readLock().unlock();
+        }
+    }
+
     @Override
     public void commit() throws ClientException {
-
     }
 
     @Override

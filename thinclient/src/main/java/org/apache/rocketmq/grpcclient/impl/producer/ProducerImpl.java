@@ -18,6 +18,8 @@
 package org.apache.rocketmq.grpcclient.impl.producer;
 
 import apache.rocketmq.v2.Code;
+import apache.rocketmq.v2.EndTransactionRequest;
+import apache.rocketmq.v2.EndTransactionResponse;
 import apache.rocketmq.v2.HeartbeatRequest;
 import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.RecoverOrphanedTransactionCommand;
@@ -34,6 +36,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import io.grpc.Metadata;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -58,6 +61,7 @@ import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import net.javacrumbs.futureconverter.java8guava.FutureConverter;
 import org.apache.rocketmq.apis.ClientConfiguration;
+import org.apache.rocketmq.apis.exception.AuthenticationException;
 import org.apache.rocketmq.apis.exception.ClientException;
 import org.apache.rocketmq.apis.exception.InternalException;
 import org.apache.rocketmq.apis.message.Message;
@@ -150,6 +154,10 @@ public class ProducerImpl extends ClientImpl implements Producer {
         return producerSettings.toProtobuf();
     }
 
+    public ProducerSettings getProducerSettings() {
+        return producerSettings;
+    }
+
     @Override
     public NotifyClientTerminationRequest wrapNotifyClientTerminationRequest() {
         return NotifyClientTerminationRequest.newBuilder().build();
@@ -217,7 +225,13 @@ public class ProducerImpl extends ClientImpl implements Producer {
             throw new IllegalArgumentException("Transaction type is illegal");
         }
         TransactionImpl transactionImpl = (TransactionImpl) transaction;
-        final Optional<PublishingMessageImpl> optionalPublishingMessage = transactionImpl.tryAddMessage(message);
+        Optional<PublishingMessageImpl> optionalPublishingMessage;
+        try {
+            optionalPublishingMessage = transactionImpl.tryAddMessage(message);
+        } catch (IOException e) {
+            // TODO
+            throw new InternalException(e);
+        }
         if (!optionalPublishingMessage.isPresent()) {
             // TODO
             throw new RuntimeException();
@@ -226,11 +240,9 @@ public class ProducerImpl extends ClientImpl implements Producer {
         final ListenableFuture<List<SendReceiptImpl>> future = send0(Collections.singletonList(publishingMessage), true);
         try {
             return future.get().iterator().next();
-        }
-        catch (RuntimeException e) {
+        } catch (RuntimeException e) {
             throw e;
-        }
-        catch (Throwable t) {
+        } catch (Throwable t) {
             final Throwable cause = t.getCause();
             if (cause instanceof ClientException) {
                 throw (ClientException) cause;
@@ -275,12 +287,59 @@ public class ProducerImpl extends ClientImpl implements Producer {
      */
     @Override
     public Transaction beginTransaction() throws ClientException {
-        return null;
+        // TODO: check status.
+        return new TransactionImpl(this);
     }
 
     @Override
     public void close() {
         this.stopAsync().awaitTerminated();
+    }
+
+    private void endTransaction(Endpoints endpoints, String topic, SendReceiptImpl sendReceipt,
+        final TransactionResolution resolution) throws ClientException {
+        Metadata metadata;
+        try {
+            metadata = sign();
+        } catch (Throwable t) {
+            throw new AuthenticationException(t);
+        }
+        final MessageId messageId = sendReceipt.getMessageId();
+        final String transactionId = sendReceipt.getTransactionId();
+        final EndTransactionRequest.Builder builder =
+            EndTransactionRequest.newBuilder().setMessageId(messageId.toString()).setTransactionId(transactionId)
+                .setTopic(apache.rocketmq.v2.Resource.newBuilder().setName(topic).build());
+        switch (resolution) {
+            case COMMIT:
+                builder.setResolution(apache.rocketmq.v2.TransactionResolution.COMMIT);
+                break;
+            case ROLLBACK:
+            default:
+                builder.setResolution(apache.rocketmq.v2.TransactionResolution.ROLLBACK);
+        }
+        final Duration requestTimeout = clientConfiguration.getRequestTimeout();
+        final EndTransactionRequest request = builder.build();
+        final ListenableFuture<EndTransactionResponse> future =
+            clientManager.endTransaction(endpoints, metadata, request, requestTimeout);
+        try {
+            final EndTransactionResponse response = future.get(requestTimeout.toNanos(), TimeUnit.NANOSECONDS);
+            final Status status = response.getStatus();
+            final Code code = status.getCode();
+            if (!Code.OK.equals(code)) {
+                LOGGER.error("Failed to end transaction, clientId={}, topic={}, messageId={}, transactionId={}," +
+                        " resolution={}, code={}, status message=[{}]", clientId, topic, messageId, transactionId,
+                    resolution, code, status.getMessage());
+            }
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Throwable t) {
+            final Throwable cause = t.getCause();
+            if (cause instanceof ClientException) {
+                throw (ClientException) cause;
+            }
+            // TODO
+            throw new InternalException(t);
+        }
     }
 
     /**
