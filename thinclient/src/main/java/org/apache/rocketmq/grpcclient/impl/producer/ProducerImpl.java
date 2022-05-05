@@ -21,6 +21,7 @@ import apache.rocketmq.v2.Code;
 import apache.rocketmq.v2.EndTransactionRequest;
 import apache.rocketmq.v2.EndTransactionResponse;
 import apache.rocketmq.v2.HeartbeatRequest;
+import apache.rocketmq.v2.MessageQueue;
 import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.RecoverOrphanedTransactionCommand;
 import apache.rocketmq.v2.SendMessageRequest;
@@ -33,6 +34,7 @@ import apache.rocketmq.v2.VerifyMessageResult;
 import com.google.common.math.IntMath;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import io.grpc.Metadata;
@@ -44,6 +46,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -70,6 +73,7 @@ import org.apache.rocketmq.apis.producer.Producer;
 import org.apache.rocketmq.apis.producer.SendReceipt;
 import org.apache.rocketmq.apis.producer.Transaction;
 import org.apache.rocketmq.apis.producer.TransactionChecker;
+import org.apache.rocketmq.apis.producer.TransactionResolution;
 import org.apache.rocketmq.apis.retry.ExponentialBackoffRetryPolicy;
 import org.apache.rocketmq.grpcclient.impl.ClientImpl;
 import org.apache.rocketmq.grpcclient.impl.ClientSettings;
@@ -82,6 +86,7 @@ import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 import org.apache.rocketmq.grpcclient.route.TopicRouteDataResult;
 import org.apache.rocketmq.grpcclient.utility.ExecutorServices;
 import org.apache.rocketmq.grpcclient.utility.ThreadFactoryImpl;
+import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({"UnstableApiUsage", "NullableProblems"})
 public class ProducerImpl extends ClientImpl implements Producer {
@@ -142,10 +147,50 @@ public class ProducerImpl extends ClientImpl implements Producer {
     }
 
     @Override
-    public void onRecoverOrphanedTransactionCommand(Endpoints endpoints,
-        RecoverOrphanedTransactionCommand recoverOrphanedTransactionCommand) {
-        MessageViewImpl.fromProtobuf()
-        recoverOrphanedTransactionCommand.getOrphanedTransactionalMessage()
+    public void onRecoverOrphanedTransactionCommand(Endpoints endpoints, RecoverOrphanedTransactionCommand command) {
+        final MessageQueueImpl mq = new MessageQueueImpl(command.getMessageQueue());
+        final String transactionId = command.getTransactionId();
+        final String messageId = command.getOrphanedTransactionalMessage().getSystemProperties().getMessageId();
+        if (null == checker) {
+            LOGGER.error("No transaction checker registered, ignore it, messageId={}, transactionId={}, endpoints={}, clientId={}", messageId, transactionId, endpoints, clientId);
+            return;
+        }
+        MessageViewImpl messageView;
+        try {
+            messageView = MessageViewImpl.fromProtobuf(command.getOrphanedTransactionalMessage(), mq);
+        } catch (Throwable t) {
+            LOGGER.error("[Bug] Failed to decode message during orphaned transaction message recovery, messageId={}, transactionId={}, endpoints={}, clientId={}", messageId, transactionId, endpoints, endpoints, clientId, t);
+            return;
+        }
+        ListenableFuture<TransactionResolution> future;
+        try {
+            final ListeningExecutorService service = MoreExecutors.listeningDecorator(telemetryCommandExecutor);
+            final Callable<TransactionResolution> task = () -> checker.check(messageView);
+            future = service.submit(task);
+        } catch (Throwable t) {
+            final SettableFuture<TransactionResolution> future0 = SettableFuture.create();
+            future0.setException(t);
+            future = future0;
+        }
+        Futures.addCallback(future, new FutureCallback<TransactionResolution>() {
+            @Override
+            public void onSuccess(TransactionResolution resolution) {
+                try {
+                    if (null == resolution || TransactionResolution.UNKNOWN.equals(resolution)) {
+                        return;
+                    }
+                    endTransaction(endpoints, messageView.getTopic(), messageView.getMessageId(), transactionId, resolution);
+                } catch (Throwable t) {
+                    LOGGER.error("Exception raised while ending the transaction, messageId={}, transactionId={}, endpoints={}, clientId={}", messageId, transactionId, endpoints, clientId, t);
+                }
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                LOGGER.error("Exception raised while checking the transaction, messageId={}, transactionId={}, endpoints={}, clientId={}", messageId, transactionId, endpoints, clientId, t);
+
+            }
+        }, MoreExecutors.directExecutor());
     }
 
     /**
@@ -300,7 +345,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
         this.stopAsync().awaitTerminated();
     }
 
-    public void endTransaction(Endpoints endpoints, String topic, SendReceiptImpl sendReceipt,
+    public void endTransaction(Endpoints endpoints, String topic, MessageId messageId, String transactionId,
         final TransactionResolution resolution) throws ClientException {
         Metadata metadata;
         try {
@@ -308,8 +353,6 @@ public class ProducerImpl extends ClientImpl implements Producer {
         } catch (Throwable t) {
             throw new AuthenticationException(t);
         }
-        final MessageId messageId = sendReceipt.getMessageId();
-        final String transactionId = sendReceipt.getTransactionId();
         final EndTransactionRequest.Builder builder =
             EndTransactionRequest.newBuilder().setMessageId(messageId.toString()).setTransactionId(transactionId)
                 .setTopic(apache.rocketmq.v2.Resource.newBuilder().setName(topic).build());

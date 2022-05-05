@@ -47,8 +47,10 @@ import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.ReadWriteLock;
@@ -63,7 +65,9 @@ import org.apache.rocketmq.grpcclient.route.AddressScheme;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 import org.apache.rocketmq.grpcclient.route.TopicRouteData;
 import org.apache.rocketmq.grpcclient.route.TopicRouteDataResult;
+import org.apache.rocketmq.grpcclient.utility.ExecutorServices;
 import org.apache.rocketmq.grpcclient.utility.MixAll;
+import org.apache.rocketmq.grpcclient.utility.ThreadFactoryImpl;
 import org.apache.rocketmq.grpcclient.utility.UtilAll;
 
 import java.util.HashSet;
@@ -103,6 +107,11 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
     protected final Set<Endpoints> isolated;
     protected final ReadWriteLock isolatedLock;
 
+    /**
+     * Telemetry command executor, which is aims to execute commands from remote.
+     */
+    protected final ThreadPoolExecutor telemetryCommandExecutor;
+
     protected final String clientId;
 
     public ClientImpl(ClientConfiguration clientConfiguration, Set<String> topics) {
@@ -133,6 +142,14 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
 
         this.isolated = new HashSet<>();
         this.isolatedLock = new ReentrantReadWriteLock();
+
+        this.telemetryCommandExecutor = new ThreadPoolExecutor(
+            1,
+            1,
+            60,
+            TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>(),
+            new ThreadFactoryImpl("CommandExecutor"));
     }
 
     /**
@@ -193,6 +210,12 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         if (null != this.updateRouteCacheFuture) {
             updateRouteCacheFuture.cancel(false);
         }
+        telemetryCommandExecutor.shutdown();
+        if (!ExecutorServices.awaitTerminated(telemetryCommandExecutor)) {
+            LOGGER.error("[Bug] Timeout to shutdown the telemetry command executor");
+        } else {
+            LOGGER.info("Shutdown the telemetry command executor successfully");
+        }
         ClientManagerRegistry.unregisterClient(this);
         LOGGER.info("Shutdown the rocketmq client successfully, clientId={}", clientId);
     }
@@ -205,22 +228,24 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
      * @see Client#onPrintThreadStackCommand(Endpoints, PrintThreadStackTraceCommand)
      */
     @Override
-    public void onPrintThreadStackCommand(Endpoints endpoints,
-        PrintThreadStackTraceCommand printThreadStackTraceCommand) {
-        LOGGER.info("Receive print thread stack command from remote, client id={}, endpoints={}", clientId, endpoints);
-        final String stackTrace = UtilAll.stackTrace();
-        final String nonce = printThreadStackTraceCommand.getNonce();
-        Status status = Status.newBuilder().setCode(Code.OK).build();
-        ThreadStackTrace threadStackTrace = ThreadStackTrace.newBuilder()
-            .setThreadStackTrace(stackTrace)
-            .setNonce(nonce)
-            .setStatus(status)
-            .build();
-        TelemetryCommand telemetryCommand = TelemetryCommand.newBuilder().setThreadStackTrace(threadStackTrace).build();
+    public void onPrintThreadStackCommand(Endpoints endpoints, PrintThreadStackTraceCommand command) {
+        final String nonce = command.getNonce();
+        Runnable task = () -> {
+            try {
+                final String stackTrace = UtilAll.stackTrace();
+                Status status = Status.newBuilder().setCode(Code.OK).build();
+                ThreadStackTrace threadStackTrace = ThreadStackTrace.newBuilder().setThreadStackTrace(stackTrace)
+                    .setNonce(command.getNonce()).setStatus(status).build();
+                TelemetryCommand telemetryCommand = TelemetryCommand.newBuilder().setThreadStackTrace(threadStackTrace).build();
+                telemetryCommand(endpoints, telemetryCommand);
+            } catch (Throwable t) {
+                LOGGER.error("Failed to send thread stack trace to remote, endpoints={}, nonce={}, clientId={}", endpoints, nonce, clientId, t);
+            }
+        };
         try {
-            telemetryCommand(endpoints, telemetryCommand);
+            telemetryCommandExecutor.submit(task);
         } catch (Throwable t) {
-            LOGGER.error("Failed to send thread stack command to remote, endpoints={}, client id={}", endpoints, clientId, t);
+            LOGGER.error("[Bug] Exception raised while submitting task to print thread stack trace, endpoints={}, nonce={}, clientId={}", endpoints, nonce, clientId, t);
         }
     }
 
