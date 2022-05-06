@@ -153,6 +153,11 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
             TimeUnit.SECONDS,
             new LinkedBlockingQueue<>(),
             new ThreadFactoryImpl("CommandExecutor"));
+
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            LOGGER.info("Shutdown hook is invoked, clientId={}, status={}", clientId, ClientImpl.this.state());
+            ClientImpl.this.stopAsync().awaitTerminated();
+        }));
     }
 
     /**
