@@ -24,11 +24,14 @@ import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.PrintThreadStackTraceCommand;
 import apache.rocketmq.v2.QueryRouteRequest;
 import apache.rocketmq.v2.QueryRouteResponse;
+import apache.rocketmq.v2.RecoverOrphanedTransactionCommand;
 import apache.rocketmq.v2.Resource;
 import apache.rocketmq.v2.Settings;
 import apache.rocketmq.v2.Status;
 import apache.rocketmq.v2.TelemetryCommand;
 import apache.rocketmq.v2.ThreadStackTrace;
+import apache.rocketmq.v2.VerifyMessageCommand;
+import apache.rocketmq.v2.VerifyMessageResult;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -579,6 +582,26 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
             }
         }, MoreExecutors.directExecutor());
         return future0;
+    }
+
+    @Override
+    public void onVerifyMessageCommand(Endpoints endpoints, VerifyMessageCommand verifyMessageCommand) {
+        LOGGER.warn("Ignore verify message command from remote, which is not expected, clientId={}, command={}", clientId, verifyMessageCommand);
+        final String nonce = verifyMessageCommand.getNonce();
+        final Status status = Status.newBuilder().setCode(Code.NOT_IMPLEMENTED).build();
+        VerifyMessageResult verifyMessageResult = VerifyMessageResult.newBuilder().setNonce(nonce).setStatus(status).build();
+        TelemetryCommand telemetryCommand = TelemetryCommand.newBuilder().setVerifyMessageResult(verifyMessageResult).build();
+        try {
+            telemetryCommand(endpoints, telemetryCommand);
+        } catch (Throwable t) {
+            LOGGER.warn("Failed to send message verification result, clientId={}", clientId, t);
+        }
+    }
+
+    @Override
+    public void onRecoverOrphanedTransactionCommand(Endpoints endpoints,
+        RecoverOrphanedTransactionCommand recoverOrphanedTransactionCommand) {
+        LOGGER.warn("Ignore orphaned transaction recovery command from remote, which is not expected, client id={}, command={}", clientId, recoverOrphanedTransactionCommand);
     }
 
     public ScheduledExecutorService getScheduler() {

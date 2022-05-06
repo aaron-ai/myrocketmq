@@ -121,8 +121,8 @@ public abstract class ConsumerImpl extends ClientImpl {
             .setReceiptHandle(messageView.getReceiptHandle())
             .setInvisibleDuration(Durations.fromNanos(invisibleDuration.toNanos()))
             .setMessageId(messageView.getMessageId().toString()).build();
-    }
 
+}
     public ListenableFuture<AckMessageResponse> ackMessage(MessageViewImpl messageView) {
         final Endpoints endpoints = messageView.getEndpoints();
         ListenableFuture<AckMessageResponse> future;

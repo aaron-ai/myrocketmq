@@ -122,6 +122,24 @@ public class ProducerImpl extends ClientImpl implements Producer {
             new ThreadFactoryImpl("SendAsyncWorker"));
     }
 
+    @Override
+    protected void startUp() throws Exception {
+        LOGGER.info("Begin to start the rocketmq producer, clientId={}", clientId);
+        super.startUp();
+        LOGGER.info("The rocketmq producer starts successfully, clientId={}", clientId);
+    }
+
+    @Override
+    protected void shutDown() throws InterruptedException {
+        LOGGER.info("Begin to shutdown the rocketmq producer, clientId={}", clientId);
+        super.shutDown();
+        sendAsyncExecutor.shutdown();
+        if (!ExecutorServices.awaitTerminated(sendAsyncExecutor)) {
+            LOGGER.error("[Bug] Failed to shutdown default send async executor, clientId={}", clientId);
+        }
+        LOGGER.info("Shutdown the rocketmq producer successfully, clientId={}", clientId);
+    }
+
     public int getSendAsyncThreadCount() {
         return sendAsyncThreadCount;
     }
@@ -129,20 +147,6 @@ public class ProducerImpl extends ClientImpl implements Producer {
     @Override
     public void applySettings(Endpoints endpoints, Settings settings) {
         producerSettings.applySettings(settings);
-    }
-
-    @Override
-    public void onVerifyMessageCommand(Endpoints endpoints, VerifyMessageCommand verifyMessageCommand) {
-        LOGGER.warn("Ignore verify message command from remote, which is not expected for producer, clientId={}, command={}", clientId, verifyMessageCommand);
-        final String nonce = verifyMessageCommand.getNonce();
-        final Status status = Status.newBuilder().setCode(Code.NOT_IMPLEMENTED).build();
-        VerifyMessageResult verifyMessageResult = VerifyMessageResult.newBuilder().setNonce(nonce).setStatus(status).build();
-        TelemetryCommand telemetryCommand = TelemetryCommand.newBuilder().setVerifyMessageResult(verifyMessageResult).build();
-        try {
-            telemetryCommand(endpoints, telemetryCommand);
-        } catch (Throwable t) {
-            LOGGER.warn("Failed to send message verification result for producer, clientId={}", clientId, t);
-        }
     }
 
     @Override
@@ -227,17 +231,6 @@ public class ProducerImpl extends ClientImpl implements Producer {
     }
 
     @Override
-    public void shutDown() throws InterruptedException {
-        LOGGER.info("Begin to shutdown the rocketmq producer, clientId={}", clientId);
-        super.shutDown();
-        sendAsyncExecutor.shutdown();
-        if (!ExecutorServices.awaitTerminated(sendAsyncExecutor)) {
-            LOGGER.error("[Bug] Failed to shutdown default send async executor, clientId={}", clientId);
-        }
-        LOGGER.info("Shutdown the rocketmq producer successfully, clientId={}", clientId);
-    }
-
-    @Override
     public HeartbeatRequest wrapHeartbeatRequest() {
         return HeartbeatRequest.newBuilder().build();
     }
@@ -268,7 +261,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
     @Override
     public SendReceipt send(Message message, Transaction transaction) throws ClientException {
         if (!(transaction instanceof TransactionImpl)) {
-            throw new IllegalArgumentException("Transaction type is illegal");
+            throw new IllegalArgumentException("Failed downcasting for transaction");
         }
         TransactionImpl transactionImpl = (TransactionImpl) transaction;
         Optional<PublishingMessageImpl> optionalPublishingMessage;

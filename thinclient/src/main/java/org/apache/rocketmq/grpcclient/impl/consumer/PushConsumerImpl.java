@@ -139,6 +139,7 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
 
     @Override
     protected void startUp() throws Exception {
+        LOGGER.info("Begin to start the rocketmq push consumer, clientId={}", clientId);
         super.startUp();
         final ScheduledExecutorService scheduler = clientManager.getScheduler();
         this.consumeService = createConsumeService();
@@ -150,6 +151,20 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
                 LOGGER.error("Exception raised while scanning the load assignments, clientId={}", clientId, t);
             }
         }, 1, 5, TimeUnit.SECONDS);
+        LOGGER.info("The rocketmq push consumer starts successfully, clientId={}", clientId);
+    }
+
+    @Override
+    protected void shutDown() throws InterruptedException {
+        LOGGER.info("Begin to shutdown the rocketmq push consumer, clientId={}", clientId);
+        if (null != scanAssignmentsFuture) {
+            scanAssignmentsFuture.cancel(false);
+        }
+        super.shutDown();
+        consumeService.stopAsync().awaitTerminated();
+        consumptionExecutor.shutdown();
+        ExecutorServices.awaitTerminated(consumptionExecutor);
+        LOGGER.info("Shutdown the rocketmq ");
     }
 
     private ConsumeService createConsumeService() {
@@ -161,17 +176,6 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
         }
         return new StandardConsumeService(clientId, processQueueTable, maxDeliveryAttempts, messageListener,
             consumptionExecutor, scheduler);
-    }
-
-    @Override
-    public void shutDown() throws InterruptedException {
-        if (null != scanAssignmentsFuture) {
-            scanAssignmentsFuture.cancel(false);
-        }
-        super.shutDown();
-        consumeService.stopAsync().awaitTerminated();
-        consumptionExecutor.shutdown();
-        ExecutorServices.awaitTerminated(consumptionExecutor);
     }
 
     /**
@@ -522,13 +526,6 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
             future = future0;
         }
         return future;
-    }
-
-    @Override
-    public void onRecoverOrphanedTransactionCommand(Endpoints endpoints,
-        RecoverOrphanedTransactionCommand recoverOrphanedTransactionCommand) {
-        LOGGER.warn("Ignore orphaned transaction recovery command from remote, which is not expected for push "
-            + "consumer, client id={}, command={}", clientId, recoverOrphanedTransactionCommand);
     }
 
     public RetryPolicy getRetryPolicy() {

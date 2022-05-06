@@ -17,6 +17,8 @@
 
 package org.apache.rocketmq.grpcclient.impl.consumer;
 
+import apache.rocketmq.v2.AckMessageResponse;
+import apache.rocketmq.v2.ChangeInvisibleDurationResponse;
 import apache.rocketmq.v2.Code;
 import apache.rocketmq.v2.ReceiveMessageRequest;
 import apache.rocketmq.v2.ReceiveMessageResponse;
@@ -61,6 +63,7 @@ import org.apache.rocketmq.apis.exception.InternalException;
 import org.apache.rocketmq.apis.exception.ResourceNotFoundException;
 import org.apache.rocketmq.apis.message.MessageView;
 import org.apache.rocketmq.grpcclient.consumer.ReceiveMessageResult;
+import org.apache.rocketmq.grpcclient.message.MessageViewImpl;
 import org.apache.rocketmq.grpcclient.message.protocol.Resource;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
@@ -70,7 +73,6 @@ import org.apache.rocketmq.grpcclient.route.TopicRouteDataResult;
 public class SimpleConsumerImpl extends ConsumerImpl implements SimpleConsumer {
     private static final Logger LOGGER = LoggerFactory.getLogger(SimpleConsumerImpl.class);
 
-    private final ClientConfiguration clientConfiguration;
     private final SimpleConsumerSettings simpleConsumerSettings;
     private final String consumerGroup;
     private final Duration awaitDuration;
@@ -83,7 +85,6 @@ public class SimpleConsumerImpl extends ConsumerImpl implements SimpleConsumer {
     public SimpleConsumerImpl(ClientConfiguration clientConfiguration, String consumerGroup, Duration awaitDuration,
         Map<String, FilterExpression> subscriptionExpressions) {
         super(clientConfiguration, consumerGroup, subscriptionExpressions.keySet());
-        this.clientConfiguration = clientConfiguration;
         Resource groupResource = new Resource(consumerGroup);
         this.simpleConsumerSettings = new SimpleConsumerSettings(clientId, accessEndpoints, groupResource, clientConfiguration.getRequestTimeout(), awaitDuration, subscriptionExpressions);
         this.consumerGroup = consumerGroup;
@@ -93,6 +94,20 @@ public class SimpleConsumerImpl extends ConsumerImpl implements SimpleConsumer {
 
         this.subscriptionExpressions = subscriptionExpressions;
         this.subscriptionTopicRouteDataResultCache = new ConcurrentHashMap<>();
+    }
+
+    @Override
+    protected void startUp() throws Exception {
+        LOGGER.info("Begin to start the rocketmq simple consumer, clientId={}", clientId);
+        super.startUp();
+        LOGGER.info("The rocketmq simple consumer starts successfully, clientId={}", clientId);
+    }
+
+    @Override
+    protected void shutDown() throws InterruptedException {
+        LOGGER.info("Begin to shutdown the rocketmq simple consumer, clientId={}", clientId);
+        super.shutDown();
+        LOGGER.info("Shutdown the rocketmq simple consumer successfully, clientId={}", clientId);
     }
 
     @Override
@@ -167,11 +182,14 @@ public class SimpleConsumerImpl extends ConsumerImpl implements SimpleConsumer {
     }
 
     public ListenableFuture<List<MessageView>> receive0(int maxMessageNum, Duration invisibleDuration) {
+        SettableFuture<List<MessageView>> future = SettableFuture.create();
         final HashMap<String, FilterExpression> copy = new HashMap<>(subscriptionExpressions);
         final ArrayList<String> topics = new ArrayList<>(copy.keySet());
         if (topics.isEmpty()) {
             // TODO:
-            throw new IllegalArgumentException("");
+            final IllegalArgumentException exception = new IllegalArgumentException("");
+            future.setException(exception);
+            return future;
         }
         final String topic = topics.get(IntMath.mod(topicIndex.getAndIncrement(), topics.size()));
         final FilterExpression filterExpression = copy.get(topic);
@@ -182,7 +200,6 @@ public class SimpleConsumerImpl extends ConsumerImpl implements SimpleConsumer {
             return receiveMessage(request, mq, awaitDuration);
         }, MoreExecutors.directExecutor());
         return Futures.transformAsync(future0, result -> {
-            SettableFuture<List<MessageView>> future = SettableFuture.create();
             final Optional<Status> optionalStatus = result.getStatus();
             if (!optionalStatus.isPresent()) {
                 future.set(new ArrayList<>(result.getMessages()));
@@ -207,26 +224,98 @@ public class SimpleConsumerImpl extends ConsumerImpl implements SimpleConsumer {
 
     @Override
     public void ack(MessageView messageView) throws ClientException {
-
+        final ListenableFuture<Void> future = ack0(messageView);
+        try {
+            future.get();
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Throwable t) {
+            final Throwable cause = t.getCause();
+            if (cause instanceof ClientException) {
+                throw (ClientException) cause;
+            }
+            throw new InternalException(t);
+        }
     }
 
     @Override
     public CompletableFuture<Void> ackAsync(MessageView messageView) {
-        return null;
+        final ListenableFuture<Void> future = ack0(messageView);
+        return FutureConverter.toCompletableFuture(future);
     }
 
     private ListenableFuture<Void> ack0(MessageView messageView) {
-
+        SettableFuture<Void> future0 = SettableFuture.create();
+        if (!(messageView instanceof MessageViewImpl)) {
+            final IllegalArgumentException exception = new IllegalArgumentException("Failed downcasting for messageView");
+            future0.setException(exception);
+            return future0;
+        }
+        MessageViewImpl impl = (MessageViewImpl) messageView;
+        final ListenableFuture<AckMessageResponse> future = ackMessage(impl);
+        return Futures.transformAsync(future, response -> {
+            final Status status = response.getStatus();
+            final Code code = status.getCode();
+            switch (code) {
+                case OK:
+                    future0.set(null);
+                    return future0;
+                case UNAUTHORIZED:
+                    throw new AuthenticationException(code.getNumber(), status.getMessage());
+                case FORBIDDEN:
+                    throw new AuthorisationException(code.getNumber(), status.getMessage());
+                default:
+                    throw new InternalException(code.getNumber(), status.getMessage());
+            }
+        }, MoreExecutors.directExecutor());
     }
 
     @Override
     public void changeInvisibleDuration(MessageView messageView, Duration invisibleDuration) throws ClientException {
-
+        final ListenableFuture<Void> future = changeInvisibleDuration0(messageView, invisibleDuration);
+        try {
+            future.get();
+        } catch (RuntimeException e) {
+            throw e;
+        } catch (Throwable t) {
+            final Throwable cause = t.getCause();
+            if (cause instanceof ClientException) {
+                throw (ClientException) cause;
+            }
+            throw new InternalException(t);
+        }
     }
 
     @Override
     public CompletableFuture<Void> changeInvisibleDurationAsync(MessageView messageView, Duration invisibleDuration) {
-        return null;
+        final ListenableFuture<Void> future = changeInvisibleDuration0(messageView, invisibleDuration);
+        return FutureConverter.toCompletableFuture(future);
+    }
+
+    public ListenableFuture<Void> changeInvisibleDuration0(MessageView messageView, Duration invisibleDuration) {
+        SettableFuture<Void> future0 = SettableFuture.create();
+        if (!(messageView instanceof MessageViewImpl)) {
+            final IllegalArgumentException exception = new IllegalArgumentException("Failed downcasting for messageView");
+            future0.setException(exception);
+            return future0;
+        }
+        MessageViewImpl impl = (MessageViewImpl) messageView;
+        final ListenableFuture<ChangeInvisibleDurationResponse> future = changInvisibleDuration(impl, invisibleDuration);
+        return Futures.transformAsync(future, response -> {
+            final Status status = response.getStatus();
+            final Code code = status.getCode();
+            switch (code) {
+                case OK:
+                    future0.set(null);
+                    return future0;
+                case UNAUTHORIZED:
+                    throw new AuthenticationException(code.getNumber(), status.getMessage());
+                case FORBIDDEN:
+                    throw new AuthorisationException(code.getNumber(), status.getMessage());
+                default:
+                    throw new InternalException(code.getNumber(), status.getMessage());
+            }
+        }, MoreExecutors.directExecutor());
     }
 
     @Override
@@ -236,18 +325,7 @@ public class SimpleConsumerImpl extends ConsumerImpl implements SimpleConsumer {
 
     @Override
     public void applySettings(Endpoints endpoints, Settings settings) {
-
-    }
-
-    @Override
-    public void onVerifyMessageCommand(Endpoints endpoints, VerifyMessageCommand verifyMessageCommand) {
-
-    }
-
-    @Override
-    public void onRecoverOrphanedTransactionCommand(Endpoints endpoints,
-        RecoverOrphanedTransactionCommand recoverOrphanedTransactionCommand) {
-
+        simpleConsumerSettings.applySettings(settings);
     }
 
     @Override
