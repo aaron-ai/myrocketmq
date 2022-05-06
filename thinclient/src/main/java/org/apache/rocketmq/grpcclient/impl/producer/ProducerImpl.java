@@ -427,7 +427,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
             // Messages have different topics, no need to proceed.
             final IllegalArgumentException e = new IllegalArgumentException("Messages to send have different topics");
             future.setException(e);
-            LOGGER.error("Messages to send have different topics, no need to proceed, topics={}", topics, e);
+            LOGGER.error("Messages to send have different topics, no need to proceed, topic(s)={}", topics, e);
             return future;
         }
 
