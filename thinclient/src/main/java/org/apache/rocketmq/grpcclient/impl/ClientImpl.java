@@ -215,9 +215,9 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         }
         telemetryCommandExecutor.shutdown();
         if (!ExecutorServices.awaitTerminated(telemetryCommandExecutor)) {
-            LOGGER.error("[Bug] Timeout to shutdown the telemetry command executor");
+            LOGGER.error("[Bug] Timeout to shutdown the telemetry command executor, clientId={}", clientId);
         } else {
-            LOGGER.info("Shutdown the telemetry command executor successfully");
+            LOGGER.info("Shutdown the telemetry command executor successfully, clientId={}", clientId);
         }
         ClientManagerRegistry.unregisterClient(this);
         LOGGER.info("Shutdown the rocketmq client successfully, clientId={}", clientId);
@@ -334,7 +334,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         if (topicRouteDataResult.equals(old)) {
             LOGGER.info("Topic route remains the same, topic={}, clientId={}", topic, clientId);
         } else {
-            LOGGER.info("Topic route is updated, topic={}, clientId={}, {} => {}", old, topicRouteDataResult);
+            LOGGER.info("Topic route is updated, topic={}, clientId={}, {} => {}", topic, clientId, old, topicRouteDataResult);
         }
         onTopicRouteDataResultUpdate0(topic, topicRouteDataResult);
     }
@@ -376,7 +376,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
      * Notify remote that current client is prepared to be terminated.
      */
     private void notifyClientTermination() {
-        LOGGER.info("Notify that client is terminated, clientId={}", clientId);
+        LOGGER.info("Notify remote that client is terminated, clientId={}", clientId);
         final Set<Endpoints> routeEndpointsSet = getTotalRouteEndpoints();
         final NotifyClientTerminationRequest notifyClientTerminationRequest = wrapNotifyClientTerminationRequest();
         try {

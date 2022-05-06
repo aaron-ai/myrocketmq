@@ -122,7 +122,8 @@ public abstract class ConsumerImpl extends ClientImpl {
             .setInvisibleDuration(Durations.fromNanos(invisibleDuration.toNanos()))
             .setMessageId(messageView.getMessageId().toString()).build();
 
-}
+    }
+
     public ListenableFuture<AckMessageResponse> ackMessage(MessageViewImpl messageView) {
         final Endpoints endpoints = messageView.getEndpoints();
         ListenableFuture<AckMessageResponse> future;
@@ -135,6 +136,23 @@ public abstract class ConsumerImpl extends ClientImpl {
             future0.setException(t);
             future = future0;
         }
+        final String topic = messageView.getTopic();
+        final MessageId messageId = messageView.getMessageId();
+        Futures.addCallback(future, new FutureCallback<AckMessageResponse>() {
+            @Override
+            public void onSuccess(AckMessageResponse response) {
+                final Status status = response.getStatus();
+                final Code code = status.getCode();
+                if (!Code.OK.equals(code)) {
+                    LOGGER.error("Failed to ack message, code={}, status message=[{}], topic={}, messageId={}, clientId={}", code, status.getMessage(), topic, messageId, clientId);
+                }
+            }
+
+            @Override
+            public void onFailure(Throwable t) {
+                LOGGER.error("Exception raised during message acknowledgement, topic={}, messageId={}, clientId={}", topic, messageId, clientId, t);
+            }
+        }, MoreExecutors.directExecutor());
         return future;
     }
 

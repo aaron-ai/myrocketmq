@@ -62,7 +62,7 @@ public class SimpleConsumerBuilderImpl implements SimpleConsumerBuilder {
     @Override
     public SimpleConsumerBuilder setSubscriptionExpressions(Map<String, FilterExpression> subscriptionExpressions) {
         checkNotNull(subscriptionExpressions, "subscriptionExpressions should not be null");
-        checkArgument(subscriptionExpressions.isEmpty(), "subscriptionExpressions should not be empty");
+        checkArgument(!subscriptionExpressions.isEmpty(), "subscriptionExpressions should not be empty");
         this.subscriptionExpressions = subscriptionExpressions;
         return this;
     }
@@ -78,6 +78,7 @@ public class SimpleConsumerBuilderImpl implements SimpleConsumerBuilder {
         checkNotNull(clientConfiguration, "clientConfiguration has not been set yet");
         checkNotNull(consumerGroup, "consumerGroup has not been set yet");
         checkArgument(!subscriptionExpressions.isEmpty(), "subscriptionExpressions have not been set yet");
+        checkNotNull(awaitDuration, "awaitDuration has not been set yet");
         final SimpleConsumerImpl consumer = new SimpleConsumerImpl(clientConfiguration, consumerGroup, awaitDuration, subscriptionExpressions);
         consumer.startAsync().awaitRunning();
         return consumer;
