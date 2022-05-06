@@ -78,6 +78,8 @@ public class SimpleConsumerBuilderImpl implements SimpleConsumerBuilder {
         checkNotNull(clientConfiguration, "clientConfiguration has not been set yet");
         checkNotNull(consumerGroup, "consumerGroup has not been set yet");
         checkArgument(!subscriptionExpressions.isEmpty(), "subscriptionExpressions have not been set yet");
-        return null;
+        final SimpleConsumerImpl consumer = new SimpleConsumerImpl(clientConfiguration, consumerGroup, awaitDuration, subscriptionExpressions);
+        consumer.startAsync().awaitRunning();
+        return consumer;
     }
 }
