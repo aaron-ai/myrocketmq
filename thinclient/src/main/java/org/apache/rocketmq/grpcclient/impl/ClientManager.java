@@ -27,8 +27,6 @@ import apache.rocketmq.v2.ForwardMessageToDeadLetterQueueRequest;
 import apache.rocketmq.v2.ForwardMessageToDeadLetterQueueResponse;
 import apache.rocketmq.v2.HeartbeatRequest;
 import apache.rocketmq.v2.HeartbeatResponse;
-import apache.rocketmq.v2.NackMessageRequest;
-import apache.rocketmq.v2.NackMessageResponse;
 import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.NotifyClientTerminationResponse;
 import apache.rocketmq.v2.QueryAssignmentRequest;
@@ -43,7 +41,6 @@ import apache.rocketmq.v2.TelemetryCommand;
 import com.google.common.util.concurrent.ListenableFuture;
 import io.grpc.Metadata;
 import io.grpc.stub.StreamObserver;
-import java.io.IOException;
 import java.time.Duration;
 import java.util.Iterator;
 import org.apache.rocketmq.apis.exception.ClientException;
@@ -149,9 +146,6 @@ public interface ClientManager {
     ListenableFuture<AckMessageResponse> ackMessage(Endpoints endpoints, Metadata metadata, AckMessageRequest request,
         Duration duration);
 
-    ListenableFuture<NackMessageResponse> nackMessage(Endpoints endpoints, Metadata metadata, NackMessageRequest request,
-        Duration duration);
-
     /**
      * Nack message asynchronously after failure of consumption, the method ensures no throwable.
      *
@@ -162,8 +156,7 @@ public interface ClientManager {
      * @return response future of nack message.
      */
     ListenableFuture<ChangeInvisibleDurationResponse> changeInvisibleDuration(Endpoints endpoints, Metadata metadata,
-        ChangeInvisibleDurationRequest request,
-        Duration duration);
+        ChangeInvisibleDurationRequest request, Duration duration);
 
     /**
      * Send message to dead letter queue asynchronously, the method ensures no throwable.

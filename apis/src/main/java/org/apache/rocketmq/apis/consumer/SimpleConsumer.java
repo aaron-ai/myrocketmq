@@ -105,7 +105,7 @@ public interface SimpleConsumer extends Closeable {
      * @param invisibleDuration set the invisibleDuration of messages return from server. These messages will be invisible to other consumer unless timout.
      * @return list of messageView
      */
-    CompletableFuture<List<MessageView>> receiveAsync(int maxMessageNum, Duration invisibleDuration) throws ClientException;
+    CompletableFuture<List<MessageView>> receiveAsync(int maxMessageNum, Duration invisibleDuration);
 
     /**
      * Ack message to server synchronously, server commit this message.

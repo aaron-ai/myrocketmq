@@ -145,30 +145,6 @@ public class ProcessQueueImpl implements ProcessQueue {
         return Math.min(bufferSize, consumer.getPushConsumerSettings().getReceiveBatchSize());
     }
 
-    private ReceiveMessageRequest wrapReceiveMessageRequest() {
-        final int receptionBatchSize = getReceptionBatchSize();
-        return ReceiveMessageRequest.newBuilder().setGroup(consumer.getProtobufGroup()).setMessageQueue(mq.toProtobuf())
-            .setFilterExpression(getProtoBufFilterExpression()).setBatchSize(receptionBatchSize)
-            .build();
-    }
-
-    private apache.rocketmq.v2.FilterExpression getProtoBufFilterExpression() {
-        final FilterExpressionType expressionType = filterExpression.getFilterExpressionType();
-
-        apache.rocketmq.v2.FilterExpression.Builder expressionBuilder =
-            apache.rocketmq.v2.FilterExpression.newBuilder();
-
-        final String expression = filterExpression.getExpression();
-        expressionBuilder.setExpression(expression);
-        switch (expressionType) {
-            case SQL92:
-                return expressionBuilder.setType(FilterType.SQL).build();
-            case TAG:
-            default:
-                return expressionBuilder.setType(FilterType.TAG).build();
-        }
-    }
-
     @Override
     public void fetchMessageImmediately() {
         receiveMessageImmediately();
@@ -213,7 +189,8 @@ public class ProcessQueueImpl implements ProcessQueue {
         }
         try {
             final Endpoints endpoints = mq.getBroker().getEndpoints();
-            final ReceiveMessageRequest request = wrapReceiveMessageRequest();
+            final int batchSize = this.getReceptionBatchSize();
+            final ReceiveMessageRequest request = consumer.wrapReceiveMessageRequest(batchSize, mq, filterExpression);
             activityNanoTime = System.nanoTime();
             final ListenableFuture<ReceiveMessageResult> future = consumer.receiveMessage(request, mq,
                 consumer.getPushConsumerSettings().getLongPollingTimeout());
@@ -352,7 +329,8 @@ public class ProcessQueueImpl implements ProcessQueue {
             consumer.ackMessage(messageView);
             return;
         }
-        consumer.nackMessage(messageView);
+        final Duration duration = consumer.getRetryPolicy().getNextAttemptDelay(messageView.getDeliveryAttempt());
+        consumer.changInvisibleDuration(messageView, duration);
     }
 
     private boolean fifoConsumptionInbound() {

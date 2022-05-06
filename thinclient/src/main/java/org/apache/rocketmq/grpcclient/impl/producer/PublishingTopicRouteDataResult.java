@@ -22,8 +22,6 @@ import apache.rocketmq.v2.Status;
 import com.google.common.base.Objects;
 import com.google.common.collect.ImmutableList;
 import com.google.common.math.IntMath;
-import io.github.aliyunmq.shaded.org.slf4j.Logger;
-import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import org.apache.commons.lang3.RandomUtils;
 import org.apache.rocketmq.apis.exception.AuthenticationException;
 import org.apache.rocketmq.apis.exception.AuthorisationException;
@@ -88,6 +86,7 @@ public class PublishingTopicRouteDataResult {
         List<MessageQueueImpl> candidates = new ArrayList<>();
         Set<String> candidateBrokerNames = new HashSet<>();
         if (messageQueues.isEmpty()) {
+            // TODO
             throw new AuthorisationException("Writable message queues is empty");
         }
         for (int i = 0; i < messageQueues.size(); i++) {

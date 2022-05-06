@@ -60,7 +60,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import net.javacrumbs.futureconverter.java8guava.FutureConverter;
 import org.apache.rocketmq.apis.ClientConfiguration;
@@ -568,9 +567,9 @@ public class ProducerImpl extends ClientImpl implements Producer {
 
     private ListenableFuture<PublishingTopicRouteDataResult> getPublishingTopicRouteResult(final String topic) {
         SettableFuture<PublishingTopicRouteDataResult> future0 = SettableFuture.create();
-        final PublishingTopicRouteDataResult publishingSendingRouteData = publishingRouteDataResultCache.get(topic);
-        if (null != publishingSendingRouteData) {
-            future0.set(publishingSendingRouteData);
+        final PublishingTopicRouteDataResult result = publishingRouteDataResultCache.get(topic);
+        if (null != result) {
+            future0.set(result);
             return future0;
         }
         final ListenableFuture<TopicRouteDataResult> future = getRouteDataResult(topic);

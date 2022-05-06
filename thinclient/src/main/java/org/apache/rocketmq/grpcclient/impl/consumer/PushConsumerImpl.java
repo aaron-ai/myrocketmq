@@ -61,7 +61,11 @@ import org.apache.rocketmq.apis.consumer.ConsumeResult;
 import org.apache.rocketmq.apis.consumer.FilterExpression;
 import org.apache.rocketmq.apis.consumer.MessageListener;
 import org.apache.rocketmq.apis.consumer.PushConsumer;
+import org.apache.rocketmq.apis.exception.AuthenticationException;
+import org.apache.rocketmq.apis.exception.AuthorisationException;
 import org.apache.rocketmq.apis.exception.ClientException;
+import org.apache.rocketmq.apis.exception.InternalException;
+import org.apache.rocketmq.apis.exception.ResourceNotFoundException;
 import org.apache.rocketmq.apis.message.MessageId;
 import org.apache.rocketmq.apis.retry.RetryPolicy;
 import org.apache.rocketmq.grpcclient.message.MessageViewImpl;
@@ -195,7 +199,35 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
      */
     @Override
     public PushConsumer subscribe(String topic, FilterExpression filterExpression) throws ClientException {
-        return null;
+        final ListenableFuture<TopicRouteDataResult> future = getRouteDataResult(topic);
+        TopicRouteDataResult topicRouteDataResult;
+        try {
+            topicRouteDataResult = future.get();
+        } catch (InterruptedException e) {
+            throw new InternalException(e);
+        } catch (ExecutionException e) {
+            final Throwable cause = e.getCause();
+            if (cause instanceof ClientException) {
+                throw (ClientException) cause;
+            }
+            // TODO:
+            throw new InternalException(e);
+        }
+        final Status status = topicRouteDataResult.getStatus();
+        final Code code = status.getCode();
+        switch (code) {
+            case OK:
+                subscriptionExpressions.put(topic, filterExpression);
+                return this;
+            case TOPIC_NOT_FOUND:
+                throw new ResourceNotFoundException(code.ordinal(), status.getMessage());
+            case UNAUTHORIZED:
+                throw new AuthenticationException(code.ordinal(), status.getMessage());
+            case FORBIDDEN:
+                throw new AuthorisationException(code.ordinal(), status.getMessage());
+            default:
+                throw new InternalException(code.ordinal(), status.getMessage());
+        }
     }
 
     /**
@@ -203,7 +235,8 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
      */
     @Override
     public PushConsumer unsubscribe(String topic) throws ClientException {
-        return null;
+        subscriptionExpressions.remove(topic);
+        return this;
     }
 
     private ListenableFuture<Endpoints> pickEndpointsToQueryAssignments(String topic) {

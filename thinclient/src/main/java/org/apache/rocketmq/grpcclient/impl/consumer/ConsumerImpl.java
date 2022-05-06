@@ -20,11 +20,12 @@ package org.apache.rocketmq.grpcclient.impl.consumer;
 import apache.rocketmq.v2.AckMessageEntry;
 import apache.rocketmq.v2.AckMessageRequest;
 import apache.rocketmq.v2.AckMessageResponse;
+import apache.rocketmq.v2.ChangeInvisibleDurationRequest;
+import apache.rocketmq.v2.ChangeInvisibleDurationResponse;
 import apache.rocketmq.v2.Code;
+import apache.rocketmq.v2.FilterType;
 import apache.rocketmq.v2.HeartbeatRequest;
 import apache.rocketmq.v2.Message;
-import apache.rocketmq.v2.NackMessageRequest;
-import apache.rocketmq.v2.NackMessageResponse;
 import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.ReceiveMessageRequest;
 import apache.rocketmq.v2.ReceiveMessageResponse;
@@ -35,6 +36,7 @@ import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
+import com.google.protobuf.util.Durations;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import io.grpc.Metadata;
@@ -44,6 +46,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import org.apache.rocketmq.apis.ClientConfiguration;
+import org.apache.rocketmq.apis.consumer.FilterExpression;
+import org.apache.rocketmq.apis.consumer.FilterExpressionType;
 import org.apache.rocketmq.apis.message.MessageId;
 import org.apache.rocketmq.grpcclient.consumer.ReceiveMessageResult;
 import org.apache.rocketmq.grpcclient.impl.ClientImpl;
@@ -110,11 +114,13 @@ public abstract class ConsumerImpl extends ClientImpl {
             .setGroup(getProtobufGroup()).addEntries(entry).build();
     }
 
-    private NackMessageRequest wrapNackMessageRequest(MessageViewImpl messageView) {
+    private ChangeInvisibleDurationRequest wrapChangeInvisibleDuration(MessageViewImpl messageView,
+        Duration invisibleDuration) {
         final Resource topicResource = Resource.newBuilder().setName(messageView.getTopic()).build();
-        return NackMessageRequest.newBuilder().setGroup(getProtobufGroup()).setTopic(topicResource)
-            .setReceiptHandle(messageView.getReceiptHandle()).setMessageId(messageView.getMessageId().toString())
-            .setDeliveryAttempt(messageView.getDeliveryAttempt()).build();
+        return ChangeInvisibleDurationRequest.newBuilder().setGroup(getProtobufGroup()).setTopic(topicResource)
+            .setReceiptHandle(messageView.getReceiptHandle())
+            .setInvisibleDuration(Durations.fromNanos(invisibleDuration.toNanos()))
+            .setMessageId(messageView.getMessageId().toString()).build();
     }
 
     public ListenableFuture<AckMessageResponse> ackMessage(MessageViewImpl messageView) {
@@ -132,22 +138,23 @@ public abstract class ConsumerImpl extends ClientImpl {
         return future;
     }
 
-    public ListenableFuture<NackMessageResponse> nackMessage(MessageViewImpl messageView) {
+    public ListenableFuture<ChangeInvisibleDurationResponse> changInvisibleDuration(MessageViewImpl messageView,
+        Duration duration) {
         final Endpoints endpoints = messageView.getEndpoints();
-        ListenableFuture<NackMessageResponse> future;
+        ListenableFuture<ChangeInvisibleDurationResponse> future;
         try {
-            final NackMessageRequest request = wrapNackMessageRequest(messageView);
+            final ChangeInvisibleDurationRequest request = wrapChangeInvisibleDuration(messageView, duration);
             final Metadata metadata = sign();
-            future = clientManager.nackMessage(endpoints, metadata, request, clientConfiguration.getRequestTimeout());
+            future = clientManager.changeInvisibleDuration(endpoints, metadata, request, clientConfiguration.getRequestTimeout());
         } catch (Throwable t) {
-            final SettableFuture<NackMessageResponse> future0 = SettableFuture.create();
+            final SettableFuture<ChangeInvisibleDurationResponse> future0 = SettableFuture.create();
             future0.setException(t);
             future = future0;
         }
         final MessageId messageId = messageView.getMessageId();
-        Futures.addCallback(future, new FutureCallback<NackMessageResponse>() {
+        Futures.addCallback(future, new FutureCallback<ChangeInvisibleDurationResponse>() {
             @Override
-            public void onSuccess(NackMessageResponse response) {
+            public void onSuccess(ChangeInvisibleDurationResponse response) {
                 final Status status = response.getStatus();
                 final Code code = status.getCode();
                 if (Code.OK.equals(code)) {
@@ -177,5 +184,51 @@ public abstract class ConsumerImpl extends ClientImpl {
     @Override
     public NotifyClientTerminationRequest wrapNotifyClientTerminationRequest() {
         return NotifyClientTerminationRequest.newBuilder().setGroup(getProtobufGroup()).build();
+    }
+
+    public ReceiveMessageRequest wrapReceiveMessageRequest(int batchSize, MessageQueueImpl mq,
+        FilterExpression filterExpression) {
+        final FilterExpressionType expressionType = filterExpression.getFilterExpressionType();
+
+        apache.rocketmq.v2.FilterExpression.Builder expressionBuilder =
+            apache.rocketmq.v2.FilterExpression.newBuilder();
+
+        final String expression = filterExpression.getExpression();
+        expressionBuilder.setExpression(expression);
+        switch (expressionType) {
+            case SQL92:
+                expressionBuilder.setType(FilterType.SQL);
+                break;
+            case TAG:
+            default:
+                expressionBuilder.setType(FilterType.TAG);
+                break;
+        }
+        return ReceiveMessageRequest.newBuilder().setGroup(getProtobufGroup())
+            .setMessageQueue(mq.toProtobuf()).setFilterExpression(expressionBuilder.build()).setBatchSize(batchSize)
+            .setAutoRenew(true).build();
+    }
+
+    public ReceiveMessageRequest wrapReceiveMessageRequest(int batchSize, MessageQueueImpl mq,
+        FilterExpression filterExpression, Duration invisibleDuration) {
+        final FilterExpressionType expressionType = filterExpression.getFilterExpressionType();
+
+        apache.rocketmq.v2.FilterExpression.Builder expressionBuilder =
+            apache.rocketmq.v2.FilterExpression.newBuilder();
+
+        final String expression = filterExpression.getExpression();
+        expressionBuilder.setExpression(expression);
+        switch (expressionType) {
+            case SQL92:
+                expressionBuilder.setType(FilterType.SQL);
+                break;
+            case TAG:
+            default:
+                expressionBuilder.setType(FilterType.TAG);
+                break;
+        }
+        return ReceiveMessageRequest.newBuilder().setGroup(getProtobufGroup())
+            .setMessageQueue(mq.toProtobuf()).setFilterExpression(expressionBuilder.build()).setBatchSize(batchSize)
+            .setAutoRenew(false).setInvisibleDuration(Durations.fromNanos(invisibleDuration.toNanos())).build();
     }
 }
