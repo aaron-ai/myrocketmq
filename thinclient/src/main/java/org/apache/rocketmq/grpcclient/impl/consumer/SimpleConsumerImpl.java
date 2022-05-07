@@ -21,26 +21,19 @@ import apache.rocketmq.v2.AckMessageResponse;
 import apache.rocketmq.v2.ChangeInvisibleDurationResponse;
 import apache.rocketmq.v2.Code;
 import apache.rocketmq.v2.ReceiveMessageRequest;
-import apache.rocketmq.v2.ReceiveMessageResponse;
-import apache.rocketmq.v2.RecoverOrphanedTransactionCommand;
 import apache.rocketmq.v2.Settings;
 import apache.rocketmq.v2.Status;
-import apache.rocketmq.v2.VerifyMessageCommand;
-import com.google.common.base.Function;
 import com.google.common.math.IntMath;
-import com.google.common.util.concurrent.AsyncFunction;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
-import io.grpc.Metadata;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -117,6 +110,11 @@ public class SimpleConsumerImpl extends ConsumerImpl implements SimpleConsumer {
 
     @Override
     public SimpleConsumer subscribe(String topic, FilterExpression filterExpression) throws ClientException {
+        // Check consumer status.
+        if (!this.isRunning()) {
+            LOGGER.error("Unable to add subscription because simple consumer is not running, status={}, clientId={}", this.state(), clientId);
+            throw new IllegalStateException("Simple consumer is not running now");
+        }
         final ListenableFuture<TopicRouteDataResult> future = getRouteDataResult(topic);
         TopicRouteDataResult topicRouteDataResult;
         try {
@@ -149,7 +147,11 @@ public class SimpleConsumerImpl extends ConsumerImpl implements SimpleConsumer {
     }
 
     @Override
-    public SimpleConsumer unsubscribe(String topic) throws ClientException {
+    public SimpleConsumer unsubscribe(String topic) {
+        if (!this.isRunning()) {
+            LOGGER.error("Unable to remove subscription because simple consumer is not running, status={}, clientId={}", this.state(), clientId);
+            throw new IllegalStateException("Simple consumer is not running now");
+        }
         subscriptionExpressions.remove(topic);
         return this;
     }
@@ -182,6 +184,10 @@ public class SimpleConsumerImpl extends ConsumerImpl implements SimpleConsumer {
     }
 
     public ListenableFuture<List<MessageView>> receive0(int maxMessageNum, Duration invisibleDuration) {
+        if (!this.isRunning()) {
+            LOGGER.error("Unable to receive message because simple consumer is not running, status={}, clientId={}", this.state(), clientId);
+            throw new IllegalStateException("Simple consumer is not running now");
+        }
         SettableFuture<List<MessageView>> future = SettableFuture.create();
         final HashMap<String, FilterExpression> copy = new HashMap<>(subscriptionExpressions);
         final ArrayList<String> topics = new ArrayList<>(copy.keySet());
@@ -245,6 +251,11 @@ public class SimpleConsumerImpl extends ConsumerImpl implements SimpleConsumer {
     }
 
     private ListenableFuture<Void> ack0(MessageView messageView) {
+        // Check consumer status.
+        if (!this.isRunning()) {
+            LOGGER.error("Unable to ack message because simple consumer is not running, status={}, clientId={}", this.state(), clientId);
+            throw new IllegalStateException("Simple consumer is not running now");
+        }
         SettableFuture<Void> future0 = SettableFuture.create();
         if (!(messageView instanceof MessageViewImpl)) {
             final IllegalArgumentException exception = new IllegalArgumentException("Failed downcasting for messageView");

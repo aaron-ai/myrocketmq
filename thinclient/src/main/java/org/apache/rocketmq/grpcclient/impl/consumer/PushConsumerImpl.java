@@ -202,6 +202,12 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
      */
     @Override
     public PushConsumer subscribe(String topic, FilterExpression filterExpression) throws ClientException {
+        // Check consumer status.
+        if (!this.isRunning()) {
+            LOGGER.error("Unable to add subscription because push consumer is not running, status={}, clientId={}", this.state(), clientId);
+            throw new IllegalStateException("PushConsumer is not running now");
+        }
+
         final ListenableFuture<TopicRouteDataResult> future = getRouteDataResult(topic);
         TopicRouteDataResult topicRouteDataResult;
         try {
@@ -237,7 +243,12 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
      * @see PushConsumer#unsubscribe(String)
      */
     @Override
-    public PushConsumer unsubscribe(String topic) throws ClientException {
+    public PushConsumer unsubscribe(String topic) {
+        // Check consumer status.
+        if (!this.isRunning()) {
+            LOGGER.error("Unable to remove subscription because push consumer is not running, status={}, clientId={}", this.state(), clientId);
+            throw new IllegalStateException("Push consumer is not running now");
+        }
         subscriptionExpressions.remove(topic);
         return this;
     }
