@@ -123,8 +123,8 @@ public class ClientManagerImpl extends AbstractIdleService implements ClientMana
         // TODO:
         // redirect JUL logging to slf4j.
         // see https://github.com/grpc/grpc-java/issues/1577
-//        SLF4JBridgeHandler.removeHandlersForRootLogger();
-//        SLF4JBridgeHandler.install();
+        //  SLF4JBridgeHandler.removeHandlersForRootLogger();
+        // SLF4JBridgeHandler.install();
     }
 
     @Override
