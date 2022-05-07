@@ -328,8 +328,11 @@ public class ProducerImpl extends ClientImpl implements Producer {
      * @see Producer#beginTransaction()
      */
     @Override
-    public Transaction beginTransaction() throws ClientException {
-        // TODO: check status.
+    public Transaction beginTransaction() {
+        if (!this.isRunning()) {
+            LOGGER.error("Unable to begin a transaction because producer is not running, status={}, clientId={}", this.state(), clientId);
+            throw new IllegalStateException("Producer is not running now");
+        }
         return new TransactionImpl(this);
     }
 
@@ -410,6 +413,15 @@ public class ProducerImpl extends ClientImpl implements Producer {
 
     private ListenableFuture<List<SendReceiptImpl>> send0(List<Message> messages, boolean txEnabled) {
         SettableFuture<List<SendReceiptImpl>> future = SettableFuture.create();
+
+        // Check producer state before message publishing.
+        if (!this.isRunning()) {
+            final IllegalStateException e = new IllegalStateException("Producer is not running now");
+            future.setException(e);
+            LOGGER.error("Unable to send message because producer is not running, status={}, clientId={}", this.state(), clientId);
+            return future;
+        }
+
         List<PublishingMessageImpl> pubMessages = new ArrayList<>();
         for (Message message : messages) {
             try {
@@ -417,7 +429,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
                 pubMessages.add(pubMessage);
             } catch (Throwable t) {
                 // Failed to refine message, no need to proceed.
-                LOGGER.error("Failed to refine message, clientId={}, message={}", clientId, message, t);
+                LOGGER.error("Failed to refine message to send, clientId={}, message={}", clientId, message, t);
                 future.setException(t);
                 return future;
             }
@@ -429,10 +441,11 @@ public class ProducerImpl extends ClientImpl implements Producer {
             // Messages have different topics, no need to proceed.
             final IllegalArgumentException e = new IllegalArgumentException("Messages to send have different topics");
             future.setException(e);
-            LOGGER.error("Messages to send have different topics, no need to proceed, topic(s)={}", topics, e);
+            LOGGER.error("Messages to be sent have different topics, no need to proceed, topic(s)={}, clientId={}", topics, clientId);
             return future;
         }
 
+        final String topic = topics.iterator().next();
         // Collect message types.
         final Set<MessageType> messageTypes = pubMessages.stream()
             .map(PublishingMessageImpl::getMessageType)
@@ -441,23 +454,23 @@ public class ProducerImpl extends ClientImpl implements Producer {
             // Messages have different message type, no need to proceed.
             final IllegalArgumentException e = new IllegalArgumentException("Messages to send have different types, please check");
             future.setException(e);
+            LOGGER.error("Messages to be sent have different message types, no need to proceed, topic={}, messageType(s)={}, clientId={}", topic, messageTypes, clientId, e);
             return future;
         }
 
-        final String topic = topics.iterator().next();
         final MessageType messageType = messageTypes.iterator().next();
-
         final String messageGroup;
 
-        // Message group must be same if message type is FIFO.
+        // Message group must be same if message type is FIFO, or no need to proceed.
         if (MessageType.FIFO.equals(messageType)) {
             final Set<String> messageGroups = pubMessages.stream()
                 .map(PublishingMessageImpl::getMessageGroup).filter(Optional::isPresent)
                 .map(Optional::get).collect(Collectors.toSet());
 
             if (1 < messageGroups.size()) {
-                final IllegalArgumentException t = new IllegalArgumentException("FIFO messages to send have different message group, messageGroups=" + messageGroups);
-                future.setException(t);
+                final IllegalArgumentException e = new IllegalArgumentException("FIFO messages to send have different message groups, messageGroups=" + messageGroups);
+                future.setException(e);
+                LOGGER.error("FIFO messages to be sent have different message groups, no need to proceed, topic={}, messageGroups={}, clientId={}", topic, messageGroups, clientId, e);
                 return future;
             }
             messageGroup = messageGroups.iterator().next();
