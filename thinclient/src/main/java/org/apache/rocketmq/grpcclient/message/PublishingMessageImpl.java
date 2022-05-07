@@ -92,8 +92,8 @@ public class PublishingMessageImpl extends MessageImpl {
             return;
         }
         // Transaction message.
-        if (message.getMessageGroup().isPresent() &&
-            message.getDeliveryTimestamp().isPresent() && txEnabled) {
+        if (!message.getMessageGroup().isPresent() &&
+            !message.getDeliveryTimestamp().isPresent() && txEnabled) {
             messageType = MessageType.TRANSACTION;
             return;
         }
