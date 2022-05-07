@@ -60,6 +60,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import java.util.concurrent.TimeoutException;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import net.javacrumbs.futureconverter.java8guava.FutureConverter;
 import org.apache.rocketmq.apis.ClientConfiguration;
@@ -421,6 +422,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
                 return future;
             }
         }
+
         // Collect topics to send message.
         final Set<String> topics = pubMessages.stream().map(Message::getTopic).collect(Collectors.toSet());
         if (1 < topics.size()) {
@@ -437,21 +439,39 @@ public class ProducerImpl extends ClientImpl implements Producer {
             .collect(Collectors.toSet());
         if (1 < messageTypes.size()) {
             // Messages have different message type, no need to proceed.
-            final IllegalArgumentException e = new IllegalArgumentException("Messages to send have different types");
+            final IllegalArgumentException e = new IllegalArgumentException("Messages to send have different types, please check");
             future.setException(e);
-            LOGGER.error("Messages to send have different types, no need to proceed, types={}", messageTypes, e);
             return future;
         }
 
         final String topic = topics.iterator().next();
         final MessageType messageType = messageTypes.iterator().next();
 
+        final String messageGroup;
+
+        // Message group must be same if message type is FIFO.
+        if (MessageType.FIFO.equals(messageType)) {
+            final Set<String> messageGroups = pubMessages.stream()
+                .map(PublishingMessageImpl::getMessageGroup).filter(Optional::isPresent)
+                .map(Optional::get).collect(Collectors.toSet());
+
+            if (1 < messageGroups.size()) {
+                final IllegalArgumentException t = new IllegalArgumentException("FIFO messages to send have different message group, messageGroups=" + messageGroups);
+                future.setException(t);
+                return future;
+            }
+            messageGroup = messageGroups.iterator().next();
+        } else {
+            messageGroup = null;
+        }
+
         this.topics.add(topic);
         // Get publishing topic route.
         final ListenableFuture<PublishingTopicRouteDataResult> routeFuture = getPublishingTopicRouteResult(topic);
         return Futures.transformAsync(routeFuture, result -> {
             // Prepare the candidate partitions for retry-sending in advance.
-            final List<MessageQueueImpl> candidates = takeMessageQueues(result);
+            final List<MessageQueueImpl> candidates = null == messageGroup ? takeMessageQueues(result) :
+                Collections.singletonList(result.takeMessageQueueByMessageGroup(messageGroup));
             final SettableFuture<List<SendReceiptImpl>> future0 = SettableFuture.create();
             send0(future0, topic, messageType, candidates, pubMessages, 1);
             return future0;

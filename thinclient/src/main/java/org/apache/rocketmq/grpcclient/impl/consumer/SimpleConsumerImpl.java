@@ -138,13 +138,13 @@ public class SimpleConsumerImpl extends ConsumerImpl implements SimpleConsumer {
                 subscriptionExpressions.put(topic, filterExpression);
                 return this;
             case TOPIC_NOT_FOUND:
-                throw new ResourceNotFoundException(code.ordinal(), status.getMessage());
+                throw new ResourceNotFoundException(code.getNumber(), status.getMessage());
             case UNAUTHORIZED:
-                throw new AuthenticationException(code.ordinal(), status.getMessage());
+                throw new AuthenticationException(code.getNumber(), status.getMessage());
             case FORBIDDEN:
-                throw new AuthorisationException(code.ordinal(), status.getMessage());
+                throw new AuthorisationException(code.getNumber(), status.getMessage());
             default:
-                throw new InternalException(code.ordinal(), status.getMessage());
+                throw new InternalException(code.getNumber(), status.getMessage());
         }
     }
 

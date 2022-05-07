@@ -191,7 +191,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
             final TopicRouteDataResult result = any.get();
             final Status status = result.getStatus();
             // TODO: polish code here.
-            throw new ResourceNotFoundException(status.getCode().ordinal(), status.getMessage());
+            throw new ResourceNotFoundException(status.getCode().getNumber(), status.getMessage());
         }
         LOGGER.info("Fetch topic route data from remote successfully during startup, clientId={}, topics={}", clientId, topics);
         // Report active settings during startup.

@@ -68,27 +68,41 @@ public class PublishingTopicRouteDataResult {
         this.messageQueues = builder.build();
     }
 
-    public List<MessageQueueImpl> takeMessageQueues(Set<Endpoints> excluded, int count) throws ClientException {
+    private void preconditionCheckBeforeTakingMessageQueue() throws ClientException {
         final Code code = status.getCode();
         switch (code) {
             case OK:
                 break;
             case FORBIDDEN:
-                throw new AuthorisationException(code.ordinal(), status.getMessage());
+                throw new AuthorisationException(code.getNumber(), status.getMessage());
             case UNAUTHORIZED:
-                throw new AuthenticationException(code.ordinal(), status.getMessage());
+                throw new AuthenticationException(code.getNumber(), status.getMessage());
             case TOPIC_NOT_FOUND:
-                throw new ResourceNotFoundException(code.ordinal(), status.getMessage());
+                throw new ResourceNotFoundException(code.getNumber(), status.getMessage());
             case ILLEGAL_ACCESS_POINT:
+                // TODO
                 throw new IllegalArgumentException("Access point is illegal");
         }
-        int next = index.getAndIncrement();
-        List<MessageQueueImpl> candidates = new ArrayList<>();
-        Set<String> candidateBrokerNames = new HashSet<>();
         if (messageQueues.isEmpty()) {
             // TODO
             throw new AuthorisationException("Writable message queues is empty");
         }
+    }
+
+    public MessageQueueImpl takeMessageQueueByMessageGroup(String messageGroup) throws ClientException {
+        preconditionCheckBeforeTakingMessageQueue();
+        // TODO
+        final int hashCode = messageGroup.hashCode();
+        final int index = IntMath.mod(hashCode, messageQueues.size());
+        return messageQueues.get(index);
+    }
+
+    public List<MessageQueueImpl> takeMessageQueues(Set<Endpoints> excluded, int count) throws ClientException {
+        preconditionCheckBeforeTakingMessageQueue();
+        int next = index.getAndIncrement();
+        List<MessageQueueImpl> candidates = new ArrayList<>();
+        Set<String> candidateBrokerNames = new HashSet<>();
+
         for (int i = 0; i < messageQueues.size(); i++) {
             final MessageQueueImpl messageQueueImpl = messageQueues.get(IntMath.mod(next++, messageQueues.size()));
             final Broker broker = messageQueueImpl.getBroker();

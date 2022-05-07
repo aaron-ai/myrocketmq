@@ -47,11 +47,11 @@ public class SubscriptionTopicRouteDataResult {
             case OK:
                 break;
             case FORBIDDEN:
-                throw new AuthorisationException(code.ordinal(), status.getMessage());
+                throw new AuthorisationException(code.getNumber(), status.getMessage());
             case UNAUTHORIZED:
-                throw new AuthenticationException(code.ordinal(), status.getMessage());
+                throw new AuthenticationException(code.getNumber(), status.getMessage());
             case TOPIC_NOT_FOUND:
-                throw new ResourceNotFoundException(code.ordinal(), status.getMessage());
+                throw new ResourceNotFoundException(code.getNumber(), status.getMessage());
             case ILLEGAL_ACCESS_POINT:
                 throw new IllegalArgumentException("Access point is illegal");
         }
