@@ -18,6 +18,7 @@
 package org.apache.rocketmq.apis.consumer;
 
 import java.io.Closeable;
+import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -84,7 +85,7 @@ public interface SimpleConsumer extends Closeable {
      *
      * @return map of topic to filter expression.
      */
-    Map<String, FilterExpression> subscriptionExpressions();
+    Map<String, FilterExpression> getSubscriptionExpressions();
 
     /**
      * Fetch messages from server synchronously.
@@ -104,7 +105,7 @@ public interface SimpleConsumer extends Closeable {
      * @param invisibleDuration set the invisibleDuration of messages return from server. These messages will be invisible to other consumer unless timout.
      * @return list of messageView
      */
-    CompletableFuture<List<MessageView>> receiveAsync(int maxMessageNum, Duration invisibleDuration) throws ClientException;
+    CompletableFuture<List<MessageView>> receiveAsync(int maxMessageNum, Duration invisibleDuration);
 
     /**
      * Ack message to server synchronously, server commit this message.
@@ -151,5 +152,5 @@ public interface SimpleConsumer extends Closeable {
     CompletableFuture<Void> changeInvisibleDurationAsync(MessageView messageView, Duration invisibleDuration);
 
     @Override
-    void close();
+    void close() throws IOException;
 }

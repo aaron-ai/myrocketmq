@@ -41,6 +41,9 @@ package org.apache.rocketmq.apis.exception;
  *     <td>Resource not found
  *     <td>{@link ResourceNotFoundException}
  *     <td>{@code [301..399]}
+ * <tr>
+ *
+ * </tr>
  * </table>
  *
  * </blockquote>
@@ -65,7 +68,15 @@ public enum ErrorCode {
     /**
      * Consumer group does not exist.
      */
-    CONSUMER_GROUP_DOES_NOT_EXIST(302);
+    CONSUMER_GROUP_DOES_NOT_EXIST(302),
+    /**
+     * No endpoints to query assignment.
+     */
+    NO_ENDPOINTS_TO_QUERY_ASSIGNMENT(303),
+    /**
+     *
+     */
+    SSL_CONTEXT_INITIALIZATION_FAILURE(401);
 
     private final int code;
 

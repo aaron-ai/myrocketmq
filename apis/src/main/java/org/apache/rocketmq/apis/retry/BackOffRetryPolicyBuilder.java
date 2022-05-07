@@ -23,37 +23,44 @@ import static com.google.common.base.Preconditions.checkNotNull;
 import java.time.Duration;
 
 public class BackOffRetryPolicyBuilder {
-    private int maxAttempts = 3;
-    private Duration initialBackoff = Duration.ofMillis(100);
-    private Duration maxBackoff = Duration.ofSeconds(1);
-    private int backoffMultiplier = 2;
+    private int maxAttempts;
+    private Duration initialBackoff;
+    private Duration maxBackoff;
+    private int backoffMultiplier;
 
     public BackOffRetryPolicyBuilder() {
+        this.maxAttempts = 3;
+        this.initialBackoff = Duration.ofMillis(100);
+        this.maxBackoff = Duration.ofSeconds(1);
+        this.backoffMultiplier = 2;
     }
 
-    BackOffRetryPolicyBuilder setMaxAttempts(int maxAttempts) {
+    public BackOffRetryPolicyBuilder setMaxAttempts(int maxAttempts) {
         checkArgument(maxAttempts > 0, "maxAttempts must be positive");
         this.maxAttempts = maxAttempts;
         return this;
     }
 
-    BackOffRetryPolicyBuilder setInitialBackoff(Duration initialBackoff) {
+    public BackOffRetryPolicyBuilder setInitialBackoff(Duration initialBackoff) {
         this.initialBackoff = checkNotNull(initialBackoff, "initialBackoff should not be null");
         return this;
     }
 
-    BackOffRetryPolicyBuilder setMaxBackoff(Duration maxBackoff) {
+    public BackOffRetryPolicyBuilder setMaxBackoff(Duration maxBackoff) {
         this.maxBackoff = checkNotNull(maxBackoff, "maxBackoff should not be null");
         return this;
     }
 
-    BackOffRetryPolicyBuilder setBackoffMultiplier(int backoffMultiplier) {
+    public BackOffRetryPolicyBuilder setBackoffMultiplier(int backoffMultiplier) {
         checkArgument(backoffMultiplier > 0, "backoffMultiplier must be positive");
         this.backoffMultiplier = backoffMultiplier;
         return this;
     }
 
-    BackoffRetryPolicy build() {
-        return new BackoffRetryPolicy(maxAttempts, initialBackoff, maxBackoff, backoffMultiplier);
+    public ExponentialBackoffRetryPolicy build() {
+        checkArgument(maxBackoff.compareTo(initialBackoff) >= 0, "initialBackoff should not be minor than maxBackoff");
+        checkArgument(maxAttempts > 0, "maxAttempts must be positive");
+        checkNotNull(initialBackoff, "initialBackoff should not be null");
+        return new ExponentialBackoffRetryPolicy(maxAttempts, initialBackoff, maxBackoff, backoffMultiplier);
     }
 }

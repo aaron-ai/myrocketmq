@@ -43,8 +43,12 @@ public class FilterExpression {
 
     @Override
     public boolean equals(Object o) {
-        if (this == o) return true;
-        if (o == null || getClass() != o.getClass()) return false;
+        if (this == o) {
+            return true;
+        }
+        if (o == null || getClass() != o.getClass()) {
+            return false;
+        }
         FilterExpression that = (FilterExpression) o;
         return expression.equals(that.expression) && filterExpressionType == that.filterExpressionType;
     }

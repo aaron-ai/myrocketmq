@@ -51,6 +51,7 @@ public interface SimpleConsumerBuilder {
     /**
      * Set the max await time when receive message from server.
      * The simple consumer will hold this long-polling receive requests until  a message is returned or a timeout occurs.
+     *
      * @param awaitDuration The maximum time to block when no message available.
      * @return the consumer builder instance.
      */

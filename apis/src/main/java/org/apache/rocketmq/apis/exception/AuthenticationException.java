@@ -24,8 +24,12 @@ package org.apache.rocketmq.apis.exception;
  * <p>For example, {@link AuthenticationException} will be thrown if access key is invalid.
  */
 public class AuthenticationException extends ClientException {
-    public AuthenticationException(ErrorCode code, String message, String requestId) {
-        super(code, message);
-        putMetadata(REQUEST_ID_KEY, requestId);
+    public AuthenticationException(int responseCode, String message) {
+        super(message);
+        putMetadata(RESPONSE_CODE_KEY, String.valueOf(responseCode));
+    }
+
+    public AuthenticationException(Throwable throwable) {
+        super(throwable);
     }
 }

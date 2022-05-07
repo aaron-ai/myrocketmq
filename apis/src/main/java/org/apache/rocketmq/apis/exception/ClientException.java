@@ -32,19 +32,22 @@ public abstract class ClientException extends Exception {
      * request.
      */
     protected static final String REQUEST_ID_KEY = "request-id";
+    protected static final String RESPONSE_CODE_KEY = "response-code";
 
-    private final ErrorCode errorCode;
     private final Map<String, String> context;
 
-    ClientException(ErrorCode errorCode, String message, Throwable cause) {
+    ClientException(String message, Throwable cause) {
         super(message, cause);
-        this.errorCode = errorCode;
         this.context = new HashMap<>();
     }
 
-    ClientException(ErrorCode errorCode, String message) {
+    ClientException(String message) {
         super(message);
-        this.errorCode = errorCode;
+        this.context = new HashMap<>();
+    }
+
+    ClientException(Throwable t) {
+        super(t);
         this.context = new HashMap<>();
     }
 
@@ -58,15 +61,15 @@ public abstract class ClientException extends Exception {
         return null == requestId ? Optional.empty() : Optional.of(requestId);
     }
 
-    public ErrorCode getErrorCode() {
-        return errorCode;
+    public Optional<String> getResponseCode() {
+        final String responseCode = context.get(RESPONSE_CODE_KEY);
+        return null == responseCode ? Optional.empty() : Optional.of(responseCode);
     }
 
     @Override
     public String toString() {
         return MoreObjects.toStringHelper(super.toString())
-            .add("errorCode", errorCode)
-            .add("context", context)
-            .toString();
+                .add("context", context)
+                .toString();
     }
 }

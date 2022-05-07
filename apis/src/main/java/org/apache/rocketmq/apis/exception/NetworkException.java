@@ -18,11 +18,12 @@
 package org.apache.rocketmq.apis.exception;
 
 public class NetworkException extends ClientException {
-    public NetworkException(ErrorCode code, String message, Throwable cause) {
-        super(code, message, cause);
+    public NetworkException(String message, Throwable cause) {
+        super(message, cause);
     }
 
-    public NetworkException(ErrorCode code, String message) {
-        super(code, message);
+    public NetworkException(int code, String message) {
+        super(message);
+        putMetadata(RESPONSE_CODE_KEY, String.valueOf(code));
     }
 }

@@ -18,11 +18,13 @@
 package org.apache.rocketmq.apis.exception;
 
 public class TimeoutException extends ClientException {
-    public TimeoutException(ErrorCode code, String message, Throwable cause) {
-        super(code, message, cause);
+    public TimeoutException(int code, String message, Throwable cause) {
+        super(message, cause);
+        putMetadata(RESPONSE_CODE_KEY, String.valueOf(code));
     }
 
-    public TimeoutException(ErrorCode code, String message) {
-        super(code, message);
+    public TimeoutException(int code, String message) {
+        super(message);
+        putMetadata(RESPONSE_CODE_KEY, String.valueOf(code));
     }
 }

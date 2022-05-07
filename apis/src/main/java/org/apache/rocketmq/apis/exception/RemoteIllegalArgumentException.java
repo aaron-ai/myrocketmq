@@ -18,8 +18,9 @@
 package org.apache.rocketmq.apis.exception;
 
 public class RemoteIllegalArgumentException extends ClientException {
-    public RemoteIllegalArgumentException(ErrorCode code, String message, String requestId) {
-        super(code, message);
+    public RemoteIllegalArgumentException(int code, String message, String requestId) {
+        super(message);
+        putMetadata(RESPONSE_CODE_KEY, String.valueOf(code));
         putMetadata(REQUEST_ID_KEY, requestId);
     }
 }
