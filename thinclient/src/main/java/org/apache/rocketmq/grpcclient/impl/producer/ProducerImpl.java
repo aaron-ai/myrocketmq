@@ -81,7 +81,6 @@ import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 import org.apache.rocketmq.grpcclient.route.TopicRouteDataResult;
 import org.apache.rocketmq.grpcclient.utility.ExecutorServices;
 import org.apache.rocketmq.grpcclient.utility.ThreadFactoryImpl;
-import org.checkerframework.checker.nullness.qual.Nullable;
 
 @SuppressWarnings({"UnstableApiUsage", "NullableProblems"})
 public class ProducerImpl extends ClientImpl implements Producer {
@@ -247,7 +246,6 @@ public class ProducerImpl extends ClientImpl implements Producer {
                 throw (ClientException) cause;
             }
             // TODO
-            System.out.println(t);
             throw new InternalException(t);
         }
     }

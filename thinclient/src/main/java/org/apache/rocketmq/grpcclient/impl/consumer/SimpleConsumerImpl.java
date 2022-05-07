@@ -55,7 +55,6 @@ import org.apache.rocketmq.apis.exception.ClientException;
 import org.apache.rocketmq.apis.exception.InternalException;
 import org.apache.rocketmq.apis.exception.ResourceNotFoundException;
 import org.apache.rocketmq.apis.message.MessageView;
-import org.apache.rocketmq.grpcclient.consumer.ReceiveMessageResult;
 import org.apache.rocketmq.grpcclient.message.MessageViewImpl;
 import org.apache.rocketmq.grpcclient.message.protocol.Resource;
 import org.apache.rocketmq.grpcclient.route.Endpoints;

@@ -20,10 +20,8 @@ package org.apache.rocketmq.grpcclient.route;
 import apache.rocketmq.v2.Status;
 import com.google.common.base.MoreObjects;
 import com.google.common.base.Objects;
-import org.apache.rocketmq.apis.exception.ClientException;
 
 import javax.annotation.concurrent.Immutable;
-import java.util.Optional;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 

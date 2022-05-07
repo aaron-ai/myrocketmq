@@ -49,7 +49,6 @@ import org.apache.rocketmq.apis.ClientConfiguration;
 import org.apache.rocketmq.apis.consumer.FilterExpression;
 import org.apache.rocketmq.apis.consumer.FilterExpressionType;
 import org.apache.rocketmq.apis.message.MessageId;
-import org.apache.rocketmq.grpcclient.consumer.ReceiveMessageResult;
 import org.apache.rocketmq.grpcclient.impl.ClientImpl;
 import org.apache.rocketmq.grpcclient.message.MessageViewImpl;
 import org.apache.rocketmq.grpcclient.route.Endpoints;

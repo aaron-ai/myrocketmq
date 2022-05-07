@@ -37,31 +37,28 @@ import java.util.zip.DeflaterOutputStream;
 import java.util.zip.InflaterInputStream;
 
 public class UtilAll {
-    public static final String DEFAULT_CHARSET = "UTF-8";
     public static final Locale LOCALE = new Locale("zh", "CN");
 
     private static final Random RANDOM = new SecureRandom();
 
     private static final int PROCESS_ID_NOT_SET = -2;
     private static final int PROCESS_ID_NOT_FOUND = -1;
-    private static int PROCESS_ID = PROCESS_ID_NOT_SET;
+    private static int processId = PROCESS_ID_NOT_SET;
 
     private static final String HOST_NAME_NOT_FOUND = "HOST_NAME_NOT_FOUND";
-    private static String HOST_NAME = null;
+    private static String hostName = null;
 
-    private static byte[] MAC_ADDRESS = null;
-
-    /**
-     * Used to build output as Hex
-     */
-    private static final char[] DIGITS_LOWER = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd',
-            'e', 'f'};
+    private static byte[] macAddress = null;
 
     /**
      * Used to build output as Hex
      */
-    private static final char[] DIGITS_UPPER = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D',
-            'E', 'F'};
+    private static final char[] DIGITS_LOWER = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f'};
+
+    /**
+     * Used to build output as Hex
+     */
+    private static final char[] DIGITS_UPPER = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
 
     private static final String CLIENT_ID_SEPARATOR = "@";
 
@@ -69,8 +66,8 @@ public class UtilAll {
     }
 
     public static byte[] macAddress() {
-        if (null != MAC_ADDRESS) {
-            return MAC_ADDRESS.clone();
+        if (null != macAddress) {
+            return macAddress.clone();
         }
         try {
             final Enumeration<NetworkInterface> networkInterfaces = NetworkInterface.getNetworkInterfaces();
@@ -80,16 +77,16 @@ public class UtilAll {
                 if (null == mac) {
                     continue;
                 }
-                MAC_ADDRESS = mac;
-                return MAC_ADDRESS.clone();
+                macAddress = mac;
+                return macAddress.clone();
             }
         } catch (Throwable ignore) {
             // ignore on purpose.
         }
         byte[] randomBytes = new byte[6];
         RANDOM.nextBytes(randomBytes);
-        MAC_ADDRESS = randomBytes;
-        return MAC_ADDRESS.clone();
+        macAddress = randomBytes;
+        return macAddress.clone();
     }
 
     public static String getOsName() {
@@ -120,30 +117,30 @@ public class UtilAll {
     }
 
     public static int processId() {
-        if (PROCESS_ID != PROCESS_ID_NOT_SET) {
-            return PROCESS_ID;
+        if (processId != PROCESS_ID_NOT_SET) {
+            return processId;
         }
         RuntimeMXBean runtime = ManagementFactory.getRuntimeMXBean();
         // format: "pid@hostname"
         String name = runtime.getName();
         try {
-            PROCESS_ID = Integer.parseInt(name.substring(0, name.indexOf('@')));
+            processId = Integer.parseInt(name.substring(0, name.indexOf('@')));
         } catch (Throwable ignore) {
-            PROCESS_ID = PROCESS_ID_NOT_FOUND;
+            processId = PROCESS_ID_NOT_FOUND;
         }
-        return PROCESS_ID;
+        return processId;
     }
 
     public static String hostName() {
-        if (null != HOST_NAME) {
-            return HOST_NAME;
+        if (null != hostName) {
+            return hostName;
         }
         try {
-            HOST_NAME = InetAddress.getLocalHost().getHostName();
-            return HOST_NAME;
+            hostName = InetAddress.getLocalHost().getHostName();
+            return hostName;
         } catch (Throwable ignore) {
-            HOST_NAME = HOST_NAME_NOT_FOUND;
-            return HOST_NAME;
+            hostName = HOST_NAME_NOT_FOUND;
+            return hostName;
         }
     }
 
@@ -151,7 +148,7 @@ public class UtilAll {
         ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream(src.length);
         java.util.zip.Deflater defeater = new java.util.zip.Deflater(level);
         DeflaterOutputStream deflaterOutputStream =
-                new DeflaterOutputStream(byteArrayOutputStream, defeater);
+            new DeflaterOutputStream(byteArrayOutputStream, defeater);
         try {
             deflaterOutputStream.write(src);
             deflaterOutputStream.finish();
@@ -265,7 +262,7 @@ public class UtilAll {
                 if (elements != null && elements.length > 0) {
                     String threadName = entry.getKey().getName();
                     result.append(String.format("%-40sTID: %d STATE: %s%n", threadName, thread.getId(),
-                            thread.getState()));
+                        thread.getState()));
                     for (StackTraceElement el : elements) {
                         result.append(String.format("%-40s%s%n", threadName, el.toString()));
                     }

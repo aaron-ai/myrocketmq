@@ -17,7 +17,6 @@
 
 package org.apache.rocketmq.grpcclient.utility;
 
-import java.io.IOException;
 import java.io.InputStream;
 import java.util.Properties;
 

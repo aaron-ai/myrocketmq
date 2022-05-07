@@ -38,21 +38,21 @@ public class LoggingInterceptor implements ClientInterceptor {
     }
 
     @Override
-    public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(MethodDescriptor<ReqT, RespT> method,
+    public <T, E> ClientCall<T, E> interceptCall(MethodDescriptor<T, E> method,
                                                                CallOptions callOptions, Channel next) {
 
-        return new ForwardingClientCall.SimpleForwardingClientCall<ReqT, RespT>(next.newCall(method, callOptions)) {
+        return new ForwardingClientCall.SimpleForwardingClientCall<T, E>(next.newCall(method, callOptions)) {
 
             @Override
-            public void start(Listener<RespT> listener, final Metadata headers) {
-                super.start(new ForwardingClientCallListener.SimpleForwardingClientCallListener<RespT>(listener) {
+            public void start(Listener<E> listener, final Metadata headers) {
+                super.start(new ForwardingClientCallListener.SimpleForwardingClientCallListener<E>(listener) {
                     @Override
                     public void onHeaders(Metadata headers) {
                         super.onHeaders(headers);
                     }
 
                     @Override
-                    public void onMessage(RespT response) {
+                    public void onMessage(E response) {
                         LOGGER.trace("gRPC response: {}\n{}", response.getClass().getName(), response);
                         super.onMessage(response);
                     }
@@ -60,7 +60,7 @@ public class LoggingInterceptor implements ClientInterceptor {
             }
 
             @Override
-            public void sendMessage(ReqT request) {
+            public void sendMessage(T request) {
                 LOGGER.trace("gRPC request: {}\n{}", request.getClass().getName(), request);
                 super.sendMessage(request);
             }

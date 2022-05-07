@@ -32,7 +32,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import org.apache.rocketmq.apis.consumer.ConsumeResult;
 import org.apache.rocketmq.apis.consumer.MessageListener;
-import org.apache.rocketmq.apis.message.MessageView;
 import org.apache.rocketmq.grpcclient.message.MessageViewImpl;
 import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;
 

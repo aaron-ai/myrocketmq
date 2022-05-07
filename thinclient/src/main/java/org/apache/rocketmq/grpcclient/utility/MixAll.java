@@ -26,16 +26,16 @@ public class MixAll {
 
     public static final int MASTER_BROKER_ID = 0;
 
-    private static String PROTOCOL_VERSION = null;
+    private static String protocolVersion = null;
 
     private MixAll() {
     }
 
     public static String getProtocolVersion() {
-        if (null != PROTOCOL_VERSION) {
-            return PROTOCOL_VERSION;
+        if (null != protocolVersion) {
+            return protocolVersion;
         }
-        PROTOCOL_VERSION = ReceiveMessageRequest.class.getName().split("\\.")[2];
-        return PROTOCOL_VERSION;
+        protocolVersion = ReceiveMessageRequest.class.getName().split("\\.")[2];
+        return protocolVersion;
     }
 }

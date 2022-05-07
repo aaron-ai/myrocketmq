@@ -32,17 +32,17 @@ public class MessageQueueImpl implements MessageQueue {
     private final int queueId;
 
     private final Permission permission;
-    private final List<MessageType> accept_message_types;
+    private final List<MessageType> acceptMessageTypes;
 
     public MessageQueueImpl(apache.rocketmq.v2.MessageQueue messageQueue) {
         this.topicResource = new Resource(messageQueue.getTopic());
         this.queueId = messageQueue.getId();
         final apache.rocketmq.v2.Permission perm = messageQueue.getPermission();
         this.permission = Permission.fromProtobuf(perm);
-        this.accept_message_types = new ArrayList<>();
+        this.acceptMessageTypes = new ArrayList<>();
         final List<apache.rocketmq.v2.MessageType> types = messageQueue.getAcceptMessageTypesList();
         for (apache.rocketmq.v2.MessageType type : types) {
-            accept_message_types.add(MessageType.fromProtobuf(type));
+            acceptMessageTypes.add(MessageType.fromProtobuf(type));
         }
         this.broker = new Broker(messageQueue.getBroker());
     }
@@ -65,11 +65,11 @@ public class MessageQueueImpl implements MessageQueue {
     }
 
     public boolean matchMessageType(MessageType messageType) {
-        return accept_message_types.contains(messageType);
+        return acceptMessageTypes.contains(messageType);
     }
 
     public apache.rocketmq.v2.MessageQueue toProtobuf() {
-        final List<apache.rocketmq.v2.MessageType> messageTypes = accept_message_types
+        final List<apache.rocketmq.v2.MessageType> messageTypes = acceptMessageTypes
             .stream().map(MessageType::toProtobuf)
             .collect(Collectors.toList());
         return apache.rocketmq.v2.MessageQueue.newBuilder()
@@ -80,7 +80,7 @@ public class MessageQueueImpl implements MessageQueue {
             .addAllAcceptMessageTypes(messageTypes).build();
     }
 
-    //TODO
+    // TODO
     @Override
     public String getId() {
         return null;

@@ -19,7 +19,6 @@ package org.apache.rocketmq.grpcclient.impl.consumer;
 
 import apache.rocketmq.v2.AckMessageResponse;
 import apache.rocketmq.v2.Code;
-import apache.rocketmq.v2.FilterType;
 import apache.rocketmq.v2.ForwardMessageToDeadLetterQueueResponse;
 import apache.rocketmq.v2.ReceiveMessageRequest;
 import apache.rocketmq.v2.Status;
@@ -36,7 +35,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.apache.rocketmq.apis.consumer.ConsumeResult;
 import org.apache.rocketmq.apis.consumer.FilterExpression;
-import org.apache.rocketmq.apis.consumer.FilterExpressionType;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -46,7 +44,6 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.apache.rocketmq.apis.message.MessageId;
 import org.apache.rocketmq.apis.retry.RetryPolicy;
-import org.apache.rocketmq.grpcclient.consumer.ReceiveMessageResult;
 import org.apache.rocketmq.grpcclient.message.MessageViewImpl;
 import org.apache.rocketmq.grpcclient.route.Endpoints;
 import org.apache.rocketmq.grpcclient.route.MessageQueueImpl;

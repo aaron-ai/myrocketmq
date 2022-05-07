@@ -18,10 +18,6 @@
 package org.apache.rocketmq.grpcclient.impl;
 
 import com.google.errorprone.annotations.concurrent.GuardedBy;
-import io.github.aliyunmq.shaded.org.slf4j.Logger;
-import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.concurrent.ThreadSafe;
@@ -31,8 +27,8 @@ import java.util.concurrent.locks.ReentrantLock;
 @ThreadSafe
 public class ClientManagerRegistry {
     @GuardedBy("clientIdsLock")
-    private static final Set<String> clientIds = new HashSet<>();
-    private static final Lock clientIdsLock = new ReentrantLock();
+    private static final Set<String> CLIENT_IDS = new HashSet<>();
+    private static final Lock CLIENT_IDS_LOCK = new ReentrantLock();
 
     private static volatile ClientManagerImpl singleton = null;
 
@@ -48,18 +44,18 @@ public class ClientManagerRegistry {
      * @return the client manager which is started.
      */
     public static ClientManager registerClient(Client client) {
-        clientIdsLock.lock();
+        CLIENT_IDS_LOCK.lock();
         try {
             if (null == singleton) {
                 final ClientManagerImpl clientManager = new ClientManagerImpl();
                 clientManager.startAsync().awaitRunning();
                 singleton = clientManager;
             }
-            clientIds.add(client.getClientId());
+            CLIENT_IDS.add(client.getClientId());
             singleton.registerClient(client);
             return singleton;
         } finally {
-            clientIdsLock.unlock();
+            CLIENT_IDS_LOCK.unlock();
         }
     }
 
@@ -73,16 +69,16 @@ public class ClientManagerRegistry {
     @SuppressWarnings("UnusedReturnValue")
     public static boolean unregisterClient(Client client) {
         ClientManagerImpl clientManager = null;
-        clientIdsLock.lock();
+        CLIENT_IDS_LOCK.lock();
         try {
-            clientIds.remove(client.getClientId());
+            CLIENT_IDS.remove(client.getClientId());
             singleton.unregisterClient(client);
-            if (clientIds.isEmpty()) {
+            if (CLIENT_IDS.isEmpty()) {
                 clientManager = singleton;
                 singleton = null;
             }
         } finally {
-            clientIdsLock.unlock();
+            CLIENT_IDS_LOCK.unlock();
         }
         // No need to hold the lock here.
         if (null != clientManager) {

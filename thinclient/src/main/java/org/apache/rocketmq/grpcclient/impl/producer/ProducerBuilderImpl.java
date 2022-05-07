@@ -56,11 +56,9 @@ public class ProducerBuilderImpl implements ProducerBuilder {
      */
     @Override
     public ProducerBuilder setTopics(String... topics) {
-        final Set<String> set = Arrays.stream(topics).peek(topic -> {
-            checkNotNull(topic, "topic should not be null");
-            checkArgument(MessageBuilderImpl.TOPIC_PATTERN.matcher(topic).matches(), "topic does not match the regex [regex=%s]",
-                MessageBuilderImpl.TOPIC_PATTERN.pattern());
-        }).collect(Collectors.toSet());
+        final Set<String> set = Arrays.stream(topics).peek(topic -> checkNotNull(topic, "topic should not be null"))
+            .peek(topic -> checkArgument(MessageBuilderImpl.TOPIC_PATTERN.matcher(topic).matches(), "topic does not match the regex [regex=%s]", MessageBuilderImpl.TOPIC_PATTERN.pattern()))
+            .collect(Collectors.toSet());
         this.topics.addAll(set);
         return this;
     }

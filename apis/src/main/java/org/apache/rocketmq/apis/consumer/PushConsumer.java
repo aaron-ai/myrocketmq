@@ -17,13 +17,11 @@
 
 package org.apache.rocketmq.apis.consumer;
 
-import com.google.common.util.concurrent.Service;
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Collection;
 
 import java.util.Map;
-import org.apache.rocketmq.apis.exception.*;
+import org.apache.rocketmq.apis.exception.ClientException;
 
 /**
  * PushConsumer is a thread-safe rocketmq client which is used to consume message by group.
@@ -86,8 +84,7 @@ public interface PushConsumer extends Closeable {
      * Close the push consumer and release all related resources.
      *
      * <p>Once push consumer is closed, <strong>it could not be started once again.</strong> we maintained an FSM
-     * (finite-state machine) to record the different states for each producer, which is similar to
-     * {@link Service.State}.
+     * (finite-state machine) to record the different states for each producer.
      */
     @Override
     void close() throws IOException;

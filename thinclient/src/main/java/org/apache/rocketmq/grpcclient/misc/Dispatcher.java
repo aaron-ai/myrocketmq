@@ -20,8 +20,6 @@ package org.apache.rocketmq.grpcclient.misc;
 import com.google.common.util.concurrent.AbstractIdleService;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
-import java.io.Closeable;
-import java.io.IOException;
 import org.apache.rocketmq.grpcclient.utility.ExecutorServices;
 import org.apache.rocketmq.grpcclient.utility.ThreadFactoryImpl;
 
