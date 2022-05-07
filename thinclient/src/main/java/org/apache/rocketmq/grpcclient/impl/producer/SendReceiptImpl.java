@@ -24,6 +24,7 @@ import com.google.common.base.MoreObjects;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.rocketmq.apis.MessageQueue;
+import org.apache.rocketmq.apis.exception.ClientException;
 import org.apache.rocketmq.apis.message.MessageId;
 import org.apache.rocketmq.apis.producer.SendReceipt;
 import org.apache.rocketmq.grpcclient.message.MessageIdCodec;
@@ -66,7 +67,7 @@ public class SendReceiptImpl implements SendReceipt {
         return offset;
     }
 
-    public static List<SendReceiptImpl> processSendResponse(MessageQueueImpl mq, SendMessageResponse response) {
+    public static List<SendReceiptImpl> processSendResponse(MessageQueueImpl mq, SendMessageResponse response) throws ClientException {
         final Status status = response.getStatus();
         final Code code = status.getCode();
         if (Code.OK != code) {

@@ -21,16 +21,12 @@ import apache.rocketmq.v2.Code;
 import apache.rocketmq.v2.EndTransactionRequest;
 import apache.rocketmq.v2.EndTransactionResponse;
 import apache.rocketmq.v2.HeartbeatRequest;
-import apache.rocketmq.v2.MessageQueue;
 import apache.rocketmq.v2.NotifyClientTerminationRequest;
 import apache.rocketmq.v2.RecoverOrphanedTransactionCommand;
 import apache.rocketmq.v2.SendMessageRequest;
 import apache.rocketmq.v2.SendMessageResponse;
 import apache.rocketmq.v2.Settings;
 import apache.rocketmq.v2.Status;
-import apache.rocketmq.v2.TelemetryCommand;
-import apache.rocketmq.v2.VerifyMessageCommand;
-import apache.rocketmq.v2.VerifyMessageResult;
 import com.google.common.math.IntMath;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
@@ -60,7 +56,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import io.github.aliyunmq.shaded.org.slf4j.Logger;
 import io.github.aliyunmq.shaded.org.slf4j.LoggerFactory;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Predicate;
 import java.util.stream.Collectors;
 import net.javacrumbs.futureconverter.java8guava.FutureConverter;
 import org.apache.rocketmq.apis.ClientConfiguration;
@@ -252,6 +247,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
                 throw (ClientException) cause;
             }
             // TODO
+            System.out.println(t);
             throw new InternalException(t);
         }
     }
@@ -520,7 +516,6 @@ public class ProducerImpl extends ClientImpl implements Producer {
 
         final ListenableFuture<List<SendReceiptImpl>> attemptFuture = Futures.transformAsync(responseFuture, response -> {
             final SettableFuture<List<SendReceiptImpl>> future0 = SettableFuture.create();
-            // TODO: may throw exception.
             future0.set(SendReceiptImpl.processSendResponse(messageQueue, response));
             return future0;
         }, MoreExecutors.directExecutor());
