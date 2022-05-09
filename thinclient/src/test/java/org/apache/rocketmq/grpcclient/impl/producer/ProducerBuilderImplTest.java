@@ -1,6 +1,11 @@
 package org.apache.rocketmq.grpcclient.impl.producer;
 
+import java.io.IOException;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.rocketmq.apis.ClientConfiguration;
+import org.apache.rocketmq.apis.ClientServiceProvider;
+import org.apache.rocketmq.apis.exception.ClientException;
+import org.apache.rocketmq.apis.producer.Producer;
 import org.junit.Test;
 
 public class ProducerBuilderImplTest {
@@ -19,7 +24,7 @@ public class ProducerBuilderImplTest {
     }
 
     @Test(expected = IllegalArgumentException.class)
-    public void testSetTopicWithTooLongTopic() {
+    public void testSetTopicWithTooLong() {
         final ProducerBuilderImpl builder = new ProducerBuilderImpl();
         String tooLongTopic = StringUtils.repeat("a", 128);
         builder.setTopics(tooLongTopic);
@@ -47,5 +52,12 @@ public class ProducerBuilderImplTest {
     public void testBuildWithoutClientConfiguration() {
         final ProducerBuilderImpl builder = new ProducerBuilderImpl();
         builder.build();
+    }
+
+    @Test
+    public void testBuildWithoutTopic() throws ClientException, IOException {
+        ClientConfiguration clientConfiguration = ClientConfiguration.newBuilder().setAccessPoint("127.0.0.1:80").build();
+        Producer producer = ClientServiceProvider.loadService().newProducerBuilder().setClientConfiguration(clientConfiguration).build();
+        producer.close();
     }
 }

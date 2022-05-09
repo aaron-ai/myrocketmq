@@ -32,7 +32,7 @@ import java.util.regex.Pattern;
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public class Endpoints {
-    public static final Pattern IPv4_ADDRESS_PATTERN = Pattern.compile("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):[1-9][0-9]*$");
+    private static final Pattern IPv4_ADDRESS_PATTERN = Pattern.compile("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):[1-9][0-9]*$");
     private static final String ADDRESS_SEPARATOR = ",";
     private final AddressScheme scheme;
 
@@ -91,7 +91,7 @@ public class Endpoints {
                 final Address addr = new Address(host, port);
                 addresses.add(addr);
             }
-            this.facade = scheme.getPrefix() + endpoints.replace(";", ",");
+            this.facade = scheme.getPrefix() + endpoints.replace(";", ADDRESS_SEPARATOR);
             return;
         }
         final int index = endpoints.lastIndexOf(":");

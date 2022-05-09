@@ -419,7 +419,7 @@ public class PushConsumerImpl extends ConsumerImpl implements PushConsumer {
     }
 
     @Override
-    protected void awaitFirstSettingApplied(
+    protected void awaitFirstSettingApplied0(
         Duration duration) throws ExecutionException, InterruptedException, TimeoutException {
         pushConsumerSettings.getFirstApplyCompletedFuture().get(duration.toNanos(), TimeUnit.NANOSECONDS);
     }

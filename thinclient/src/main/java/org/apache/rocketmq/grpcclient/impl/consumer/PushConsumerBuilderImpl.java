@@ -56,9 +56,7 @@ public class PushConsumerBuilderImpl implements PushConsumerBuilder {
     @Override
     public PushConsumerBuilder setConsumerGroup(String consumerGroup) {
         checkNotNull(consumerGroup, "consumerGroup should not be null");
-        checkArgument(CONSUMER_GROUP_PATTERN.matcher(consumerGroup).matches(), "consumerGroup does not match the "
-                                                                               + "regex [regex=%s]",
-                      CONSUMER_GROUP_PATTERN.pattern());
+        checkArgument(CONSUMER_GROUP_PATTERN.matcher(consumerGroup).matches(), "consumerGroup does not match the regex [regex=%s]", CONSUMER_GROUP_PATTERN.pattern());
         this.consumerGroup = consumerGroup;
         return this;
     }
@@ -123,9 +121,8 @@ public class PushConsumerBuilderImpl implements PushConsumerBuilder {
         checkNotNull(messageListener, "messageListener has not been set yet");
         checkArgument(!subscriptionExpressions.isEmpty(), "subscriptionExpressions have not been set yet");
         final PushConsumerImpl pushConsumer = new PushConsumerImpl(clientConfiguration, consumerGroup,
-                                                                   subscriptionExpressions, messageListener,
-                                                                   maxCacheMessageCount, maxCacheMessageSizeInBytes,
-                                                                   consumptionThreadCount);
+            subscriptionExpressions, messageListener, maxCacheMessageCount, maxCacheMessageSizeInBytes,
+            consumptionThreadCount);
         pushConsumer.startAsync().awaitRunning();
         return pushConsumer;
     }

@@ -209,7 +209,7 @@ public class ProducerImpl extends ClientImpl implements Producer {
     }
 
     @Override
-    protected void awaitFirstSettingApplied(
+    protected void awaitFirstSettingApplied0(
         Duration duration) throws ExecutionException, InterruptedException, TimeoutException {
         final SettableFuture<ClientSettings> future = producerSettings.getFirstApplyCompletedFuture();
         Futures.addCallback(future, new FutureCallback<ClientSettings>() {
@@ -591,11 +591,16 @@ public class ProducerImpl extends ClientImpl implements Producer {
             future0.set(result);
             return future0;
         }
-        final ListenableFuture<TopicRouteDataResult> future = getRouteDataResult(topic);
-        return Futures.transform(future, topicRouteDataResult -> {
+        return Futures.transformAsync(getRouteDataResult(topic), topicRouteDataResult -> {
+            SettableFuture<PublishingTopicRouteDataResult> future = SettableFuture.create();
             final PublishingTopicRouteDataResult publishingTopicRouteDataResult = new PublishingTopicRouteDataResult(topicRouteDataResult);
             publishingRouteDataResultCache.put(topic, publishingTopicRouteDataResult);
-            return publishingTopicRouteDataResult;
+            //
+            if (Code.OK.equals(topicRouteDataResult.getStatus().getCode())) {
+                announceAndAwaitSettingsAppliedFirstly();
+            }
+            future.set(publishingTopicRouteDataResult);
+            return future;
         }, MoreExecutors.directExecutor());
     }
 }

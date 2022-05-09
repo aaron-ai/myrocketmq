@@ -87,7 +87,7 @@ import static com.google.common.base.Preconditions.checkNotNull;
 public abstract class ClientImpl extends AbstractIdleService implements Client {
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientImpl.class);
 
-    private static final Duration AWAIT_SETTINGS_APPLIED_DURATION = Duration.ofSeconds(30);
+    private static final Duration AWAIT_SETTINGS_APPLIED_DURATION = Duration.ofSeconds(3);
 
     protected volatile ClientManager clientManager;
     protected final ClientConfiguration clientConfiguration;
@@ -109,6 +109,8 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
     @GuardedBy("isolatedLock")
     protected final Set<Endpoints> isolated;
     protected final ReadWriteLock isolatedLock;
+
+    private volatile boolean settingsFetched;
 
     /**
      * Telemetry command executor, which is aims to execute commands from remote.
@@ -145,6 +147,8 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
 
         this.isolated = new HashSet<>();
         this.isolatedLock = new ReentrantReadWriteLock();
+
+        this.settingsFetched = false;
 
         this.telemetryCommandExecutor = new ThreadPoolExecutor(
             1,
@@ -194,9 +198,8 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
             throw new ResourceNotFoundException(status.getCode().getNumber(), status.getMessage());
         }
         LOGGER.info("Fetch topic route data from remote successfully during startup, clientId={}, topics={}", clientId, topics);
-        // Report active settings during startup.
-        this.announceSettings();
-        this.awaitFirstSettingApplied(AWAIT_SETTINGS_APPLIED_DURATION);
+        // Try fetch settings from remote.
+        this.announceAndAwaitSettingsAppliedFirstly();
         // Update route cache periodically.
         this.updateRouteCacheFuture = scheduler.scheduleWithFixedDelay(() -> {
             try {
@@ -206,6 +209,16 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
             }
         }, 10, 30, TimeUnit.SECONDS);
         LOGGER.info("The rocketmq client starts successfully, clientId={}", clientId);
+    }
+
+    protected synchronized void announceAndAwaitSettingsAppliedFirstly() throws Exception {
+        if (settingsFetched) {
+            return;
+        }
+        this.announceSettings();
+        if (!this.getTotalRouteEndpoints().isEmpty()) {
+            awaitFirstSettingApplied(AWAIT_SETTINGS_APPLIED_DURATION);
+        }
     }
 
     /**
@@ -229,8 +242,14 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
     }
 
     @SuppressWarnings("SameParameterValue")
-    abstract protected void awaitFirstSettingApplied(
+    abstract protected void awaitFirstSettingApplied0(
         Duration duration) throws ExecutionException, InterruptedException, TimeoutException;
+
+    private void awaitFirstSettingApplied(
+        Duration duration) throws ExecutionException, InterruptedException, TimeoutException {
+        awaitFirstSettingApplied0(duration);
+        settingsFetched = true;
+    }
 
     /**
      * @see Client#onPrintThreadStackCommand(Endpoints, PrintThreadStackTraceCommand)

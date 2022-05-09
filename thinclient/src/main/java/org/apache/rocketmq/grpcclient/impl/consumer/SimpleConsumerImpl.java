@@ -339,7 +339,7 @@ public class SimpleConsumerImpl extends ConsumerImpl implements SimpleConsumer {
     }
 
     @Override
-    protected void awaitFirstSettingApplied(
+    protected void awaitFirstSettingApplied0(
         Duration duration) throws ExecutionException, InterruptedException, TimeoutException {
         simpleConsumerSettings.getFirstApplyCompletedFuture().get(duration.toNanos(), TimeUnit.NANOSECONDS);
 

@@ -43,6 +43,7 @@ public abstract class ConsumeService extends Dispatcher {
     protected final ConcurrentMap<MessageQueueImpl, ProcessQueue> processQueueTable;
 
     protected final String clientId;
+    // TODO
     private final int maxDeliveryAttempts;
     private final MessageListener messageListener;
     private final ThreadPoolExecutor consumptionExecutor;
