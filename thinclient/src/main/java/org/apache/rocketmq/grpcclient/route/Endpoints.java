@@ -19,13 +19,20 @@ package org.apache.rocketmq.grpcclient.route;
 
 import com.google.common.base.Objects;
 
+import com.google.common.net.InetAddresses;
+import com.google.common.net.InternetDomainName;
+import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
+import java.util.regex.Pattern;
 
 import static com.google.common.base.Preconditions.checkNotNull;
 
 public class Endpoints {
+    public static final Pattern IPv4_ADDRESS_PATTERN = Pattern.compile("^(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5]):[1-9][0-9]*$");
     private static final String ADDRESS_SEPARATOR = ",";
     private final AddressScheme scheme;
 
@@ -71,35 +78,35 @@ public class Endpoints {
         this.facade = facadeBuilder.substring(0, facadeBuilder.length() - 1);
     }
 
-    public Endpoints(String facade) {
-        this.facade = facade;
-        final int prefixIndex = facade.indexOf(":");
-        final String prefix = facade.substring(0, prefixIndex + 1);
-        final String suffix = facade.substring(1 + prefixIndex);
+    @SuppressWarnings("UnstableApiUsage")
+    public Endpoints(String endpoints) {
+        final String[] addressesStr = endpoints.split(";");
         this.addresses = new ArrayList<>();
-        final AddressScheme scheme = AddressScheme.fromPrefix(prefix);
-        this.scheme = scheme;
-        switch (scheme) {
-            case DOMAIN_NAME: {
-                final String[] split = suffix.split(":");
-                String host = split[0];
-                int port = split.length >= 2 ? Integer.parseInt(split[1]) : 80;
-                final Address address = new Address(host, port);
-                addresses.add(address);
-                break;
+        if (addressesStr.length > 1) {
+            this.scheme = IPv4_ADDRESS_PATTERN.matcher(addressesStr[0]).matches() ? AddressScheme.IPv4 : AddressScheme.IPv6;
+            for (String addressStr : addressesStr) {
+                final int portIndex = addressStr.lastIndexOf(":");
+                String host = addressStr.substring(0, portIndex);
+                int port = Integer.parseInt(addressStr.substring(1 + portIndex));
+                final Address addr = new Address(host, port);
+                addresses.add(addr);
             }
-            case IPv4:
-            case IPv6: {
-                final String[] split = suffix.split(ADDRESS_SEPARATOR);
-                for (String str : split) {
-                    final int portIndex = str.lastIndexOf(":");
-                    String host = str.substring(0, portIndex);
-                    int port = Integer.parseInt(str.substring(1 + portIndex));
-                    final Address address = new Address(host, port);
-                    addresses.add(address);
-                }
-            }
+            this.facade = scheme.getPrefix() + endpoints.replace(";", ",");
+            return;
         }
+        final int index = endpoints.lastIndexOf(":");
+        String host = endpoints.substring(0, index);
+        int port = Integer.parseInt(endpoints.substring(1 + index));
+        if (IPv4_ADDRESS_PATTERN.matcher(endpoints).matches()) {
+            this.scheme = AddressScheme.IPv4;
+        } else if (InternetDomainName.isValid(host)) {
+            this.scheme = AddressScheme.DOMAIN_NAME;
+        } else {
+            this.scheme = AddressScheme.IPv6;
+        }
+        this.facade = scheme.getPrefix() + endpoints;
+        final Address address = new Address(host, port);
+        addresses.add(address);
     }
 
     public Endpoints(AddressScheme scheme, List<Address> addresses) {

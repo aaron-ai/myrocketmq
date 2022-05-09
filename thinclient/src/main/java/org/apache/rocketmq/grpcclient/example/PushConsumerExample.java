@@ -34,7 +34,7 @@ public class PushConsumerExample {
     private static final Logger LOGGER = LoggerFactory.getLogger(ProducerExample.class);
 
     public static void main(String[] args) throws InterruptedException {
-        String accessPoint = "ipv4:11.166.42.94:8081";
+        String accessPoint = "11.166.42.94:8081";
         String topic = "lingchu_normal_topic";
         String tag = "tagA";
         String consumerGroup = "lingchu_normal_group";

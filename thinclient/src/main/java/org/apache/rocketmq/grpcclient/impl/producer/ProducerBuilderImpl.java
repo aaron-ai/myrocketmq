@@ -32,6 +32,9 @@ import org.apache.rocketmq.grpcclient.message.MessageBuilderImpl;
 import static com.google.common.base.Preconditions.checkArgument;
 import static com.google.common.base.Preconditions.checkNotNull;
 
+/**
+ * Implementation of {@link ProducerBuilder}
+ */
 public class ProducerBuilderImpl implements ProducerBuilder {
     private ClientConfiguration clientConfiguration = null;
     private final Set<String> topics = new HashSet<>();
