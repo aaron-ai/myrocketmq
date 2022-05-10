@@ -59,13 +59,10 @@ public class MessageImplTest {
         // Modify message body set before.
         body[0] = 'g';
         Assert.assertEquals('g', body[0]);
-        Assert.assertEquals('f', message.getBody().array()[0]);
 
-        final byte[] bodyGotten = message.getBody().array();
-        // Modify message body gotten before.
-        bodyGotten[0] = 'h';
-        Assert.assertEquals('h', bodyGotten[0]);
-        Assert.assertEquals('f', message.getBody().array()[0]);
+        byte[] currentBody = new byte[message.getBody().remaining()];
+        message.getBody().get(currentBody);
+        Assert.assertEquals('f', currentBody[0]);
     }
 
     @Test

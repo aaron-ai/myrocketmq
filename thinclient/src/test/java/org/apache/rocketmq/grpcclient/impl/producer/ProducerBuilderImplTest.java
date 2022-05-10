@@ -1,14 +1,30 @@
 package org.apache.rocketmq.grpcclient.impl.producer;
 
+import apache.rocketmq.v2.QueryRouteResponse;
+import com.google.common.util.concurrent.SettableFuture;
 import java.io.IOException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.rocketmq.apis.ClientConfiguration;
 import org.apache.rocketmq.apis.ClientServiceProvider;
 import org.apache.rocketmq.apis.exception.ClientException;
 import org.apache.rocketmq.apis.producer.Producer;
+import org.apache.rocketmq.apis.producer.ProducerBuilder;
+import org.apache.rocketmq.grpcclient.impl.ClientManager;
 import org.junit.Test;
+import org.junit.runner.RunWith;
+import org.mockito.ArgumentMatchers;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.junit.MockitoJUnitRunner;
 
+import static org.mockito.Mockito.when;
+
+@RunWith(MockitoJUnitRunner.class)
 public class ProducerBuilderImplTest {
+    @Mock
+    private ClientManager clientManager;
+    @InjectMocks
+    private ProducerBuilder producerBuilder = ClientServiceProvider.loadService().newProducerBuilder();
 
     @Test(expected = NullPointerException.class)
     public void testSetClientConfigurationWithNull() {

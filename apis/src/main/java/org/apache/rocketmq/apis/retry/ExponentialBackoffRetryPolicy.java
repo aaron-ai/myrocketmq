@@ -43,7 +43,7 @@ public class ExponentialBackoffRetryPolicy implements RetryPolicy {
      * The caller is supposed to have validated the arguments and handled throwing exception or
      * logging warnings already, so we avoid repeating args check here.
      */
-    public ExponentialBackoffRetryPolicy(int maxAttempts, Duration initialBackoff, Duration maxBackoff,
+    ExponentialBackoffRetryPolicy(int maxAttempts, Duration initialBackoff, Duration maxBackoff,
         double backoffMultiplier) {
         this.random = new Random();
         this.maxAttempts = maxAttempts;

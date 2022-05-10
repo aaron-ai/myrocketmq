@@ -171,8 +171,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
     protected void startUp() throws Exception {
         LOGGER.info("Begin to start the rocketmq client, clientId={}", clientId);
         // Register client after client id generation.
-        this.clientManager = ClientManagerRegistry.registerClient(this);
-        final ScheduledExecutorService scheduler = clientManager.getScheduler();
+        this.clientManager = ClientManagerRegistry.getInstance().registerClient(this);
         // Fetch topic route from remote.
         LOGGER.info("Begin to fetch topic(s) route data from remote during client startup, clientId={}, topics={}", clientId, topics);
         // Aggregate all topic route data futures into a composited future.
@@ -184,7 +183,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
             results = Futures.allAsList(futures).get();
         } catch (Throwable t) {
             LOGGER.error("Failed to get topic route data result from remote during client startup, clientId={}, topics={}", clientId, topics, t);
-            throw new RuntimeException(t);
+            throw new ResourceNotFoundException(t);
         }
         // Find any topic whose topic route data is failed to fetch from remote.
         final Stream<TopicRouteDataResult> stream = results.stream()
@@ -201,6 +200,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         // Try fetch settings from remote.
         this.announceAndAwaitSettingsAppliedFirstly();
         // Update route cache periodically.
+        final ScheduledExecutorService scheduler = clientManager.getScheduler();
         this.updateRouteCacheFuture = scheduler.scheduleWithFixedDelay(() -> {
             try {
                 updateRouteCache();
@@ -237,7 +237,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
         } else {
             LOGGER.info("Shutdown the telemetry command executor successfully, clientId={}", clientId);
         }
-        ClientManagerRegistry.unregisterClient(this);
+        ClientManagerRegistry.getInstance().unregisterClient(this);
         LOGGER.info("Shutdown the rocketmq client successfully, clientId={}", clientId);
     }
 
@@ -245,6 +245,7 @@ public abstract class ClientImpl extends AbstractIdleService implements Client {
     abstract protected void awaitFirstSettingApplied0(
         Duration duration) throws ExecutionException, InterruptedException, TimeoutException;
 
+    @SuppressWarnings("SameParameterValue")
     private void awaitFirstSettingApplied(
         Duration duration) throws ExecutionException, InterruptedException, TimeoutException {
         awaitFirstSettingApplied0(duration);

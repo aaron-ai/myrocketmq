@@ -35,6 +35,7 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.rocketmq.apis.consumer.FilterExpression;
 import org.apache.rocketmq.apis.consumer.FilterExpressionType;
+import org.apache.rocketmq.apis.retry.BackoffRetryPolicy;
 import org.apache.rocketmq.apis.retry.ExponentialBackoffRetryPolicy;
 import org.apache.rocketmq.grpcclient.impl.ClientSettings;
 import org.apache.rocketmq.grpcclient.impl.ClientType;
@@ -111,7 +112,10 @@ public class PushConsumerSettings extends ClientSettings {
         switch (backoffPolicy.getStrategyCase()) {
             case EXPONENTIAL_BACKOFF:
                 final ExponentialBackoff exponentialBackoff = backoffPolicy.getExponentialBackoff();
-                retryPolicy = new ExponentialBackoffRetryPolicy(backoffPolicy.getMaxAttempts(), Duration.ofNanos(exponentialBackoff.getInitial().getNanos()), Duration.ofNanos(exponentialBackoff.getMax().getNanos()), exponentialBackoff.getMultiplier());
+                retryPolicy = BackoffRetryPolicy.newBuilder().setMaxAttempts(backoffPolicy.getMaxAttempts())
+                    .setInitialBackoff(Duration.ofNanos(exponentialBackoff.getInitial().getNanos()))
+                    .setMaxBackoff(Duration.ofNanos(exponentialBackoff.getMax().getNanos()))
+                    .setBackoffMultiplier(exponentialBackoff.getMultiplier()).build();
                 break;
             case CUSTOMIZED_BACKOFF:
                 final CustomizedBackoff customizedBackoff = backoffPolicy.getCustomizedBackoff();

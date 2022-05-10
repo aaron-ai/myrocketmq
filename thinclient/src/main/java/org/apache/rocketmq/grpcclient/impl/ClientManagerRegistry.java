@@ -26,13 +26,19 @@ import java.util.concurrent.locks.ReentrantLock;
 
 @ThreadSafe
 public class ClientManagerRegistry {
-    @GuardedBy("clientIdsLock")
-    private static final Set<String> CLIENT_IDS = new HashSet<>();
-    private static final Lock CLIENT_IDS_LOCK = new ReentrantLock();
+    private static final ClientManagerRegistry INSTANCE = new ClientManagerRegistry();
 
-    private static volatile ClientManagerImpl singleton = null;
+    @GuardedBy("clientIdsLock")
+    private final Set<String> clientIds = new HashSet<>();
+    private final Lock clientIdsLock = new ReentrantLock();
+
+    private volatile ClientManagerImpl singletonClientManager = null;
 
     private ClientManagerRegistry() {
+    }
+
+    public static ClientManagerRegistry getInstance() {
+        return INSTANCE;
     }
 
     /**
@@ -43,19 +49,19 @@ public class ClientManagerRegistry {
      * @param client client to register.
      * @return the client manager which is started.
      */
-    public static ClientManager registerClient(Client client) {
-        CLIENT_IDS_LOCK.lock();
+    public ClientManager registerClient(Client client) {
+        clientIdsLock.lock();
         try {
-            if (null == singleton) {
+            if (null == singletonClientManager) {
                 final ClientManagerImpl clientManager = new ClientManagerImpl();
                 clientManager.startAsync().awaitRunning();
-                singleton = clientManager;
+                singletonClientManager = clientManager;
             }
-            CLIENT_IDS.add(client.getClientId());
-            singleton.registerClient(client);
-            return singleton;
+            clientIds.add(client.getClientId());
+            singletonClientManager.registerClient(client);
+            return singletonClientManager;
         } finally {
-            CLIENT_IDS_LOCK.unlock();
+            clientIdsLock.unlock();
         }
     }
 
@@ -67,18 +73,18 @@ public class ClientManagerRegistry {
      * @return {@link ClientManager} is removed or not.
      */
     @SuppressWarnings("UnusedReturnValue")
-    public static boolean unregisterClient(Client client) {
+    public boolean unregisterClient(Client client) {
         ClientManagerImpl clientManager = null;
-        CLIENT_IDS_LOCK.lock();
+        clientIdsLock.lock();
         try {
-            CLIENT_IDS.remove(client.getClientId());
-            singleton.unregisterClient(client);
-            if (CLIENT_IDS.isEmpty()) {
-                clientManager = singleton;
-                singleton = null;
+            clientIds.remove(client.getClientId());
+            singletonClientManager.unregisterClient(client);
+            if (clientIds.isEmpty()) {
+                clientManager = singletonClientManager;
+                singletonClientManager = null;
             }
         } finally {
-            CLIENT_IDS_LOCK.unlock();
+            clientIdsLock.unlock();
         }
         // No need to hold the lock here.
         if (null != clientManager) {

@@ -32,4 +32,8 @@ public class ResourceNotFoundException extends ClientException {
     public ResourceNotFoundException(String message) {
         super(message);
     }
+
+    public ResourceNotFoundException(Throwable t) {
+        super(t);
+    }
 }

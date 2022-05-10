@@ -26,7 +26,7 @@ public class BackOffRetryPolicyBuilder {
     private int maxAttempts;
     private Duration initialBackoff;
     private Duration maxBackoff;
-    private int backoffMultiplier;
+    private float backoffMultiplier;
 
     public BackOffRetryPolicyBuilder() {
         this.maxAttempts = 3;
@@ -51,7 +51,7 @@ public class BackOffRetryPolicyBuilder {
         return this;
     }
 
-    public BackOffRetryPolicyBuilder setBackoffMultiplier(int backoffMultiplier) {
+    public BackOffRetryPolicyBuilder setBackoffMultiplier(float backoffMultiplier) {
         checkArgument(backoffMultiplier > 0, "backoffMultiplier must be positive");
         this.backoffMultiplier = backoffMultiplier;
         return this;
